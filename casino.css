@@ -1,8 +1,8 @@
 /* ============================================================
    MEMORABILIA BREAKS - game board theme.
-   A photographed arena floor sits behind the page; each board is a
-   lit control panel floating above it. Brass rails, chrome plates,
-   deep blue glass. Change :root to retheme.
+   The TKS BREAKZ mark leads the page; each board is a lit control
+   panel floating on a deep blue field. Brass rails, chrome plates,
+   deep glass. Change :root to retheme.
    ============================================================ */
 
 :root{
@@ -31,57 +31,97 @@ body{
   overflow-x:hidden;
 }
 
-/* --- the photographed arena behind everything --- */
-body::before{
-  content:""; position:fixed; inset:0; z-index:-2;
-  background-image:url("arena.png");
-  background-size:cover;
-  background-position:center 42%;
-  background-repeat:no-repeat;
-  opacity:.5;
-  filter:saturate(1.15) contrast(1.06);
+/* ============================================================
+   IDENTITY - the TKS BREAKZ mark
+   The logo artwork sits on a black field. blend-mode:screen is what
+   drops that black to nothing against the dark backdrop and keeps
+   the white, blue and gold intact, so the mark reads as part of the
+   page rather than a picture stuck on top of it.
+   ============================================================ */
+
+header{
+  position:relative; padding:26px 20px 18px; text-align:center;
+  border-bottom:1px solid rgba(201,162,39,.35);
+  background:linear-gradient(180deg, rgba(2,8,18,.9), rgba(2,8,18,.35) 72%, transparent);
+  box-shadow:0 18px 40px rgba(0,0,0,.5);
+  overflow:hidden;
 }
 
-/* --- a blue wash and vignette over the photo --- */
+/* the mark, floating in its own pool of light */
+header .brand{
+  position:relative; display:block;
+  width:clamp(180px,26vw,300px);
+  margin:0 auto 4px;
+}
+header .brand img{
+  display:block; width:100%; height:auto;
+  mix-blend-mode:screen;
+  filter:drop-shadow(0 0 28px rgba(90,170,255,.5)) contrast(1.06) saturate(1.06);
+}
+/* the halo behind it */
+header .brand::before{
+  content:""; position:absolute; inset:-24% -16%;
+  background:radial-gradient(ellipse 58% 52% at 50% 46%, rgba(80,165,255,.36), transparent 68%);
+  pointer-events:none;
+  z-index:-1;
+}
+/* a thin brass ring echoing the logo's own circle */
+header .brand::after{
+  content:""; position:absolute; inset:1% 13%;
+  border:1px solid rgba(201,162,39,.35);
+  border-radius:50%;
+  box-shadow:0 0 26px rgba(201,162,39,.3), inset 0 0 26px rgba(201,162,39,.16);
+  pointer-events:none;
+}
+
+/* the wordmark line */
+header h1{
+  margin:4px 0 0; font-size:clamp(11px,1.5vw,15px);
+  letter-spacing:.52em; text-transform:uppercase; font-weight:800;
+  color:#f0d67a; text-indent:.52em;
+  text-shadow:0 0 18px rgba(201,162,39,.6), 0 2px 6px rgba(0,0,0,.9);
+}
+header h1::after{
+  content:""; display:block; width:min(420px,74%); height:3px; margin:12px auto 0;
+  border-radius:3px;
+  background:linear-gradient(90deg, transparent, var(--rail) 16%, #fff3c4 50%, var(--rail) 84%, transparent);
+  box-shadow:0 0 20px rgba(255,214,100,.75), 0 0 56px rgba(201,162,39,.45);
+}
+header p{
+  margin:14px 0 0; color:#c8dcf0; font-size:12px;
+  letter-spacing:.18em; text-transform:uppercase;
+}
+
+/* compact mode: mark shrinks, wordmark steps aside */
+header.compact{padding:7px 12px 6px}
+header.compact .brand{width:clamp(64px,8vw,96px); margin-bottom:0}
+header.compact .brand::after{inset:0 10%}
+header.compact h1{font-size:8px; letter-spacing:.32em}
+header.compact h1::after{height:2px; margin-top:5px; width:min(300px,58%)}
+header.compact p{display:none}
+
+/* ---------- the backdrop: the mark ghosted into the field ---------- */
+body::before{
+  content:""; position:fixed; inset:0; z-index:-2; pointer-events:none;
+  background-image:url("logo.jpeg");
+  background-repeat:no-repeat;
+  background-position:center 6%;
+  background-size:min(92vw,900px) auto;
+  opacity:.22;
+  mix-blend-mode:screen;
+  filter:blur(1.5px) saturate(1.1);
+}
 body::after{
   content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
   background:
-    radial-gradient(ellipse 70% 46% at 50% 30%, rgba(70,150,235,.20), transparent 70%),
-    radial-gradient(ellipse 120% 80% at 50% 118%, rgba(0,0,0,.85), transparent 62%),
-    linear-gradient(180deg, rgba(3,10,20,.72) 0%, rgba(4,14,28,.55) 42%, rgba(2,7,14,.86) 100%);
+    radial-gradient(ellipse 78% 54% at 50% 24%, rgba(70,150,235,.26), transparent 72%),
+    radial-gradient(ellipse 120% 80% at 50% 118%, rgba(0,0,0,.88), transparent 62%),
+    linear-gradient(180deg, rgba(3,10,20,.8) 0%, rgba(4,14,28,.6) 42%, rgba(2,7,14,.92) 100%);
 }
 
-/* ---------- header ---------- */
-header{
-  position:relative; padding:34px 20px 20px; text-align:center;
-  border-bottom:1px solid rgba(201,162,39,.35);
-  background:linear-gradient(180deg, rgba(2,8,18,.86), rgba(2,8,18,.30) 70%, transparent);
-  box-shadow:0 18px 40px rgba(0,0,0,.5);
-}
-header h1{
-  margin:0 0 8px; font-size:clamp(26px,4.4vw,46px);
-  letter-spacing:.06em; font-weight:900; text-transform:uppercase; color:#fff;
-  text-shadow:
-    0 2px 0 rgba(0,0,0,.85),
-    0 0 18px rgba(120,195,255,.55),
-    0 0 60px rgba(60,140,230,.45);
-  overflow-wrap:anywhere;
-}
-header h1::after{
-  content:""; display:block; width:min(460px,80%); height:4px; margin:16px auto 0;
-  border-radius:4px;
-  background:linear-gradient(90deg, transparent, var(--rail) 14%, #fff3c4 50%, var(--rail) 86%, transparent);
-  box-shadow:0 0 22px rgba(255,214,100,.8), 0 0 60px rgba(201,162,39,.5);
-}
-header p{margin:0; color:#c8dcf0; font-size:13.5px; letter-spacing:.05em; text-transform:uppercase}
-header.compact{padding:8px 12px 6px}
-header.compact h1{font-size:clamp(14px,1.9vw,19px); margin-bottom:0}
-header.compact h1::after{height:2px; margin-top:6px}
-header.compact p{display:none}
-
-/* ---------- tabs: a brass console ---------- */
+/* ---------- tabs: the console beneath the mark ---------- */
 .segment{
-  display:inline-flex; gap:4px; margin:22px 0 0; padding:7px; flex-wrap:wrap;
+  display:inline-flex; gap:4px; margin:20px 0 0; padding:7px; flex-wrap:wrap;
   justify-content:center;
   background:linear-gradient(180deg, #0e2745, #061426);
   border:1px solid rgba(201,162,39,.6); border-radius:14px;
@@ -111,7 +151,7 @@ header.compact .segment button{font-size:9px; padding:4px 11px}
   transform:translateY(-1px);
 }
 
-/* ---------- the felt mat the boards sit on ---------- */
+/* ---------- the field the boards sit on ---------- */
 .wrap{
   max-width:1280px; margin:0 auto; padding:26px 22px 70px;
   position:relative;
