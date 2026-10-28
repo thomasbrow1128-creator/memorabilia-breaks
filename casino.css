@@ -402,6 +402,32 @@ th{color:#cfe1f0; font-weight:800; font-size:10.5px; text-transform:uppercase; l
 #undoclose:hover{color:#fff}
 
 /* ============================================================
+   A TAKEN BOX — the customer's name stays lit, the rest greys.
+   No explanatory wording appears anywhere on the box; the
+   grey itself is the signal.
+   ============================================================ */
+
+.tile.taken{ border-color:rgba(130,145,160,.35); }
+
+.tile.taken .eb,
+.tile.taken .badge{ filter:grayscale(1); opacity:.4; }
+
+.tile.taken .buyer .buylbl{ filter:grayscale(1); opacity:.35; }
+
+.tile.taken .buyer .buyname,
+.tile.taken .buyer .buyname-btn{
+  color:var(--gold-text); opacity:1; filter:none;
+  text-shadow:0 0 12px rgba(255,207,63,.45), 0 2px 4px rgba(0,0,0,.9);
+}
+
+.tile.taken .addbar{
+  background:rgba(0,0,0,.42);
+  border-top-color:rgba(150,200,235,.08);
+}
+.tile.taken .addbar input,
+.tile.taken .addbar button{ filter:grayscale(1); opacity:.3; }
+
+/* ============================================================
    COMPACT MODE — the pairs tab, so all 24 boxes fit one screen
    ============================================================ */
 
