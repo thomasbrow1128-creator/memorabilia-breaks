@@ -1,198 +1,243 @@
 /* ============================================================
-   Memorabilia Breaks — board theme
-   Deep tournament felt, brass rails, chrome tiles with a lit
-   gold name plate. Change :root to retheme the whole page.
+   MEMORABILIA BREAKS - game board theme.
+   A photographed arena floor sits behind the page; each board is a
+   lit control panel floating above it. Brass rails, chrome plates,
+   deep blue glass. Change :root to retheme.
    ============================================================ */
 
 :root{
-  --blue-1:#3a8fd4;      /* the lit top of the backdrop */
-  --blue-2:#1d5a9c;      /* the middle wash */
-  --blue-3:#06182c;      /* the dark bottom */
-  --panel:#0b2440;       /* the board panel */
-  --panel-2:#17416c;     /* a row */
-  --panel-3:#0b2239;     /* the alternating row */
-  --rail:#c9a227;        /* brass / gold */
-  --rail-soft:#e8d48b;   /* highlight gold */
-  --gold-text:#ffcf3f;   /* purchaser names */
-  --chipred:#b3262b;     /* alert red */
-  --label:#8fa8c0;       /* PURCHASER label grey */
+  --ink:#eaf3ff;
+  --dim:#9fb8d2;
+  --rail:#c9a227;
+  --rail-hi:#ffe08a;
+  --gold:#ffd75e;
+  --glass-1:#13355c;
+  --glass-2:#0a1f3a;
+  --glass-3:#05101f;
+  --edge:rgba(150,205,245,.45);
+  --edge-hi:rgba(255,215,110,.9);
+  --red:#c2262c;
 }
 
 *{box-sizing:border-box}
 html,body{height:100%}
+
 body{
-  margin:0; color:#eaf1f7;
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  margin:0; color:var(--ink);
+  font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   line-height:1.5;
+  background:#03080f;
+  position:relative;
+  overflow-x:hidden;
+}
+
+/* --- the photographed arena behind everything --- */
+body::before{
+  content:""; position:fixed; inset:0; z-index:-2;
+  background-image:url("arena.png");
+  background-size:cover;
+  background-position:center 42%;
+  background-repeat:no-repeat;
+  opacity:.5;
+  filter:saturate(1.15) contrast(1.06);
+}
+
+/* --- a blue wash and vignette over the photo --- */
+body::after{
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
   background:
-    radial-gradient(ellipse 90% 50% at 50% -12%, rgba(120,205,255,.30), transparent 60%),
-    radial-gradient(ellipse 70% 40% at 12% 108%, rgba(255,190,60,.10), transparent 62%),
-    radial-gradient(ellipse 70% 40% at 88% 108%, rgba(60,150,255,.12), transparent 62%),
-    radial-gradient(ellipse at 50% 118%, rgba(0,0,0,.7), transparent 60%),
-    linear-gradient(180deg, #3a8fd4 0%, #1d5a9c 22%, #0d3b6e 48%, #06182c 78%, #030c18 100%);
-  background-attachment:fixed;
+    radial-gradient(ellipse 70% 46% at 50% 30%, rgba(70,150,235,.20), transparent 70%),
+    radial-gradient(ellipse 120% 80% at 50% 118%, rgba(0,0,0,.85), transparent 62%),
+    linear-gradient(180deg, rgba(3,10,20,.72) 0%, rgba(4,14,28,.55) 42%, rgba(2,7,14,.86) 100%);
 }
 
 /* ---------- header ---------- */
 header{
-  position:relative; padding:26px 20px 16px; text-align:center;
+  position:relative; padding:34px 20px 20px; text-align:center;
   border-bottom:1px solid rgba(201,162,39,.35);
-  background:linear-gradient(180deg, rgba(0,0,0,.34), transparent);
+  background:linear-gradient(180deg, rgba(2,8,18,.86), rgba(2,8,18,.30) 70%, transparent);
+  box-shadow:0 18px 40px rgba(0,0,0,.5);
 }
 header h1{
-  margin:0 0 6px; font-size:clamp(22px,3.6vw,34px); letter-spacing:.02em;
-  font-weight:800; text-transform:uppercase; color:#fff;
-  text-shadow:0 3px 14px rgba(0,0,0,.6), 0 0 34px rgba(140,205,255,.45);
+  margin:0 0 8px; font-size:clamp(26px,4.4vw,46px);
+  letter-spacing:.06em; font-weight:900; text-transform:uppercase; color:#fff;
+  text-shadow:
+    0 2px 0 rgba(0,0,0,.85),
+    0 0 18px rgba(120,195,255,.55),
+    0 0 60px rgba(60,140,230,.45);
   overflow-wrap:anywhere;
 }
 header h1::after{
-  content:""; display:block; width:min(360px,72%); height:3px; margin:12px auto 0;
-  border-radius:3px;
-  background:linear-gradient(90deg, transparent, var(--rail) 18%, var(--rail-soft) 50%, var(--rail) 82%, transparent);
-  box-shadow:0 0 14px rgba(201,162,39,.65);
+  content:""; display:block; width:min(460px,80%); height:4px; margin:16px auto 0;
+  border-radius:4px;
+  background:linear-gradient(90deg, transparent, var(--rail) 14%, #fff3c4 50%, var(--rail) 86%, transparent);
+  box-shadow:0 0 22px rgba(255,214,100,.8), 0 0 60px rgba(201,162,39,.5);
 }
-header p{margin:0; color:#c3d6e6; font-size:13px; letter-spacing:.03em}
-header.compact{padding:6px 12px 5px}
-header.compact h1{font-size:clamp(13px,1.6vw,16px); margin-bottom:0}
-header.compact h1::after{margin-top:5px; height:2px}
+header p{margin:0; color:#c8dcf0; font-size:13.5px; letter-spacing:.05em; text-transform:uppercase}
+header.compact{padding:8px 12px 6px}
+header.compact h1{font-size:clamp(14px,1.9vw,19px); margin-bottom:0}
+header.compact h1::after{height:2px; margin-top:6px}
 header.compact p{display:none}
 
-/* ---------- tabs ---------- */
+/* ---------- tabs: a brass console ---------- */
 .segment{
-  display:inline-flex; gap:6px; margin:16px 0 0; padding:5px; flex-wrap:wrap;
+  display:inline-flex; gap:4px; margin:22px 0 0; padding:7px; flex-wrap:wrap;
   justify-content:center;
-  background:linear-gradient(180deg, rgba(4,22,42,.9), rgba(2,12,26,.75));
-  border:1px solid rgba(201,162,39,.55); border-radius:999px;
-  box-shadow:0 8px 26px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.10);
+  background:linear-gradient(180deg, #0e2745, #061426);
+  border:1px solid rgba(201,162,39,.6); border-radius:14px;
+  box-shadow:
+    0 14px 34px rgba(0,0,0,.66),
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -2px 8px rgba(0,0,0,.7);
 }
-header.compact .segment{margin:4px 0 0; padding:2px; gap:3px}
+header.compact .segment{margin:4px 0 0; padding:3px; gap:3px}
 .segment button{
-  background:transparent; border:1px solid transparent; color:#b9cfe4; font:inherit;
-  font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-  padding:8px 20px; border-radius:999px; cursor:pointer; white-space:nowrap;
-  transition:color .15s, background .15s, transform .12s;
+  background:transparent; border:1px solid transparent; color:#a8c2dc; font:inherit;
+  font-size:12.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+  padding:11px 24px; border-radius:9px; cursor:pointer; white-space:nowrap;
+  transition:color .16s, background .16s, transform .12s, box-shadow .16s;
 }
-header.compact .segment button{font-size:9px; padding:3px 10px}
-.segment button:hover{color:#fff; background:rgba(255,255,255,.1); transform:translateY(-1px)}
+header.compact .segment button{font-size:9px; padding:4px 11px}
+.segment button:hover{color:#fff; background:rgba(255,255,255,.08)}
 .segment button.on{
-  color:#241a02;
-  background:linear-gradient(180deg, #fff6d8, #f0cf62 45%, #b98d14);
-  border-color:#ffeeb0;
-  box-shadow:0 3px 12px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.75);
+  color:#221803;
+  background:linear-gradient(180deg, #fff8dc, #f2d264 42%, #b6880f 100%);
+  border-color:#ffeeae;
+  box-shadow:
+    0 4px 16px rgba(0,0,0,.6),
+    0 0 26px rgba(255,206,80,.45),
+    inset 0 1px 0 rgba(255,255,255,.85),
+    inset 0 -2px 6px rgba(120,80,0,.4);
+  transform:translateY(-1px);
 }
 
-/* the board sits on a felt mat */
+/* ---------- the felt mat the boards sit on ---------- */
 .wrap{
-  max-width:1240px; margin:0 auto; padding:18px 20px 60px;
-  background:linear-gradient(180deg, rgba(3,16,30,.34), rgba(3,16,30,.12));
-  border-left:1px solid rgba(201,162,39,.16);
-  border-right:1px solid rgba(201,162,39,.16);
-  border-radius:18px;
-  box-shadow:inset 0 0 90px rgba(0,0,0,.35);
+  max-width:1280px; margin:0 auto; padding:26px 22px 70px;
+  position:relative;
 }
 
 /* ---------- board heading ---------- */
-.boardhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin:4px 0 12px}
+.boardhead{display:flex; flex-wrap:wrap; gap:5px 10px; align-items:baseline; margin:6px 0 16px}
 .boardhead h2{
-  margin:0; font-size:17px; letter-spacing:.07em; text-transform:uppercase;
-  font-weight:800; min-width:0; overflow:hidden; text-overflow:ellipsis;
-  background:linear-gradient(90deg, #ffffff, #d6e9fa);
-  -webkit-background-clip:text; background-clip:text; color:transparent;
+  margin:0; font-size:20px; letter-spacing:.1em; text-transform:uppercase;
+  font-weight:900; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  color:#fff;
+  text-shadow:0 2px 6px rgba(0,0,0,.85), 0 0 22px rgba(120,195,255,.4);
 }
-.boardhead span{color:#b6cade; font-size:12.5px; min-width:0}
+.boardhead span{color:#a9c3dc; font-size:12.5px; min-width:0}
 
 /* ---------- toolbar ---------- */
-.toolbar{display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; justify-content:space-between; margin:0 0 14px}
-.toolbar .left{display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; min-width:0}
+.toolbar{display:flex; flex-wrap:wrap; gap:9px 12px; align-items:center; justify-content:space-between; margin:0 0 18px}
+.toolbar .left{display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; min-width:0}
 .toolbar input{
-  background:linear-gradient(180deg, rgba(0,25,45,.65), rgba(0,25,45,.45));
-  border:1px solid rgba(150,205,240,.45); color:#eaf1f7;
-  border-radius:999px; padding:9px 16px; font-size:13px;
-  flex:1 1 180px; min-width:0; max-width:340px;
+  background:linear-gradient(180deg, rgba(2,12,24,.8), rgba(4,18,34,.65));
+  border:1px solid var(--edge); color:var(--ink);
+  border-radius:10px; padding:10px 16px; font-size:13px;
+  flex:1 1 190px; min-width:0; max-width:340px;
+  box-shadow:inset 0 2px 8px rgba(0,0,0,.6);
 }
-.toolbar input::placeholder{color:#8fa6b8}
-.toolbar input:focus{outline:none; border-color:#fff}
-.toolbar .count{color:#b6cade; font-size:12px; flex:0 0 auto; white-space:nowrap}
-button.ghost{
-  background:linear-gradient(180deg, rgba(255,255,255,.20), rgba(0,25,45,.55));
-  color:#e9f2fa; border:1px solid rgba(201,162,39,.45);
-  border-radius:999px; padding:8px 15px; font-size:12.5px; font-weight:600;
-  cursor:pointer; white-space:nowrap; flex:0 0 auto;
-  transition:border-color .15s, box-shadow .15s, color .15s;
-}
-button.ghost:hover{border-color:var(--rail-soft); color:#fff; box-shadow:0 0 16px rgba(201,162,39,.3)}
-button.ghost:disabled{opacity:.45; cursor:not-allowed}
+.toolbar input::placeholder{color:#7f98b0}
+.toolbar input:focus{outline:none; border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.2), inset 0 2px 8px rgba(0,0,0,.6)}
+.toolbar .count{color:#a9c3dc; font-size:12px; flex:0 0 auto; white-space:nowrap; letter-spacing:.06em}
 
-/* ---------- per-board header row ---------- */
-.sectionhead{display:flex; flex-wrap:wrap; gap:4px 10px; align-items:center; margin:20px 0 8px}
+button.ghost{
+  background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(3,14,28,.75));
+  color:#dcecfa; border:1px solid rgba(201,162,39,.5);
+  border-radius:10px; padding:9px 17px; font-size:12px; font-weight:800;
+  letter-spacing:.08em; text-transform:uppercase;
+  cursor:pointer; white-space:nowrap; flex:0 0 auto;
+  box-shadow:0 4px 14px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.14);
+  transition:border-color .16s, box-shadow .16s, color .16s, transform .12s;
+}
+button.ghost:hover{
+  border-color:var(--rail-hi); color:#fff; transform:translateY(-1px);
+  box-shadow:0 6px 20px rgba(0,0,0,.6), 0 0 20px rgba(201,162,39,.35), inset 0 1px 0 rgba(255,255,255,.2);
+}
+button.ghost:disabled{opacity:.4; cursor:not-allowed; transform:none}
+
+/* ---------- per-board header ---------- */
+.sectionhead{display:flex; flex-wrap:wrap; gap:5px 10px; align-items:center; margin:24px 0 10px}
 .sectionhead:first-child{margin-top:0}
 .sectionhead h3{
-  margin:0; font-size:12.5px; letter-spacing:.14em; text-transform:uppercase;
-  color:#fff; font-weight:900; padding-left:10px; border-left:4px solid var(--rail);
+  margin:0; font-size:13px; letter-spacing:.16em; text-transform:uppercase;
+  color:#fff; font-weight:900; padding-left:12px; border-left:4px solid var(--rail);
   min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  text-shadow:0 0 14px rgba(201,162,39,.5);
 }
-.sectionhead h3::before{content:"\25C6"; color:var(--rail); font-size:8px; margin-right:6px; vertical-align:1px}
-.sectionhead .sectioncount{color:#a9c2da; font-size:11px; flex:0 0 auto; white-space:nowrap}
+.sectionhead h3::before{content:"\25C6"; color:var(--rail-hi); font-size:9px; margin-right:7px; vertical-align:1px}
+.sectionhead .sectioncount{color:#a9c3dc; font-size:11px; flex:0 0 auto; white-space:nowrap}
 
 .boardreset{
-  margin-left:auto; background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(0,25,45,.45));
-  color:#cfe1f0; border:1px solid rgba(150,205,240,.4);
-  border-radius:999px; padding:5px 13px;
-  font:inherit; font-size:11px; font-weight:700; letter-spacing:.05em;
+  margin-left:auto;
+  background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(3,14,28,.75));
+  color:#d6e8f8; border:1px solid var(--edge);
+  border-radius:10px; padding:6px 15px;
+  font:inherit; font-size:10.5px; font-weight:800; letter-spacing:.08em;
   text-transform:uppercase; cursor:pointer; flex:0 0 auto; white-space:nowrap;
 }
 .boardreset:hover{border-color:#ff9b9e; color:#ffd3d5}
-.boardreset.hasnames{color:#ffd3d5; border-color:rgba(255,120,125,.7)}
-.boardreset:disabled{opacity:.35; cursor:not-allowed}
+.boardreset.hasnames{color:#ffd3d5; border-color:rgba(255,120,125,.75)}
+.boardreset:disabled{opacity:.32; cursor:not-allowed}
 
 /* ============================================================
    THE GRID
-   Teams: 8 across of square tiles. Pairs and divisions: one column
-   of full-width rows. The username field sits on EVERY box and is
-   always visible, so nothing has to be revealed or toggled.
    ============================================================ */
 
-.board{display:grid; gap:10px; margin-bottom:4px}
+.board{display:grid; gap:12px; margin-bottom:6px}
 .board-large{grid-template-columns:repeat(8,minmax(0,1fr))}
-@media(max-width:980px){ .board-large{grid-template-columns:repeat(4,minmax(0,1fr))} }
-@media(max-width:520px){ .board-large{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media(max-width:1000px){ .board-large{grid-template-columns:repeat(4,minmax(0,1fr))} }
+@media(max-width:540px){ .board-large{grid-template-columns:repeat(2,minmax(0,1fr))} }
 
 .board-small,
-.board-medium{
-  grid-template-columns:minmax(0,1fr);
-  gap:6px;
-}
+.board-medium{ grid-template-columns:minmax(0,1fr); gap:7px }
 
 /* ============================================================
-   THE BOX — rows for pairs and divisions
+   THE BOX - a chrome plate with an emblem window and a gold name bar
    ============================================================ */
 
 .tile{
-  position:relative; border-radius:7px;
+  position:relative; border-radius:12px;
   display:flex; flex-direction:row; align-items:stretch; flex-wrap:wrap;
-  min-height:44px; max-width:100%;
-  background:linear-gradient(180deg, var(--panel-2), var(--panel-3));
-  border:1px solid rgba(150,200,240,.5);
-  box-shadow:0 0 0 1px rgba(0,0,0,.7), 0 3px 12px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.10);
-  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  min-height:52px; max-width:100%;
+  background:linear-gradient(180deg, var(--glass-1) 0%, var(--glass-2) 52%, var(--glass-3) 100%);
+  border:1px solid var(--edge);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.85),
+    0 6px 18px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(255,255,255,.16),
+    inset 0 -2px 10px rgba(0,0,0,.6);
+  overflow:hidden;
+  transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease;
 }
 .tile:hover{
-  border-color:rgba(255,215,110,.9);
-  box-shadow:0 0 0 1px rgba(0,0,0,.7), 0 6px 22px rgba(0,0,0,.55), 0 0 22px rgba(201,162,39,.28);
+  border-color:var(--edge-hi);
+  transform:translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,.85),
+    0 12px 30px rgba(0,0,0,.66),
+    0 0 30px rgba(255,206,80,.35),
+    inset 0 1px 0 rgba(255,255,255,.2);
 }
 
-/* the abbreviation cell */
+/* the emblem window */
 .tile .eb{
   position:relative; display:grid; place-items:center; flex:0 0 auto;
-  width:54px; align-self:stretch; overflow:hidden;
-  border-right:1px solid rgba(0,0,0,.4);
+  width:60px; align-self:stretch; overflow:hidden;
+  border-right:1px solid rgba(0,0,0,.55);
+  box-shadow:inset 0 0 34px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.18);
+}
+/* a gloss sheet across the emblem, like a plastic window */
+.tile .eb::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.30) 0%, rgba(255,255,255,.06) 34%, transparent 56%);
 }
 .tile .eb .initials{
-  font-size:13px; font-weight:900; letter-spacing:.02em;
+  position:relative; z-index:2;
+  font-size:15px; font-weight:900; letter-spacing:.02em;
   color:#fff; text-align:center; line-height:1.1; padding:0 3px;
-  text-shadow:0 2px 6px rgba(0,0,0,.9), 0 0 18px rgba(255,255,255,.18);
-  overflow-wrap:anywhere; word-break:break-word;
-  max-width:100%; overflow:hidden;
+  text-shadow:0 2px 6px rgba(0,0,0,.95), 0 0 16px rgba(255,255,255,.28);
+  overflow-wrap:anywhere; word-break:break-word; max-width:100%; overflow:hidden;
 }
 
 .tile .name{
@@ -200,153 +245,147 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
   clip:rect(0 0 0 0); white-space:nowrap;
 }
 
-/* the purchaser plate */
+/* the name bar */
 .tile .buyer{
-  position:relative; z-index:4; flex:1 1 140px;
+  position:relative; z-index:4; flex:1 1 150px;
   min-width:0; overflow:hidden;
   display:flex; flex-direction:column; justify-content:center;
-  padding:4px 10px 4px 9px; text-align:left;
+  padding:6px 11px 6px 10px; text-align:left;
+  background:linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.16));
 }
 .tile .buyer .buylbl{
   display:block;
-  font-size:7.5px; font-weight:800; letter-spacing:.2em; text-transform:uppercase;
-  color:var(--label); line-height:1.3; white-space:nowrap;
+  font-size:8px; font-weight:800; letter-spacing:.24em; text-transform:uppercase;
+  color:#8ea9c4; line-height:1.3; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis;
+  text-shadow:0 1px 2px rgba(0,0,0,.8);
 }
 .tile .buyer .buynames{display:block; min-width:0}
 
 .tile .buyer .buyname{
   display:block;
-  font-size:12px; font-weight:900; letter-spacing:.03em; text-transform:uppercase;
-  color:var(--gold-text); line-height:1.25;
-  text-shadow:0 1px 3px rgba(0,0,0,.7);
-  overflow-wrap:anywhere; word-break:break-word;
-  max-width:100%; overflow:hidden;
+  font-size:13px; font-weight:900; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--gold); line-height:1.25;
+  text-shadow:0 0 16px rgba(255,206,80,.55), 0 2px 4px rgba(0,0,0,.95);
+  overflow-wrap:anywhere; word-break:break-word; max-width:100%; overflow:hidden;
 }
 
-/* the empty slot */
+/* the OPEN plaque */
 .tile .buyer .buyopen{
-  display:inline-block; margin-top:1px; padding:0 7px;
-  border:1px solid rgba(150,205,240,.45); border-radius:3px;
-  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(0,0,0,.32));
-  line-height:1.5; color:#a8c0d6; font-weight:700; letter-spacing:.14em;
+  display:inline-block; margin-top:2px; padding:1px 8px;
+  border:1px solid rgba(150,205,240,.4); border-radius:4px;
+  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(0,0,0,.4));
+  line-height:1.55; color:#9fb9d2; font-weight:800; letter-spacing:.16em;
   text-transform:uppercase; font-size:8px;
 }
 
-/* the count badge */
+/* the count badge - a small brass seal */
 .tile .badge{
-  position:absolute; top:3px; right:3px; z-index:5;
-  min-width:16px; text-align:center;
-  background:linear-gradient(180deg, #ffeeb5, var(--rail-soft) 45%, var(--rail));
-  color:#2a1f05; font-size:8.5px; font-weight:900;
-  padding:0 4px; border-radius:999px; line-height:1.5;
-  border:1px solid rgba(255,255,255,.55);
+  position:absolute; top:4px; right:4px; z-index:6;
+  min-width:17px; text-align:center;
+  background:linear-gradient(180deg, #fff0be, #e2c055 44%, #a87c12);
+  color:#241a02; font-size:9px; font-weight:900;
+  padding:0 4px; border-radius:999px; line-height:1.6;
+  border:1px solid rgba(255,255,255,.6);
+  box-shadow:0 2px 6px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.8);
 }
 
-/* the chip row — only used while renaming */
 .tile .roster{display:none}
 
 /* ============================================================
-   THE USERNAME FIELD — ALWAYS VISIBLE
-   The input is not hidden and is not revealed by a class. It sits
-   on every box, always, so typing works whatever else happens.
+   THE USERNAME FIELD - always present on every box
    ============================================================ */
 
 .tile .addbar{
-  display:flex; align-items:center; gap:5px;
+  display:flex; align-items:center; gap:6px;
   flex:1 1 100%; order:9;
-  padding:5px 6px; min-width:0;
-  background:rgba(0,0,0,.36);
-  border-top:1px solid rgba(160,205,240,.22);
+  padding:6px 7px; min-width:0;
+  background:linear-gradient(180deg, rgba(0,0,0,.5), rgba(0,0,0,.34));
+  border-top:1px solid rgba(160,205,240,.2);
 }
 .tile .addbar input{
   flex:1 1 auto; min-width:0; font-family:inherit;
-  background:linear-gradient(180deg, #ffffff, #eef6ff);
-  border:1px solid rgba(150,205,240,.6); color:#0b1a26;
-  border-radius:4px; padding:5px 8px; font-size:12px;
-  box-shadow:inset 0 2px 5px rgba(0,20,40,.18);
+  background:linear-gradient(180deg, #ffffff, #e6f1fd);
+  border:1px solid rgba(150,205,240,.65); color:#08192b;
+  border-radius:7px; padding:6px 9px; font-size:12px;
+  box-shadow:inset 0 2px 6px rgba(0,25,50,.24);
 }
-.tile .addbar input::placeholder{color:#8093a4; font-style:italic}
+.tile .addbar input::placeholder{color:#7c90a4; font-style:italic}
 .tile .addbar input:focus{
   outline:none; border-color:#fff;
-  box-shadow:0 0 0 2px rgba(255,255,255,.3), inset 0 2px 5px rgba(0,20,40,.18);
+  box-shadow:0 0 0 2px rgba(255,255,255,.3), inset 0 2px 6px rgba(0,25,50,.24);
 }
 .tile .addbar button{
   flex:0 0 auto;
-  background:linear-gradient(180deg, #ffe9a0, #d9ab2a 48%, #a97c0c);
-  color:#2a1f05; border:1px solid rgba(255,248,215,.8);
-  border-radius:4px; padding:0 12px; font-size:14px; font-weight:900;
-  cursor:pointer; line-height:1.6; font-family:inherit;
-  box-shadow:0 2px 8px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.7);
+  background:linear-gradient(180deg, #fff3c0, #e2b833 46%, #a3760a);
+  color:#241a02; border:1px solid rgba(255,248,215,.85);
+  border-radius:7px; padding:0 13px; font-size:15px; font-weight:900;
+  cursor:pointer; line-height:1.65; font-family:inherit;
+  box-shadow:0 3px 10px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.8);
+  transition:filter .14s, transform .12s;
 }
-.tile .addbar button:hover{filter:brightness(1.12)}
+.tile .addbar button:hover{filter:brightness(1.14); transform:translateY(-1px)}
 
 /* ============================================================
-   THE TEAMS BOARD — square chrome tiles
+   THE TEAMS BOARD - square plates
    ============================================================ */
 
 .board-large .tile{
   flex-direction:column; flex-wrap:nowrap; align-items:stretch;
-  background:linear-gradient(180deg, #4b545f 0%, #2f3742 38%, #1a2029 72%, #0e1218 100%);
-  border-color:rgba(165,205,240,.55);
-  border-radius:12px;
-  box-shadow:0 0 0 1px rgba(0,0,0,.75), 0 5px 18px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14);
+  border-radius:14px;
+  background:linear-gradient(180deg, #1d4269 0%, #12304f 40%, #0a1e34 74%, #061324 100%);
 }
 .board-large .tile .eb{
   width:auto; align-self:auto; border-right:0;
-  border-bottom:1px solid rgba(0,0,0,.45);
-  box-shadow:inset 0 0 40px rgba(0,0,0,.3);
-  padding:12px 8px 8px; min-height:0;
+  border-bottom:1px solid rgba(0,0,0,.6);
+  padding:18px 10px 14px; min-height:0;
 }
-.board-large .tile .eb .initials{font-size:clamp(16px,2.1vw,24px)}
-.board-large .tile .buyer{
-  flex:0 0 auto; text-align:center; padding:2px 6px 5px;
-  background:linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.04));
-}
-.board-large .tile .buyer .buylbl{font-size:8px; letter-spacing:.16em}
+.board-large .tile .eb .initials{font-size:clamp(18px,2.3vw,27px)}
+.board-large .tile .buyer{flex:0 0 auto; text-align:center; padding:3px 7px 7px}
+.board-large .tile .buyer .buylbl{font-size:8px; letter-spacing:.18em}
 .board-large .tile .buyer .buyname,
-.board-large .tile .buyer .buyname-btn{font-size:11px; text-align:center}
+.board-large .tile .buyer .buyname-btn{font-size:12px; text-align:center}
 .board-large .tile .buyer .buyopen{font-size:8px}
-.board-large .tile .addbar{padding:5px; flex:1 1 auto}
-.board-large .tile .addbar input{padding:5px 6px; font-size:11px}
-.board-large .tile .addbar button{padding:0 8px; font-size:13px}
+.board-large .tile .addbar{padding:6px; flex:1 1 auto}
+.board-large .tile .addbar input{padding:6px 7px; font-size:11px}
+.board-large .tile .addbar button{padding:0 9px; font-size:14px}
 
 /* ============================================================
    THE RENAME PANEL
    ============================================================ */
 
 .chipeditor{
-  display:flex; flex-wrap:wrap; gap:5px; align-items:center;
-  flex:1 1 100%; order:8;
-  padding:6px; border-radius:6px; min-width:0;
-  background:linear-gradient(180deg, #13293f, #08192b);
-  border:1px solid rgba(201,162,39,.85);
+  display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+  flex:1 1 100%; order:8; padding:7px; border-radius:9px; min-width:0;
+  background:linear-gradient(180deg, #0f2a48, #061426);
+  border:1px solid rgba(201,162,39,.9);
+  box-shadow:0 0 20px rgba(201,162,39,.3), inset 0 1px 0 rgba(255,255,255,.12);
 }
 .chipeditor input{
   flex:1 1 100%; min-width:0; font-family:inherit;
-  background:#f7fbff; border:1px solid rgba(150,205,240,.75); color:#0b1a26;
-  border-radius:4px; padding:5px 8px; font-size:12px;
+  background:#f7fbff; border:1px solid rgba(150,205,240,.8); color:#08192b;
+  border-radius:6px; padding:6px 9px; font-size:12px;
 }
-.chipeditor input:focus{outline:none; box-shadow:0 0 0 2px rgba(255,255,255,.25)}
+.chipeditor input:focus{outline:none; box-shadow:0 0 0 2px rgba(255,255,255,.28)}
 .cesave{
-  background:linear-gradient(180deg, #f3d873, #b98f14); color:#2a1f05;
-  border:1px solid rgba(255,248,215,.8); border-radius:4px;
-  padding:3px 10px; font-size:9.5px; font-weight:900; letter-spacing:.05em;
+  background:linear-gradient(180deg, #fff0be, #d9ab2a 46%, #a3760a);
+  color:#241a02; border:1px solid rgba(255,248,215,.85); border-radius:6px;
+  padding:4px 12px; font-size:10px; font-weight:900; letter-spacing:.07em;
   text-transform:uppercase; cursor:pointer; font-family:inherit; white-space:nowrap;
 }
 .cedel{
-  background:linear-gradient(180deg, var(--chipred), #7d1a1e); color:#ffefe4;
-  border:1px solid rgba(255,190,180,.5); border-radius:4px;
-  padding:3px 10px; font-size:9.5px; font-weight:900; letter-spacing:.05em;
+  background:linear-gradient(180deg, #e34a50, #8c1c21); color:#fff4ef;
+  border:1px solid rgba(255,190,180,.55); border-radius:6px;
+  padding:4px 12px; font-size:10px; font-weight:900; letter-spacing:.07em;
   text-transform:uppercase; cursor:pointer; font-family:inherit; white-space:nowrap;
 }
 .cecancel{
-  background:transparent; border:1px solid rgba(150,205,240,.5); color:#cfe1f0;
-  border-radius:4px; padding:3px 10px; font-size:9.5px; font-weight:800;
-  letter-spacing:.05em; text-transform:uppercase; cursor:pointer; font-family:inherit;
+  background:transparent; border:1px solid var(--edge); color:#cfe1f0;
+  border-radius:6px; padding:4px 12px; font-size:10px; font-weight:800;
+  letter-spacing:.07em; text-transform:uppercase; cursor:pointer; font-family:inherit;
   white-space:nowrap;
 }
-.cesave:hover, .cedel:hover{filter:brightness(1.1)}
+.cesave:hover, .cedel:hover{filter:brightness(1.12)}
 .cecancel:hover{border-color:#fff; color:#fff}
 
 /* ============================================================
@@ -355,146 +394,160 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 
 .panel{
   position:relative;
-  background:linear-gradient(180deg, rgba(6,26,48,.75), rgba(3,14,28,.55));
-  border:1px solid rgba(201,162,39,.28); border-radius:14px;
-  padding:20px; margin:24px 0 18px;
-  box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
+  background:linear-gradient(180deg, rgba(8,28,52,.82), rgba(3,12,24,.66));
+  border:1px solid rgba(201,162,39,.32); border-radius:16px;
+  padding:22px; margin:26px 0 18px;
+  box-shadow:
+    0 16px 44px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.09),
+    inset 0 -30px 60px rgba(0,0,0,.3);
 }
 .panel h2{
-  margin:0 0 6px; font-size:14px; font-weight:800;
-  letter-spacing:.1em; text-transform:uppercase; color:#fff;
-  border-bottom:1px solid rgba(201,162,39,.22); padding-bottom:8px;
+  margin:0 0 8px; font-size:14px; font-weight:900;
+  letter-spacing:.12em; text-transform:uppercase; color:#fff;
+  border-bottom:1px solid rgba(201,162,39,.28); padding-bottom:10px;
   overflow-wrap:anywhere;
+  text-shadow:0 0 16px rgba(120,195,255,.35);
 }
-.panel .sub{margin:0 0 16px; color:#b6cade; font-size:12.5px}
-.panel .count{color:#b6cade}
+.panel .sub{margin:0 0 16px; color:#a9c3dc; font-size:12.5px}
+.panel .count{color:#a9c3dc}
 
 table{table-layout:fixed; width:100%; border-collapse:collapse; font-size:13px}
-th,td{text-align:left; padding:9px 11px; border-bottom:1px solid rgba(150,205,240,.2);
+th,td{text-align:left; padding:10px 12px; border-bottom:1px solid rgba(150,205,240,.18);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 th:nth-child(1),td:nth-child(1){width:26%}
 th:nth-child(2),td:nth-child(2){width:30%}
 th:nth-child(3),td:nth-child(3){width:26%}
 th:nth-child(4),td:nth-child(4){width:18%}
-th{color:#cfe1f0; font-weight:800; font-size:10.5px; text-transform:uppercase; letter-spacing:.1em}
-.empty{color:#b6cade; font-size:13px; padding:14px 0}
+th{color:#cfe4f6; font-weight:900; font-size:10.5px; text-transform:uppercase; letter-spacing:.12em}
+.empty{color:#a9c3dc; font-size:13px; padding:14px 0}
 
 .del{
-  background:transparent; border:1px solid rgba(255,120,125,.6); color:#ffc0c3;
-  border-radius:999px; padding:4px 12px; font-size:11px; font-weight:700;
-  letter-spacing:.04em; text-transform:uppercase; cursor:pointer; font-family:inherit;
+  background:transparent; border:1px solid rgba(255,120,125,.65); color:#ffc0c3;
+  border-radius:8px; padding:5px 13px; font-size:11px; font-weight:800;
+  letter-spacing:.06em; text-transform:uppercase; cursor:pointer; font-family:inherit;
   white-space:nowrap;
 }
-.del:hover{background:rgba(179,38,43,.28); border-color:#ff9b9e}
+.del:hover{background:rgba(194,38,44,.3); border-color:#ff9b9e}
 .nameedit{
   background:transparent; border:0; color:#ffe9a8; font:inherit; font-size:13px;
-  font-weight:800; padding:3px 6px; border-radius:6px; cursor:pointer; text-align:left;
+  font-weight:900; padding:3px 7px; border-radius:7px; cursor:pointer; text-align:left;
   max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .roweditinput{
-  background:#f7fbff; border:1px solid rgba(150,205,240,.8); color:#0b1a26;
-  border-radius:5px; padding:5px 9px; font-size:13px; font-family:inherit;
-  width:130px; margin-right:5px;
+  background:#f7fbff; border:1px solid rgba(150,205,240,.85); color:#08192b;
+  border-radius:6px; padding:6px 10px; font-size:13px; font-family:inherit;
+  width:130px; margin-right:6px;
 }
 
 .note{
-  background:linear-gradient(180deg, rgba(255,255,255,.1), rgba(0,20,38,.3));
-  border-left:3px solid var(--rail); border-radius:8px;
-  padding:14px 16px; font-size:12.5px; color:#dbe8f2; line-height:1.65;
+  background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(0,20,38,.4));
+  border-left:4px solid var(--rail); border-radius:10px;
+  padding:15px 18px; font-size:12.5px; color:#dbe8f2; line-height:1.7;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
 }
 .note strong{color:#fff}
 .note code{
-  background:rgba(0,0,0,.45); padding:2px 6px; border-radius:5px;
-  font-size:11.5px; color:#ffe6a8; border:1px solid rgba(201,162,39,.3);
+  background:rgba(0,0,0,.5); padding:2px 7px; border-radius:6px;
+  font-size:11.5px; color:#ffe6a8; border:1px solid rgba(201,162,39,.35);
 }
-.ok{color:#ffe6a8; font-size:12px; font-weight:600}
+.ok{color:#ffe6a8; font-size:12px; font-weight:700}
 
 #undobar{
-  position:fixed; left:50%; bottom:24px; z-index:60;
-  transform:translateX(-50%) translateY(160%);
+  position:fixed; left:50%; bottom:26px; z-index:60;
+  transform:translateX(-50%) translateY(180%);
   display:flex; align-items:center; gap:16px;
-  background:linear-gradient(180deg, #12293c, #061520);
-  border:1px solid rgba(201,162,39,.6); border-radius:999px;
-  padding:11px 13px 11px 22px;
-  transition:transform .24s cubic-bezier(.2,.8,.3,1);
+  background:linear-gradient(180deg, #14304f, #06131f);
+  border:1px solid rgba(201,162,39,.7); border-radius:14px;
+  padding:12px 14px 12px 22px;
+  box-shadow:0 18px 44px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.14);
+  transition:transform .26s cubic-bezier(.2,.8,.3,1);
   max-width:calc(100vw - 32px);
 }
 #undobar.show{transform:translateX(-50%) translateY(0)}
-#undotext{font-size:13px; color:#eaf1f7; min-width:0; overflow:hidden;
+#undotext{font-size:13px; color:var(--ink); min-width:0; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap}
 #undobtn{
-  background:linear-gradient(180deg, #ffffff, #cfe6f5 55%, #9dc7e0);
-  color:#0b2436; border:1px solid #fff; border-radius:999px;
-  padding:8px 20px; font-size:12px; font-weight:900; letter-spacing:.08em;
+  background:linear-gradient(180deg, #fff8dc, #f2d264 42%, #b6880f);
+  color:#221803; border:1px solid #ffeeae; border-radius:9px;
+  padding:9px 22px; font-size:12px; font-weight:900; letter-spacing:.1em;
   text-transform:uppercase; cursor:pointer; font-family:inherit; white-space:nowrap;
+  box-shadow:0 4px 14px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.85);
 }
 #undoclose{
-  background:transparent; border:0; color:#9fb4c6; font-size:17px;
+  background:transparent; border:0; color:#9fb4c6; font-size:18px;
   cursor:pointer; padding:0 8px; flex:0 0 auto;
 }
 #undoclose:hover{color:#fff}
 
 /* ============================================================
-   A TAKEN BOX - the buyer's name stays lit, everything else greys.
-   No wording anywhere; the grey IS the message. The box keeps its
-   exact size so the grid never jumps as names go in and out.
+   A TAKEN BOX - the buyer's name stays lit, everything else dies.
+   No wording anywhere; the grey is the whole message.
    ============================================================ */
 
 .tile.taken{
-  background:linear-gradient(180deg, #2b3340 0%, #1c222b 55%, #141920 100%);
-  border-color:rgba(140,152,166,.3);
-  box-shadow:0 0 0 1px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04);
+  background:linear-gradient(180deg, #2a3140 0%, #1b2028 55%, #12161d 100%);
+  border-color:rgba(140,152,166,.28);
+  box-shadow:0 0 0 1px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05);
 }
-.tile.taken .eb{ filter:grayscale(1) brightness(.62); }
-.tile.taken .eb .initials{ color:rgba(255,255,255,.55); text-shadow:none; }
-.tile.taken .badge{ filter:grayscale(1); opacity:.35; }
-.tile.taken .buyer .buylbl{ color:rgba(150,166,182,.45); }
+.tile.taken:hover{transform:none; border-color:rgba(150,160,172,.4);
+  box-shadow:0 0 0 1px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)}
+.tile.taken .eb{filter:grayscale(1) brightness(.6)}
+.tile.taken .eb::after{background:linear-gradient(180deg, rgba(255,255,255,.10), transparent 50%)}
+.tile.taken .eb .initials{color:rgba(255,255,255,.5); text-shadow:none}
+.tile.taken .badge{filter:grayscale(1); opacity:.32}
+.tile.taken .buyer{background:rgba(0,0,0,.2)}
+.tile.taken .buyer .buylbl{color:rgba(150,166,182,.42)}
 
-/* the one live thing on a dead box */
+/* the only live thing on a dead plate */
 .tile.taken .buyer .buyname,
 .tile.taken .buyer .buyname-btn{
   color:#ffd75e;
-  text-shadow:0 0 14px rgba(255,205,70,.5), 0 2px 4px rgba(0,0,0,.95);
+  text-shadow:0 0 18px rgba(255,205,70,.55), 0 2px 5px rgba(0,0,0,.98);
 }
-.tile.taken .buyer .buyname-btn:hover{ color:#fff3c4; }
+.tile.taken .buyer .buyname-btn:hover{color:#fff3c4}
 
-.tile.taken .addbar{ background:rgba(0,0,0,.5); border-top-color:rgba(150,200,235,.06); }
-.tile.taken .addbar input{ filter:grayscale(1); opacity:.28; }
-.tile.taken .addbar button{ filter:grayscale(1); opacity:.22; }
+.tile.taken .addbar{background:rgba(0,0,0,.55); border-top-color:rgba(150,200,235,.05)}
+.tile.taken .addbar input{filter:grayscale(1); opacity:.26}
+.tile.taken .addbar button{filter:grayscale(1); opacity:.2}
 
 /* ============================================================
-   COMPACT MODE — the pairs tab, so all 24 boxes fit one screen
+   COMPACT MODE - the pairs tab, so all 24 boxes fit one screen
    ============================================================ */
 
-.wrap.compact{padding:6px 14px 12px}
-.wrap.compact .boardhead{margin:4px 0 4px}
-.wrap.compact .boardhead h2{font-size:12px}
+.wrap.compact{padding:8px 14px 14px}
+.wrap.compact .boardhead{margin:4px 0 5px}
+.wrap.compact .boardhead h2{font-size:13px}
 .wrap.compact .boardhead span{font-size:9.5px}
-.wrap.compact .toolbar{margin:0 0 6px}
-.wrap.compact .toolbar input{padding:4px 11px; font-size:10.5px; flex:1 1 130px}
-.wrap.compact button.ghost{padding:4px 10px; font-size:10px}
-.wrap.compact .sectionhead{margin:6px 0 4px}
-.wrap.compact .sectionhead h3{font-size:10px; letter-spacing:.1em; padding-left:7px; border-left-width:2px}
+.wrap.compact .toolbar{margin:0 0 7px}
+.wrap.compact .toolbar input{padding:5px 11px; font-size:10.5px; flex:1 1 130px}
+.wrap.compact button.ghost{padding:4px 10px; font-size:9.5px}
+.wrap.compact .sectionhead{margin:7px 0 5px}
+.wrap.compact .sectionhead h3{font-size:10px; letter-spacing:.12em; padding-left:8px; border-left-width:2px}
 .wrap.compact .sectionhead .sectioncount{font-size:9px}
-.wrap.compact .boardreset{padding:2px 8px; font-size:8.5px}
-.wrap.compact .board{gap:4px; margin-bottom:0}
+.wrap.compact .boardreset{padding:3px 9px; font-size:8.5px}
+.wrap.compact .board{gap:5px; margin-bottom:0}
 .wrap.compact .board-small,
-.wrap.compact .board-medium{grid-template-columns:minmax(0,1fr); gap:4px}
+.wrap.compact .board-medium{grid-template-columns:minmax(0,1fr); gap:5px}
 
-.wrap.compact .tile{border-radius:4px; min-height:24px}
-.wrap.compact .tile .eb{width:32px}
-.wrap.compact .tile .eb .initials{font-size:8.5px; line-height:1.05}
-.wrap.compact .tile .buyer{padding:1px 6px 1px 5px; flex:1 1 90px}
-.wrap.compact .tile .buyer .buylbl{font-size:5.5px; letter-spacing:.12em}
+.wrap.compact .tile{border-radius:6px; min-height:26px}
+.wrap.compact .tile .eb{width:36px}
+.wrap.compact .tile .eb .initials{font-size:9.5px; line-height:1.05}
+.wrap.compact .tile .buyer{padding:1px 7px 1px 6px; flex:1 1 90px}
+.wrap.compact .tile .buyer .buylbl{font-size:5.5px; letter-spacing:.14em}
 .wrap.compact .tile .buyer .buyname,
-.wrap.compact .tile .buyer .buyname-btn{font-size:9px}
+.wrap.compact .tile .buyer .buyname-btn{font-size:9.5px}
 .wrap.compact .tile .buyer .buyopen{font-size:6.5px; padding:0 4px}
-.wrap.compact .tile .badge{top:1px; right:1px; font-size:6.5px; padding:0 3px; min-width:10px}
+.wrap.compact .tile .badge{top:2px; right:2px; font-size:6.5px; padding:0 3px; min-width:11px}
 .wrap.compact .tile .addbar{padding:3px 4px; gap:4px; flex:1 1 100%}
-.wrap.compact .tile .addbar input{padding:3px 6px; font-size:10px; border-radius:3px}
-.wrap.compact .tile .addbar button{padding:0 8px; font-size:12px; border-radius:3px}
+.wrap.compact .tile .addbar input{padding:3px 6px; font-size:10px; border-radius:4px}
+.wrap.compact .tile .addbar button{padding:0 8px; font-size:12px; border-radius:4px}
 .wrap.compact .chipeditor{padding:4px; gap:3px}
 .wrap.compact .chipeditor input{font-size:10px; padding:4px 6px}
 .wrap.compact .cesave,
 .wrap.compact .cedel,
-.wrap.compact .cecancel{padding:2px 7px; font-size:8px}
+.wrap.compact .cecancel{padding:2px 8px; font-size:8px}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important; animation:none !important}
+}
