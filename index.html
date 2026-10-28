@@ -3,81 +3,65 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Memorabilia Breaks — Team Entry Board</title>
+<title>Teams — Memorabilia Breaks</title>
 <style>
   :root{
-    --bg:#12141a; --panel:#1b1e26; --panel2:#232733; --line:#333949;
+    --bg:#12141a; --panel:#1b1e26; --line:#333949;
     --ink:#eef1f7; --muted:#9aa3b4; --accent:#3ddc84; --danger:#ff6b6b;
   }
   *{box-sizing:border-box}
-  body{
-    margin:0; background:var(--bg); color:var(--ink);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    line-height:1.5;
-  }
-  header{padding:26px 20px 18px; text-align:center; border-bottom:1px solid var(--line)}
+  body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.5}
+  header{padding:24px 20px 16px; text-align:center; border-bottom:1px solid var(--line)}
   header h1{margin:0 0 6px; font-size:clamp(20px,3.4vw,30px); letter-spacing:-.02em}
   header p{margin:0; color:var(--muted); font-size:14px}
-  .wrap{max-width:1240px; margin:0 auto; padding:20px 20px 60px}
 
+  nav.tabs{display:flex; justify-content:center; gap:8px; margin:16px 0 0; flex-wrap:wrap}
+  nav.tabs a{
+    text-decoration:none; color:var(--ink); border:1px solid var(--line);
+    border-radius:99px; padding:8px 18px; font-size:13px; font-weight:600;
+  }
+  nav.tabs a:hover{border-color:#5a6480}
+  nav.tabs a.on{background:var(--accent); color:#08210f; border-color:var(--accent)}
+
+  .wrap{max-width:1240px; margin:0 auto; padding:20px 20px 60px}
   .toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin:0 0 18px}
   .toolbar .left{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
-  .toolbar input{
-    background:var(--panel); border:1px solid var(--line); color:var(--ink);
-    border-radius:8px; padding:9px 12px; font-size:14px; min-width:200px;
-  }
+  .toolbar input{background:var(--panel); border:1px solid var(--line); color:var(--ink);
+    border-radius:8px; padding:9px 12px; font-size:14px; min-width:200px}
   .toolbar .count{color:var(--muted); font-size:13px}
-  button.ghost{
-    background:transparent; color:var(--ink); border:1px solid var(--line);
-    border-radius:8px; padding:8px 13px; font-size:13px; cursor:pointer;
-  }
+  button.ghost{background:transparent; color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; padding:8px 13px; font-size:13px; cursor:pointer}
   button.ghost:hover{border-color:#5a6480}
 
   .board{display:grid; grid-template-columns:repeat(8,1fr); gap:10px; margin-bottom:24px}
   @media(max-width:900px){ .board{grid-template-columns:repeat(4,1fr)} }
   @media(max-width:520px){ .board{grid-template-columns:repeat(2,1fr)} }
 
-  .tile{
-    position:relative; border:1px solid var(--line); border-radius:10px; overflow:hidden;
-    background:var(--panel); display:flex; flex-direction:column;
-  }
+  .tile{position:relative; border:1px solid var(--line); border-radius:10px; overflow:hidden;
+    background:var(--panel); display:flex; flex-direction:column}
   .tile .eb{display:grid; place-items:center; padding:10px 6px}
   .tile .eb span{font-size:clamp(14px,1.9vw,24px); font-weight:800; letter-spacing:.03em; color:#fff;
     text-shadow:0 1px 3px rgba(0,0,0,.45)}
-  .tile .name{
-    display:block; padding:4px 3px; font-size:10px; font-weight:700; letter-spacing:.04em;
-    text-transform:uppercase; color:#0d0f14; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    text-align:center;
-  }
-
-  .tile .roster{display:flex; flex-wrap:wrap; gap:3px; padding:5px; min-height:26px;
-    background:rgba(0,0,0,.3)}
-  .chip{
-    background:rgba(255,255,255,.16); border-radius:99px; padding:1px 6px;
-    font-size:9px; font-weight:600; max-width:100%; overflow:hidden;
-    text-overflow:ellipsis; white-space:nowrap;
-  }
-  .tile .badge{
-    position:absolute; top:5px; right:5px; background:var(--accent); color:#08210f;
-    font-size:11px; font-weight:700; padding:1px 6px; border-radius:99px; z-index:2;
-  }
-
+  .tile .name{display:block; padding:4px 3px; font-size:10px; font-weight:700; letter-spacing:.04em;
+    text-transform:uppercase; color:#0d0f14; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; text-align:center}
+  .tile .roster{display:flex; flex-wrap:wrap; gap:3px; padding:5px; min-height:26px; background:rgba(0,0,0,.3)}
+  .chip{background:rgba(255,255,255,.16); border-radius:99px; padding:1px 6px; font-size:9px;
+    font-weight:600; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .tile .badge{position:absolute; top:5px; right:5px; background:var(--accent); color:#08210f;
+    font-size:11px; font-weight:700; padding:1px 6px; border-radius:99px; z-index:2}
   .addbar{display:flex; gap:6px; padding:5px; background:rgba(0,0,0,.38)}
-  .addbar input{
-    flex:1; min-width:0; background:#0f1218; border:1px solid var(--line); color:var(--ink);
-    border-radius:6px; padding:5px 7px; font-size:11px; font-family:inherit;
-  }
+  .addbar input{flex:1; min-width:0; background:#0f1218; border:1px solid var(--line); color:var(--ink);
+    border-radius:6px; padding:5px 7px; font-size:11px; font-family:inherit}
   .addbar input::placeholder{color:#6c7688}
-  .addbar button{
-    background:var(--accent); color:#08210f; border:0; border-radius:6px;
-    padding:0 10px; font-size:14px; font-weight:800; cursor:pointer; line-height:1;
-  }
+  .addbar button{background:var(--accent); color:#08210f; border:0; border-radius:6px;
+    padding:0 10px; font-size:14px; font-weight:800; cursor:pointer; line-height:1}
   .addbar button:hover{filter:brightness(1.08)}
 
   .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:18px}
   .panel h2{margin:0 0 4px; font-size:16px}
   .panel .sub{margin:0 0 14px; color:var(--muted); font-size:13px}
-
   table{width:100%; border-collapse:collapse; font-size:13px}
   th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line)}
   th{color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.05em}
@@ -96,6 +80,10 @@
 <header>
   <h1>Memorabilia Breaks</h1>
   <p>Type a customer's username into a team's box and press + to put them on that team.</p>
+  <nav class="tabs">
+    <a href="index.html" class="on">Teams</a>
+    <a href="divisions.html">Divisions</a>
+  </nav>
 </header>
 
 <div class="wrap">
@@ -103,7 +91,7 @@
   <div class="toolbar">
     <div class="left">
       <input id="filter" type="text" placeholder="Filter teams…" aria-label="Filter teams">
-      <span class="count" id="count">32 teams</span>
+      <span class="count" id="count"></span>
     </div>
     <div class="left">
       <button class="ghost" id="exportCsv" type="button">Download CSV</button>
@@ -115,7 +103,7 @@
 
   <div class="panel">
     <h2>Everyone entered <span class="count" id="entryCount"></span></h2>
-    <p class="sub">Every username with the team it was placed on. Remove one with Delete.</p>
+    <p class="sub">Every username with the box it was placed on — teams and divisions together. Remove one with Delete.</p>
     <div id="entries"></div>
     <p class="ok" id="saved"></p>
   </div>
@@ -123,17 +111,22 @@
   <div class="panel">
     <h2>Where the usernames go</h2>
     <div class="note">
-      This is a static site, so usernames are saved in this browser's <code>localStorage</code> — they
-      stay on this device and this browser only, and nothing is sent to a server. To save them centrally
-      so your whole team sees the same list, open <code>app.js</code> and set
-      <code>BACKEND_ENDPOINT</code> to your form endpoint (Formspree, Google Apps Script, Supabase…).
-      The submit path is already wired — see <code>saveUser()</code> in <code>app.js</code>.
+      Usernames are saved in this browser's <code>localStorage</code> — they stay on this device and this
+      browser only, and nothing is sent to a server. Team entries and division entries are separate: the same
+      person can be on a team and on a division at once. To save everything centrally, open <code>app.js</code>
+      and set <code>BACKEND_ENDPOINT</code> to your form endpoint.
     </div>
   </div>
 
 </div>
 
 <script src="teams.js"></script>
+<script src="shared.js"></script>
+<script>
+  window.PAGE_TARGETS = TEAMS.map(function (t) {
+    return { id: t.abbr, abbr: t.abbr, name: t.city + " " + t.name, colors: t.colors };
+  });
+</script>
 <script src="app.js"></script>
 </body>
 </html>
