@@ -50,7 +50,7 @@
   @media(max-width:440px){ .board-div{grid-template-columns:1fr} }
 
   .tile{position:relative; border:1px solid var(--line); border-radius:10px; overflow:hidden;
-    background:var(--panel); display:flex; flex-direction:column}
+    background:var(--panel); display:flex; flex-direction:column; transition:opacity .15s ease, filter .15s ease}
   .tile .eb{display:grid; place-items:center; padding:10px 6px}
   .board-div .tile .eb{padding:18px 8px}
   .tile .eb span{font-size:clamp(14px,1.9vw,24px); font-weight:800; letter-spacing:.03em; color:#fff;
@@ -66,7 +66,7 @@
     font-weight:600; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
   .board-div .chip{padding:2px 8px; font-size:10px}
   .tile .badge{position:absolute; top:5px; right:5px; background:var(--accent); color:#08210f;
-    font-size:11px; font-weight:700; padding:1px 6px; border-radius:99px; z-index:2}
+    font-size:11px; font-weight:700; padding:1px 6px; border-radius:99px; z-index:3}
   .addbar{display:flex; gap:6px; padding:5px; background:rgba(0,0,0,.38)}
   .board-div .addbar{padding:6px}
   .addbar input{flex:1; min-width:0; background:#0f1218; border:1px solid var(--line); color:var(--ink);
@@ -77,6 +77,32 @@
     padding:0 10px; font-size:14px; font-weight:800; cursor:pointer; line-height:1}
   .board-div .addbar button{padding:0 12px; font-size:15px}
   .addbar button:hover{filter:brightness(1.08)}
+
+  /* the grey "this one's filled" state */
+  .tile.filled .eb,
+  .tile.filled .name,
+  .tile.filled .roster,
+  .tile.filled .addbar{
+    filter:grayscale(1) brightness(.72);
+  }
+  .tile.filled .addbar{display:none}
+  .tile.filled .filledoverlay{display:flex}
+
+  .filledoverlay{
+    display:none; position:absolute; inset:0; z-index:2;
+    background:rgba(10,12,16,.66); backdrop-filter:blur(1px);
+    flex-direction:column; align-items:center; justify-content:center; gap:7px;
+    padding:8px; text-align:center;
+  }
+  .filledtext{font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+    color:#fff; background:rgba(61,220,132,.22); border:1px solid rgba(61,220,132,.5);
+    border-radius:99px; padding:3px 10px}
+  .unlock{
+    background:transparent; border:1px solid var(--line); color:var(--ink);
+    border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer;
+  }
+  .unlock:hover{border-color:#5a6480}
+  .tile.locked .unlock{display:none}
 
   .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:18px}
   .panel h2{margin:0 0 4px; font-size:16px}
@@ -136,10 +162,12 @@
   <div class="panel">
     <h2>Where the usernames go</h2>
     <div class="note">
+      A box greys out as soon as it has a username, so you can see at a glance what's been filled. Use
+      <strong>Add another</strong> to put a second person on a box that's already greyed, and <strong>Delete</strong>
+      in the list below to clear one — emptying a box un-greys it.<br><br>
       Usernames are saved in this browser's <code>localStorage</code> — they stay on this device and this
-      browser only, and nothing is sent to a server. A username placed on a division is stored separately
-      from one placed on a team, so the same customer can sit on both. To save everything centrally, open
-      <code>app.js</code> and set <code>BACKEND_ENDPOINT</code> to your form endpoint.
+      browser only, and nothing is sent to a server. To save everything centrally, open <code>app.js</code>
+      and set <code>BACKEND_ENDPOINT</code> to your form endpoint.
     </div>
   </div>
 
