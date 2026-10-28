@@ -3,6 +3,9 @@
    This file is self-contained: it needs only teams.js above it.
    Switching views never navigates — it swaps which board is drawn.
 
+   The Pairs view draws TWO boards stacked: the 16 pairs, with the 8
+   divisions underneath in the same small 4-across 2-down layout.
+
    One input per box: a customer username. One action: place it on that
    team, division, or pair. Once a box has at least one username it greys
    out and closes.
@@ -23,7 +26,7 @@ const $ = (id) => document.getElementById(id);
 let entries = [];          // { id, username, target, createdAt }
 let currentView = "teams"; // "teams" | "divisions" | "pairs"
 
-/* ---------- the three boards ---------- */
+/* ---------- the boards ---------- */
 
 const TEAM_TARGETS = TEAMS.map(function (t) {
   return { id: t.abbr, abbr: t.abbr, name: t.city + " " + t.name, colors: t.colors };
@@ -75,10 +78,20 @@ const PAIR_TARGETS = PAIRS.map(function (p) {
   };
 });
 
-function targetsFor(view) {
-  if (view === "divisions") return DIVISION_TARGETS;
-  if (view === "pairs") return PAIR_TARGETS;
-  return TEAM_TARGETS;
+/* A view may draw one board or several stacked ones. */
+const VIEW_BOARDS = {
+  teams: [{ targets: TEAM_TARGETS, cls: "board-team", label: "Teams" }],
+  divisions: [{ targets: DIVISION_TARGETS, cls: "board-div", label: "Divisions" }],
+  pairs: [
+    { targets: PAIR_TARGETS, cls: "board-pair", label: "Pick your Pairs" },
+    { targets: DIVISION_TARGETS, cls: "board-div", label: "Divisions" }
+  ]
+};
+
+/* Every target on the current view, flattened — used for lookups and redraws. */
+function currentTargets() {
+  const boards = VIEW_BOARDS[currentView] || VIEW_BOARDS.teams;
+  return boards.reduce(function (acc, b) { return acc.concat(b.targets); }, []);
 }
 
 /* ---------- labels ---------- */
@@ -93,9 +106,19 @@ function targetLabel(id) {
   return id;
 }
 
-/* Names contain spaces and commas, so quote them for querySelector. */
-function cssEscape(v) {
-  return String(v).replace(/"/g, '\\"');
+/* Targets are stored as raw strings, so never build a CSS selector from
+   one. Match the element by walking the tiles and comparing data attributes. */
+function tileFor(targetId) {
+  const tiles = document.querySelectorAll(".tile");
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i].dataset.target === targetId) return tiles[i];
+  }
+  return null;
+}
+
+function rosterFor(targetId) {
+  const tile = tileFor(targetId);
+  return tile ? tile.querySelector(".roster") : null;
 }
 
 function normalizeName(raw) {
@@ -126,103 +149,118 @@ function usersOn(targetId) {
   return entries.filter(function (e) { return e.target === targetId; });
 }
 
-/* ---------- board ---------- */
+/* ---------- board construction ---------- */
 
-function renderBoard() {
-  const board = $("board");
-  const list = targetsFor(currentView);
-  const cls =
-    currentView === "divisions" ? "board-div" :
-    currentView === "pairs" ? "board-pair" : "board-team";
+/* Build one tile for a target. Returns the element. */
+function buildTile(t) {
+  const tile = document.createElement("div");
+  tile.className = "tile";
+  tile.dataset.target = t.id;
+  tile.dataset.search = (t.name + " " + t.abbr).toLowerCase();
 
-  board.className = "board " + cls;
-  board.setAttribute(
-    "aria-label",
-    currentView === "divisions" ? "NFL division board" :
-    currentView === "pairs" ? "NFL pair board" : "NFL team board"
-  );
-  board.innerHTML = "";
+  const badge = document.createElement("span");
+  badge.className = "badge";
+  badge.style.display = "none";
+  tile.appendChild(badge);
 
-  list.forEach(function (t) {
-    const tile = document.createElement("div");
-    tile.className = "tile";
-    tile.dataset.target = t.id;
-    tile.dataset.search = (t.name + " " + t.abbr).toLowerCase();
+  const eb = document.createElement("div");
+  eb.className = "eb";
+  eb.style.background = t.colors[0];
+  const abbr = document.createElement("span");
+  abbr.textContent = t.abbr;
+  eb.appendChild(abbr);
+  tile.appendChild(eb);
 
-    const badge = document.createElement("span");
-    badge.className = "badge";
-    badge.style.display = "none";
-    tile.appendChild(badge);
+  const name = document.createElement("span");
+  name.className = "name";
+  name.style.background = t.colors[1];
+  name.textContent = t.name;
+  tile.appendChild(name);
 
-    const eb = document.createElement("div");
-    eb.className = "eb";
-    eb.style.background = t.colors[0];
-    const abbr = document.createElement("span");
-    abbr.textContent = t.abbr;
-    eb.appendChild(abbr);
-    tile.appendChild(eb);
+  const roster = document.createElement("div");
+  roster.className = "roster";
+  roster.dataset.roster = t.id;
+  tile.appendChild(roster);
 
-    const name = document.createElement("span");
-    name.className = "name";
-    name.style.background = t.colors[1];
-    name.textContent = t.name;
-    tile.appendChild(name);
+  const bar = document.createElement("form");
+  bar.className = "addbar";
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "username";
+  input.setAttribute("aria-label", "Customer username for " + t.name);
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  const btn = document.createElement("button");
+  btn.type = "submit";
+  btn.textContent = "+";
+  btn.title = "Add username to " + t.name;
+  bar.appendChild(input);
+  bar.appendChild(btn);
+  bar.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    addUser(t.id, input.value);
+    input.value = "";
+    input.focus();
+  });
+  tile.appendChild(bar);
 
-    const roster = document.createElement("div");
-    roster.className = "roster";
-    roster.dataset.roster = t.id;
-    tile.appendChild(roster);
+  const filledbar = document.createElement("div");
+  filledbar.className = "filledbar";
+  const filledText = document.createElement("span");
+  filledText.className = "filledtext";
+  filledbar.appendChild(filledText);
+  const unlock = document.createElement("button");
+  unlock.type = "button";
+  unlock.className = "unlock";
+  unlock.textContent = "Add another";
+  unlock.title = "Reopen this box to add another username";
+  unlock.addEventListener("click", function (ev) {
+    ev.stopPropagation();
+    tile.classList.add("force-open");
+    refreshBoard();
+    const i = tile.querySelector(".addbar input");
+    if (i) i.focus();
+  });
+  filledbar.appendChild(unlock);
+  tile.appendChild(filledbar);
 
-    const bar = document.createElement("form");
-    bar.className = "addbar";
-    const input = document.createElement("input");
-    input.type = "text";
-    input.placeholder = "username";
-    input.setAttribute("aria-label", "Customer username for " + t.name);
-    input.autocomplete = "off";
-    input.spellcheck = false;
-    const btn = document.createElement("button");
-    btn.type = "submit";
-    btn.textContent = "+";
-    btn.title = "Add username to " + t.name;
-    bar.appendChild(input);
-    bar.appendChild(btn);
-    bar.addEventListener("submit", function (ev) {
-      ev.preventDefault();
-      addUser(t.id, input.value);
-      input.value = "";
-      input.focus();
-    });
-    tile.appendChild(bar);
+  return tile;
+}
 
-    const filledbar = document.createElement("div");
-    filledbar.className = "filledbar";
-    const filledText = document.createElement("span");
-    filledText.className = "filledtext";
-    filledbar.appendChild(filledText);
-    const unlock = document.createElement("button");
-    unlock.type = "button";
-    unlock.className = "unlock";
-    unlock.textContent = "Add another";
-    unlock.title = "Reopen this box to add another username";
-    unlock.addEventListener("click", function (ev) {
-      ev.stopPropagation();
-      tile.classList.add("force-open");
-      refreshBoard();
-      const i = tile.querySelector(".addbar input");
-      if (i) i.focus();
-    });
-    filledbar.appendChild(unlock);
-    tile.appendChild(filledbar);
+function renderBoards() {
+  const host = $("boards");
+  const boards = VIEW_BOARDS[currentView] || VIEW_BOARDS.teams;
 
-    board.appendChild(tile);
+  host.innerHTML = "";
+
+  boards.forEach(function (b) {
+    if (boards.length > 1) {
+      const head = document.createElement("div");
+      head.className = "sectionhead";
+      const h = document.createElement("h3");
+      h.textContent = b.label;
+      head.appendChild(h);
+      const n = document.createElement("span");
+      n.textContent = b.targets.length + " boxes";
+      head.appendChild(n);
+      host.appendChild(head);
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "board " + b.cls;
+    grid.setAttribute(
+      "aria-label",
+      b.label === "Divisions" ? "NFL division board" : "NFL pair board"
+    );
+    b.targets.forEach(function (t) { grid.appendChild(buildTile(t)); });
+    host.appendChild(grid);
   });
 }
 
 function refreshBoard() {
-  targetsFor(currentView).forEach(function (t) {
-    const roster = document.querySelector('[data-roster="' + cssEscape(t.id) + '"]');
-    const tile = document.querySelector('.tile[data-target="' + cssEscape(t.id) + '"]');
+  currentTargets().forEach(function (t) {
+    const roster = rosterFor(t.id);
+    const tile = tileFor(t.id);
     if (!roster || !tile) return;
 
     roster.innerHTML = "";
@@ -263,7 +301,7 @@ function openEditor(entryId) {
   const entry = entries.find(function (e) { return e.id === entryId; });
   if (!entry) return;
 
-  const tile = document.querySelector('.tile[data-target="' + cssEscape(entry.target) + '"]');
+  const tile = tileFor(entry.target);
   if (!tile) return;
 
   closeEditor();
@@ -359,8 +397,8 @@ const VIEW_INFO = {
   },
   pairs: {
     title: "Pick your Pairs",
-    sub: "Sixteen pairs. Type a username into a pair's box to put them on it.",
-    placeholder: "Filter pairs…"
+    sub: "Sixteen pairs on top, the eight divisions underneath. Type a username into any box.",
+    placeholder: "Filter pairs and divisions…"
   }
 };
 
@@ -378,7 +416,7 @@ function setView(view) {
   $("boardSub").textContent = info.sub;
   $("filter").placeholder = info.placeholder;
 
-  renderBoard();
+  renderBoards();
   refreshBoard();
   applyFilter($("filter").value);
   $("saved").textContent = "";
@@ -388,9 +426,8 @@ function setView(view) {
 
 async function addUser(targetId, rawName) {
   const username = normalizeName(rawName);
-  const input = document.querySelector(
-    '.tile[data-target="' + cssEscape(targetId) + '"] .addbar input'
-  );
+  const tile = tileFor(targetId);
+  const input = tile ? tile.querySelector(".addbar input") : null;
   if (!username) {
     if (input) input.focus();
     return;
@@ -417,8 +454,8 @@ async function addUser(targetId, rawName) {
     entries.unshift(entry);
     if (!BACKEND_ENDPOINT && !persist()) throw new Error("Could not write to local storage");
 
-    const tile = document.querySelector('.tile[data-target="' + cssEscape(targetId) + '"]');
-    if (tile) tile.classList.remove("force-open");
+    const t = tileFor(targetId);
+    if (t) t.classList.remove("force-open");
 
     refreshBoard();
     renderEntries();
@@ -435,7 +472,7 @@ function removeUser(id) {
   renderEntries();
 }
 
-/* ---------- the list under the board ---------- */
+/* ---------- the list under the boards ---------- */
 
 function renderEntries() {
   const host = $("entries");
@@ -594,12 +631,12 @@ function downloadCsv() {
 function applyFilter(q) {
   const needle = (q || "").trim().toLowerCase();
   let shown = 0;
-  document.querySelectorAll("#board .tile").forEach(function (el) {
+  document.querySelectorAll("#boards .tile").forEach(function (el) {
     const match = !needle || el.dataset.search.includes(needle);
     el.style.display = match ? "" : "none";
     if (match) shown++;
   });
-  const total = targetsFor(currentView).length;
+  const total = currentTargets().length;
   $("count").textContent = shown === total ? total + " shown" : shown + " of " + total + " shown";
 }
 
