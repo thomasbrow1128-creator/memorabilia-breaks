@@ -4,7 +4,9 @@
    Switching views never navigates — it swaps which board is drawn.
 
    One input per box: a customer username. One action: place it on that
-   team or that division.
+   team or that division. Once a box has at least one username it greys
+   out and closes, so you can see at a glance what's been filled; emptying
+   it (via Delete in the list below) reopens it.
 
    BACKEND_ENDPOINT: leave "" to store usernames in this browser's
    localStorage only. Set it to your form endpoint to save them centrally.
@@ -141,6 +143,27 @@ function renderBoard() {
     });
     tile.appendChild(bar);
 
+    /* the grey "filled" layer, shown only while the box has usernames */
+    const filled = document.createElement("div");
+    filled.className = "filledoverlay";
+    const filledText = document.createElement("span");
+    filled.className = "filledtext";
+    filled.appendChild(filledText);
+    const unlock = document.createElement("button");
+    unlock.type = "button";
+    unlock.className = "unlock";
+    unlock.textContent = "Add another";
+    unlock.title = "Reopen this box to add another username";
+    unlock.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      tile.classList.add("force-open");
+      refreshBoard();
+      const i = tile.querySelector(".addbar input");
+      if (i) i.focus();
+    });
+    filled.appendChild(unlock);
+    tile.appendChild(filled);
+
     board.appendChild(tile);
   });
 }
@@ -164,6 +187,18 @@ function refreshBoard() {
     const badge = tile.querySelector(".badge");
     badge.textContent = list.length;
     badge.style.display = list.length ? "" : "none";
+
+    /* the grey-out switch */
+    const isFilled = list.length > 0;
+    const forcedOpen = tile.classList.contains("force-open");
+    tile.classList.toggle("filled", isFilled && !forcedOpen);
+
+    const filledText = tile.querySelector(".filledtext");
+    if (filledText) {
+      filledText.textContent = isFilled ? list.length + " entered" : "";
+    }
+    /* when a box empties out, drop any stale force-open */
+    if (!isFilled) tile.classList.remove("force-open");
   });
 }
 
@@ -224,6 +259,11 @@ async function addUser(targetId, rawName) {
     }
     entries.unshift(entry);
     if (!BACKEND_ENDPOINT && !persist()) throw new Error("Could not write to local storage");
+
+    /* a box that already had usernames was reopened on purpose — close it again */
+    const tile = document.querySelector('.tile[data-target="' + cssEscape(targetId) + '"]');
+    if (tile) tile.classList.remove("force-open");
+
     refreshBoard();
     renderEntries();
     $("saved").textContent = "Added @" + username + " to " + targetLabel(targetId);
