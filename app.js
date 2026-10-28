@@ -5,16 +5,19 @@
    when you add a board. Add a board in boards.js and the tab, the
    grid, the headings, the counter and the Reset button all follow.
 
-   One input per box: a customer username. One action: place it on that
-   box. Once a box has at least one username it greys out and closes.
+   Each tile is a chrome plate: an emblem on top (an image when the box
+   supplies one, otherwise the team initials), then a PURCHASER plate in
+   gold, and a red strip at the foot listing the names entered.
 
-   Editing: every chip on a box is clickable — click one to rename it or
-   delete just that name. Removing the last name on a box un-greys it.
+   One input per box: a customer username. One action: place it on that
+   box. Once a box has at least one username it dims and closes.
+
+   Editing: every name is clickable — on the gold plate or in the red
+   strip — to rename it or delete just that name. Removing the last name
+   un-dims the box.
 
    Resetting: every board carries its own Reset, which clears only the
-   boxes on that board. On a tab with two boards stacked (Pairs), each
-   gets its own button, so you can clear the pairs without touching the
-   divisions, or the other way round. Every reset offers Undo.
+   boxes on that board. Every reset offers Undo.
 
    BACKEND_ENDPOINT: leave "" to store usernames in this browser's
    localStorage only. Set it to your form endpoint to save them centrally.
@@ -22,6 +25,10 @@
 
 const BACKEND_ENDPOINT = "";
 const STORE_KEY = "memorabilia-breaks-usernames-v1";
+
+/* Tabs with more than one board get the tightened layout so everything
+   fits on screen without scrolling. */
+const COMPACT_TABS = { pairs: true };
 
 const $ = (id) => document.getElementById(id);
 
@@ -113,25 +120,52 @@ function buildTile(t) {
   badge.style.display = "none";
   tile.appendChild(badge);
 
+  /* --- the emblem plate --- */
   const eb = document.createElement("div");
   eb.className = "eb";
   eb.style.background = t.colors[0];
-  const abbr = document.createElement("span");
-  abbr.textContent = t.abbr;
-  eb.appendChild(abbr);
+
+  const initials = document.createElement("span");
+  initials.className = "initials";
+  initials.textContent = t.abbr;
+  eb.appendChild(initials);
+
+  if (t.image) {
+    const img = document.createElement("img");
+    img.alt = t.name;
+    img.decoding = "async";
+    img.loading = "lazy";
+    img.addEventListener("load", function () {
+      if (initials.parentNode) initials.parentNode.removeChild(initials);
+    });
+    img.addEventListener("error", function () {
+      img.style.display = "none";
+    });
+    img.src = t.image;
+    eb.appendChild(img);
+  }
   tile.appendChild(eb);
 
-  const name = document.createElement("span");
-  name.className = "name";
-  name.style.background = t.colors[1];
-  name.textContent = t.name;
-  tile.appendChild(name);
+  /* --- the PURCHASER plate --- */
+  const buyer = document.createElement("div");
+  buyer.className = "buyer";
+  const buylbl = document.createElement("span");
+  buylbl.className = "buylbl";
+  buylbl.textContent = "Purchaser";
+  buyer.appendChild(buylbl);
+  const names = document.createElement("span");
+  names.className = "buynames";
+  names.dataset.names = t.id;
+  buyer.appendChild(names);
+  tile.appendChild(buyer);
 
+  /* the roster is kept for editing, sitting under the plate */
   const roster = document.createElement("div");
   roster.className = "roster";
   roster.dataset.roster = t.id;
   tile.appendChild(roster);
 
+  /* --- the add-a-name row --- */
   const bar = document.createElement("form");
   bar.className = "addbar";
   const input = document.createElement("input");
@@ -154,15 +188,19 @@ function buildTile(t) {
   });
   tile.appendChild(bar);
 
+  /* --- the closed strip: the names themselves, not a count --- */
   const filledbar = document.createElement("div");
   filledbar.className = "filledbar";
-  const filledText = document.createElement("span");
-  filledText.className = "filledtext";
-  filledbar.appendChild(filledText);
+
+  const filledNames = document.createElement("span");
+  filledNames.className = "fillednames";
+  filledNames.dataset.fillednames = t.id;
+  filledbar.appendChild(filledNames);
+
   const unlock = document.createElement("button");
   unlock.type = "button";
   unlock.className = "unlock";
-  unlock.textContent = "Add another";
+  unlock.textContent = "+";
   unlock.title = "Reopen this box to add another username";
   unlock.addEventListener("click", function (ev) {
     ev.stopPropagation();
@@ -241,7 +279,7 @@ function refreshBoardCounts() {
     if (!board) return;
     const n = countOnBoard(id);
     el.textContent = board.boxes.length + (board.boxes.length === 1 ? " box" : " boxes") +
-      (n ? " · " + n + (n === 1 ? " name" : " names") : "");
+      (n ? " \u00b7 " + n + (n === 1 ? " name" : " names") : "");
   });
 
   document.querySelectorAll("[data-reset-for]").forEach(function (el) {
@@ -251,14 +289,47 @@ function refreshBoardCounts() {
   });
 }
 
+/* Paint the gold plate. One line per name, or OPEN when the box is free. */
+function paintBuyerPlate(tile, list) {
+  const host = tile.querySelector("[data-names]");
+  if (!host) return;
+  host.innerHTML = "";
+
+  if (!list.length) {
+    const open = document.createElement("span");
+    open.className = "buyname buyopen";
+    open.textContent = "Open";
+    host.appendChild(open);
+    return;
+  }
+
+  list.forEach(function (e) {
+    const line = document.createElement("button");
+    line.type = "button";
+    line.className = "buyname buyname-btn";
+    line.textContent = e.username;
+    line.title = "Edit or remove @" + e.username;
+    line.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      openEditor(e.id);
+    });
+    host.appendChild(line);
+  });
+}
+
 function refreshBoards() {
   targetsOnTab(currentTab).forEach(function (t) {
     const roster = rosterFor(t.id);
     const tile = tileFor(t.id);
     if (!roster || !tile) return;
 
-    roster.innerHTML = "";
     const list = usersOn(t.id);
+
+    /* the gold plate is the primary readout */
+    paintBuyerPlate(tile, list);
+
+    /* the roster holds the small chips, used as the edit surface */
+    roster.innerHTML = "";
     list.forEach(function (e) {
       const chip = document.createElement("button");
       chip.type = "button";
@@ -281,9 +352,21 @@ function refreshBoards() {
     const editing = tile.querySelector(".chipeditor") !== null;
     tile.classList.toggle("filled", isFilled && !forcedOpen && !editing);
 
-    const filledText = tile.querySelector(".filledtext");
-    if (filledText) {
-      filledText.textContent = isFilled ? list.length + " entered" : "";
+    /* the red strip lists the names themselves — no counts, no label */
+    const filledNames = tile.querySelector("[data-fillednames]");
+    if (filledNames) {
+      filledNames.innerHTML = "";
+      list.forEach(function (e) {
+        const span = document.createElement("span");
+        span.className = "filledname";
+        span.textContent = e.username;
+        span.title = "Edit or remove @" + e.username;
+        span.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          openEditor(e.id);
+        });
+        filledNames.appendChild(span);
+      });
     }
     if (!isFilled) tile.classList.remove("force-open");
   });
@@ -409,10 +492,19 @@ function closeEditor() {
 
 /* ---------- tab switching ---------- */
 
+function setCompact(on) {
+  const wrap = document.querySelector(".wrap");
+  if (wrap) wrap.classList.toggle("compact", !!on);
+  const head = document.querySelector("header");
+  if (head) head.classList.toggle("compact", !!on);
+}
+
 function setTab(tabId) {
   currentTab = boardById(tabId) ? tabId : BOARDS[0].id;
   const board = boardById(currentTab);
   const stack = boardsOnTab(currentTab);
+
+  setCompact(COMPACT_TABS[currentTab]);
 
   document.querySelectorAll("[data-view-btn]").forEach(function (b) {
     const on = b.dataset.viewBtn === currentTab;
@@ -424,13 +516,13 @@ function setTab(tabId) {
   if (stack.length > 1) {
     const rest = stack.slice(1).map(function (b) { return b.label; }).join(" and ");
     $("boardSub").textContent =
-      "Two boards on this tab — " + board.label + " on top, " + rest +
+      "Both boards on this screen \u2014 " + board.label + " on top, " + rest +
       " underneath. Each has its own Reset.";
   } else {
     $("boardSub").textContent =
       board.boxes.length + " boxes. Type a username into a box to put them on it.";
   }
-  $("filter").placeholder = "Filter " + board.label.toLowerCase() + "…";
+  $("filter").placeholder = "Filter " + board.label.toLowerCase() + "\u2026";
 
   renderBoards();
   refreshBoards();
@@ -532,7 +624,7 @@ function renderEntries() {
     tr.appendChild(tdWhere);
 
     const when = new Date(e.createdAt);
-    tr.appendChild(textCell(isNaN(when) ? "—" : when.toLocaleString()));
+    tr.appendChild(textCell(isNaN(when) ? "\u2014" : when.toLocaleString()));
 
     const td = document.createElement("td");
     const del = document.createElement("button");
@@ -699,12 +791,10 @@ document.addEventListener("DOMContentLoaded", function () {
   $("filter").addEventListener("input", function (e) { applyFilter(e.target.value); });
   $("exportCsv").addEventListener("click", downloadCsv);
 
-  /* toolbar Reset — clears the board this tab is named after */
   $("resetBoard").addEventListener("click", function () {
     resetBoard(this.dataset.resetFor || currentTab);
   });
 
-  /* Hide all — clears every board at once. Last resort, still undoable. */
   $("clearAll").addEventListener("click", function () {
     if (!entries.length) return;
     const line1 = "Hide all " + entries.length + " names from every board?";
