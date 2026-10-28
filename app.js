@@ -1,21 +1,22 @@
-/* Memorabilia Breaks — username-only entry controller
-   ---------------------------------------------------------------
-   One input: a customer username. One action: place it on a team.
-   The team comes from which tile you typed into.
+/* Memorabilia Breaks — shared controller for the Teams and Divisions pages.
+   Each page sets `window.PAGE_TARGETS` before this script loads:
+     Teams page     -> the 32 teams, each with { id, abbr, name, colors }
+     Divisions page -> the 8 divisions, each with { id, abbr, name, colors }
+
+   One input per box: a customer username. One action: place it on that
+   team or that division. Both pages read and write the same list.
 
    BACKEND_ENDPOINT: leave "" to store usernames in this browser's
-   localStorage only. Set it to your form endpoint to save them
-   centrally (Formspree, Google Apps Script, Supabase…).
+   localStorage only. Set it to your form endpoint to save them centrally
+   (Formspree, Google Apps Script, Supabase…).
    Example: const BACKEND_ENDPOINT = "https://formspree.io/f/xxxxxxxx";
    --------------------------------------------------------------- */
 
 const BACKEND_ENDPOINT = "";
 
-const STORE_KEY = "memorabilia-breaks-usernames-v1";
 const $ = (id) => document.getElementById(id);
 
-let entries = [];        // { id, username, team, createdAt }
-let filterText = "";
+let entries = [];        // { id, username, target, createdAt }
 
 /* ---------- storage ---------- */
 
@@ -38,19 +39,8 @@ function persist() {
   }
 }
 
-/* ---------- helpers ---------- */
-
-function teamByAbbr(abbr) {
-  return TEAMS.find((t) => t.abbr === abbr);
-}
-
-function labelFor(abbr) {
-  const t = teamByAbbr(abbr);
-  return t ? t.city + " " + t.name : abbr;
-}
-
-function usersOn(abbr) {
-  return entries.filter((e) => e.team === abbr);
+function usersOn(targetId) {
+  return entries.filter((e) => e.target === targetId);
 }
 
 /* ---------- board ---------- */
@@ -59,11 +49,11 @@ function renderBoard() {
   const board = $("board");
   board.innerHTML = "";
 
-  TEAMS.forEach((t) => {
+  PAGE_TARGETS.forEach((t) => {
     const tile = document.createElement("div");
     tile.className = "tile";
-    tile.dataset.abbr = t.abbr;
-    tile.dataset.search = (t.city + " " + t.name + " " + t.abbr).toLowerCase();
+    tile.dataset.target = t.id;
+    tile.dataset.search = (t.name + " " + t.abbr).toLowerCase();
 
     const badge = document.createElement("span");
     badge.className = "badge";
@@ -81,33 +71,31 @@ function renderBoard() {
     const name = document.createElement("span");
     name.className = "name";
     name.style.background = t.colors[1];
-    name.textContent = t.city + " " + t.name;
+    name.textContent = t.name;
     tile.appendChild(name);
 
-    // entered usernames, as chips
     const roster = document.createElement("div");
     roster.className = "roster";
-    roster.dataset.roster = t.abbr;
+    roster.dataset.roster = t.id;
     tile.appendChild(roster);
 
-    // the single input
     const bar = document.createElement("form");
     bar.className = "addbar";
     const input = document.createElement("input");
     input.type = "text";
     input.placeholder = "username";
-    input.setAttribute("aria-label", "Customer username for " + t.city + " " + t.name);
+    input.setAttribute("aria-label", "Customer username for " + t.name);
     input.autocomplete = "off";
     input.spellcheck = false;
     const btn = document.createElement("button");
     btn.type = "submit";
     btn.textContent = "+";
-    btn.title = "Add username to " + t.city + " " + t.name;
+    btn.title = "Add username to " + t.name;
     bar.appendChild(input);
     bar.appendChild(btn);
     bar.addEventListener("submit", (ev) => {
       ev.preventDefault();
-      addUser(t.abbr, input.value);
+      addUser(t.id, input.value);
       input.value = "";
       input.focus();
     });
@@ -118,13 +106,13 @@ function renderBoard() {
 }
 
 function refreshBoard() {
-  TEAMS.forEach((t) => {
-    const roster = document.querySelector('[data-roster="' + t.abbr + '"]');
-    const tile = document.querySelector('.tile[data-abbr="' + t.abbr + '"]');
+  PAGE_TARGETS.forEach((t) => {
+    const roster = document.querySelector('[data-roster="' + t.id + '"]');
+    const tile = document.querySelector('.tile[data-target="' + t.id + '"]');
     if (!roster || !tile) return;
 
     roster.innerHTML = "";
-    const list = usersOn(t.abbr);
+    const list = usersOn(t.id);
     list.forEach((e) => {
       const chip = document.createElement("span");
       chip.className = "chip";
@@ -141,9 +129,9 @@ function refreshBoard() {
 
 /* ---------- add / remove ---------- */
 
-async function addUser(abbr, rawName) {
+async function addUser(targetId, rawName) {
   const username = (rawName || "").trim().replace(/^@/, "");
-  const input = document.querySelector('.tile[data-abbr="' + abbr + '"] .addbar input');
+  const input = document.querySelector('.tile[data-target="' + targetId + '"] .addbar input');
   if (!username) {
     if (input) input.focus();
     return;
@@ -152,7 +140,7 @@ async function addUser(abbr, rawName) {
   const entry = {
     id: "u" + Date.now() + Math.random().toString(36).slice(2, 7),
     username: username,
-    team: abbr,
+    target: targetId,
     createdAt: new Date().toISOString()
   };
 
@@ -170,7 +158,7 @@ async function addUser(abbr, rawName) {
     entries.unshift(entry);
     if (!BACKEND_ENDPOINT && !persist()) throw new Error("Could not write to local storage");
     renderAll();
-    $("saved").textContent = "Added @" + username + " to " + labelFor(abbr);
+    $("saved").textContent = "Added @" + username + " to " + targetLabel(targetId);
   } catch (err) {
     $("saved").textContent = "Could not save: " + err.message;
   }
@@ -182,7 +170,7 @@ function removeUser(id) {
   renderAll();
 }
 
-/* ---------- full list ---------- */
+/* ---------- the list under the board ---------- */
 
 function renderEntries() {
   const host = $("entries");
@@ -192,25 +180,31 @@ function renderEntries() {
   if (!entries.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = "Nothing entered yet. Type a username into any team's box above.";
+    p.textContent = "Nothing entered yet. Type a username into any box above.";
     host.appendChild(p);
     return;
   }
 
   const table = document.createElement("table");
   const thead = document.createElement("thead");
-  thead.innerHTML = "<tr><th>Username</th><th>Team</th><th>Added</th><th></th></tr>";
+  thead.innerHTML = "<tr><th>Username</th><th>Placed on</th><th>Added</th><th></th></tr>";
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
-  entries.forEach((e) => {
+  const sorted = entries.slice().sort((a, b) => {
+    const A = targetLabel(a.target), B = targetLabel(b.target);
+    if (A !== B) return A.localeCompare(B);
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  sorted.forEach((e) => {
     const tr = document.createElement("tr");
 
     const tdUser = document.createElement("td");
     tdUser.textContent = "@" + e.username;
     tr.appendChild(tdUser);
 
-    tr.appendChild(textCell(labelFor(e.team)));
+    tr.appendChild(textCell(targetLabel(e.target)));
 
     const when = new Date(e.createdAt);
     tr.appendChild(textCell(isNaN(when) ? "—" : when.toLocaleString()));
@@ -248,14 +242,23 @@ function downloadCsv() {
     $("saved").textContent = "Nothing to export yet.";
     return;
   }
-  const rows = ["username,team"];
-  entries.forEach((e) => {
-    rows.push(csvEscape(e.username) + "," + csvEscape(labelFor(e.team)));
+  const rows = ["username,placed_on,added"];
+  const sorted = entries.slice().sort((a, b) => {
+    const A = targetLabel(a.target), B = targetLabel(b.target);
+    if (A !== B) return A.localeCompare(B);
+    return new Date(a.createdAt) - new Date(b.createdAt);
+  });
+  sorted.forEach((e) => {
+    rows.push(
+      csvEscape(e.username) + "," +
+      csvEscape(targetLabel(e.target)) + "," +
+      csvEscape(e.createdAt)
+    );
   });
   const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "memorabilia-breaks-teams.csv";
+  a.download = "memorabilia-breaks-usernames.csv";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -265,14 +268,14 @@ function downloadCsv() {
 /* ---------- filter ---------- */
 
 function applyFilter(q) {
-  filterText = (q || "").trim().toLowerCase();
+  const needle = (q || "").trim().toLowerCase();
   let shown = 0;
   [...document.querySelectorAll(".tile")].forEach((el) => {
-    const match = !filterText || el.dataset.search.includes(filterText);
+    const match = !needle || el.dataset.search.includes(needle);
     el.style.display = match ? "" : "none";
     if (match) shown++;
   });
-  $("count").textContent = shown + (shown === 1 ? " team" : " teams");
+  $("count").textContent = shown + " shown";
 }
 
 /* ---------- render ---------- */
