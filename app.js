@@ -1,22 +1,56 @@
-/* Memorabilia Breaks — shared controller for the Teams and Divisions pages.
-   Each page sets `window.PAGE_TARGETS` before this script loads:
-     Teams page     -> the 32 teams, each with { id, abbr, name, colors }
-     Divisions page -> the 8 divisions, each with { id, abbr, name, colors }
+/* Memorabilia Breaks — one page, two boards (Teams / Divisions)
+
+   This file is self-contained: it needs only teams.js above it.
+   Switching views never navigates — it swaps which board is drawn.
 
    One input per box: a customer username. One action: place it on that
-   team or that division. Both pages read and write the same list.
+   team or that division.
 
    BACKEND_ENDPOINT: leave "" to store usernames in this browser's
-   localStorage only. Set it to your form endpoint to save them centrally
-   (Formspree, Google Apps Script, Supabase…).
-   Example: const BACKEND_ENDPOINT = "https://formspree.io/f/xxxxxxxx";
+   localStorage only. Set it to your form endpoint to save them centrally.
    --------------------------------------------------------------- */
 
 const BACKEND_ENDPOINT = "";
+const STORE_KEY = "memorabilia-breaks-usernames-v1";
 
 const $ = (id) => document.getElementById(id);
 
-let entries = [];        // { id, username, target, createdAt }
+let entries = [];          // { id, username, target, createdAt }
+let currentView = "teams"; // "teams" | "divisions"
+
+/* ---------- the two boards ---------- */
+
+const TEAM_TARGETS = TEAMS.map(function (t) {
+  return { id: t.abbr, abbr: t.abbr, name: t.city + " " + t.name, colors: t.colors };
+});
+
+const DIVISION_TARGETS = DIVISIONS.map(function (d) {
+  return {
+    id: d.name,
+    abbr: d.name.replace(/[^A-Za-z]/g, "").toUpperCase(),
+    name: d.name,
+    colors: d.teams[0].colors
+  };
+});
+
+function targetsFor(view) {
+  return view === "divisions" ? DIVISION_TARGETS : TEAM_TARGETS;
+}
+
+/* ---------- labels ---------- */
+
+function targetLabel(id) {
+  const t = TEAMS.find(function (x) { return x.abbr === id; });
+  if (t) return t.city + " " + t.name;
+  const d = DIVISIONS.find(function (x) { return x.name === id; });
+  if (d) return d.name;
+  return id;
+}
+
+/* Division names contain spaces, so quote them for querySelector. */
+function cssEscape(v) {
+  return String(v).replace(/"/g, '\\"');
+}
 
 /* ---------- storage ---------- */
 
@@ -27,7 +61,6 @@ function loadEntries() {
   } catch (e) {
     entries = [];
   }
-  renderAll();
 }
 
 function persist() {
@@ -40,16 +73,23 @@ function persist() {
 }
 
 function usersOn(targetId) {
-  return entries.filter((e) => e.target === targetId);
+  return entries.filter(function (e) { return e.target === targetId; });
 }
 
 /* ---------- board ---------- */
 
 function renderBoard() {
   const board = $("board");
+  const list = targetsFor(currentView);
+
+  board.className = "board " + (currentView === "divisions" ? "board-div" : "board-team");
+  board.setAttribute(
+    "aria-label",
+    currentView === "divisions" ? "NFL division board" : "NFL team board"
+  );
   board.innerHTML = "";
 
-  PAGE_TARGETS.forEach((t) => {
+  list.forEach(function (t) {
     const tile = document.createElement("div");
     tile.className = "tile";
     tile.dataset.target = t.id;
@@ -93,7 +133,7 @@ function renderBoard() {
     btn.title = "Add username to " + t.name;
     bar.appendChild(input);
     bar.appendChild(btn);
-    bar.addEventListener("submit", (ev) => {
+    bar.addEventListener("submit", function (ev) {
       ev.preventDefault();
       addUser(t.id, input.value);
       input.value = "";
@@ -106,14 +146,14 @@ function renderBoard() {
 }
 
 function refreshBoard() {
-  PAGE_TARGETS.forEach((t) => {
-    const roster = document.querySelector('[data-roster="' + t.id + '"]');
-    const tile = document.querySelector('.tile[data-target="' + t.id + '"]');
+  targetsFor(currentView).forEach(function (t) {
+    const roster = document.querySelector('[data-roster="' + cssEscape(t.id) + '"]');
+    const tile = document.querySelector('.tile[data-target="' + cssEscape(t.id) + '"]');
     if (!roster || !tile) return;
 
     roster.innerHTML = "";
     const list = usersOn(t.id);
-    list.forEach((e) => {
+    list.forEach(function (e) {
       const chip = document.createElement("span");
       chip.className = "chip";
       chip.textContent = e.username;
@@ -127,11 +167,38 @@ function refreshBoard() {
   });
 }
 
+/* ---------- view switching ---------- */
+
+function setView(view) {
+  currentView = view === "divisions" ? "divisions" : "teams";
+
+  document.querySelectorAll("[data-view-btn]").forEach(function (b) {
+    const on = b.dataset.viewBtn === currentView;
+    b.className = on ? "on" : "";
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+
+  $("boardTitle").textContent = currentView === "divisions" ? "Divisions" : "Teams";
+  $("boardSub").textContent =
+    currentView === "divisions"
+      ? "Eight divisions. Type a username into a division's box to put them on it."
+      : "Thirty-two teams. Type a username into a team's box to put them on it.";
+  $("filter").placeholder =
+    currentView === "divisions" ? "Filter divisions…" : "Filter teams…";
+
+  renderBoard();
+  refreshBoard();
+  applyFilter($("filter").value);
+  $("saved").textContent = "";
+}
+
 /* ---------- add / remove ---------- */
 
 async function addUser(targetId, rawName) {
   const username = (rawName || "").trim().replace(/^@/, "");
-  const input = document.querySelector('.tile[data-target="' + targetId + '"] .addbar input');
+  const input = document.querySelector(
+    '.tile[data-target="' + cssEscape(targetId) + '"] .addbar input'
+  );
   if (!username) {
     if (input) input.focus();
     return;
@@ -157,7 +224,8 @@ async function addUser(targetId, rawName) {
     }
     entries.unshift(entry);
     if (!BACKEND_ENDPOINT && !persist()) throw new Error("Could not write to local storage");
-    renderAll();
+    refreshBoard();
+    renderEntries();
     $("saved").textContent = "Added @" + username + " to " + targetLabel(targetId);
   } catch (err) {
     $("saved").textContent = "Could not save: " + err.message;
@@ -165,9 +233,10 @@ async function addUser(targetId, rawName) {
 }
 
 function removeUser(id) {
-  entries = entries.filter((e) => e.id !== id);
+  entries = entries.filter(function (e) { return e.id !== id; });
   persist();
-  renderAll();
+  refreshBoard();
+  renderEntries();
 }
 
 /* ---------- the list under the board ---------- */
@@ -191,13 +260,13 @@ function renderEntries() {
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
-  const sorted = entries.slice().sort((a, b) => {
+  const sorted = entries.slice().sort(function (a, b) {
     const A = targetLabel(a.target), B = targetLabel(b.target);
     if (A !== B) return A.localeCompare(B);
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
-  sorted.forEach((e) => {
+  sorted.forEach(function (e) {
     const tr = document.createElement("tr");
 
     const tdUser = document.createElement("td");
@@ -214,7 +283,7 @@ function renderEntries() {
     del.type = "button";
     del.className = "del";
     del.textContent = "Delete";
-    del.addEventListener("click", () => removeUser(e.id));
+    del.addEventListener("click", function () { removeUser(e.id); });
     td.appendChild(del);
     tr.appendChild(td);
 
@@ -243,12 +312,12 @@ function downloadCsv() {
     return;
   }
   const rows = ["username,placed_on,added"];
-  const sorted = entries.slice().sort((a, b) => {
+  const sorted = entries.slice().sort(function (a, b) {
     const A = targetLabel(a.target), B = targetLabel(b.target);
     if (A !== B) return A.localeCompare(B);
     return new Date(a.createdAt) - new Date(b.createdAt);
   });
-  sorted.forEach((e) => {
+  sorted.forEach(function (e) {
     rows.push(
       csvEscape(e.username) + "," +
       csvEscape(targetLabel(e.target)) + "," +
@@ -270,34 +339,34 @@ function downloadCsv() {
 function applyFilter(q) {
   const needle = (q || "").trim().toLowerCase();
   let shown = 0;
-  [...document.querySelectorAll(".tile")].forEach((el) => {
+  document.querySelectorAll("#board .tile").forEach(function (el) {
     const match = !needle || el.dataset.search.includes(needle);
     el.style.display = match ? "" : "none";
     if (match) shown++;
   });
-  $("count").textContent = shown + " shown";
+  const total = targetsFor(currentView).length;
+  $("count").textContent = shown === total ? total + " shown" : shown + " of " + total + " shown";
 }
 
-/* ---------- render ---------- */
+/* ---------- boot ---------- */
 
-function renderAll() {
-  refreshBoard();
-  renderEntries();
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  renderBoard();
+document.addEventListener("DOMContentLoaded", function () {
   loadEntries();
-  applyFilter("");
+  setView("teams");
 
-  $("filter").addEventListener("input", (e) => applyFilter(e.target.value));
+  document.querySelectorAll("[data-view-btn]").forEach(function (b) {
+    b.addEventListener("click", function () { setView(b.dataset.viewBtn); });
+  });
+
+  $("filter").addEventListener("input", function (e) { applyFilter(e.target.value); });
   $("exportCsv").addEventListener("click", downloadCsv);
-  $("clearAll").addEventListener("click", () => {
+  $("clearAll").addEventListener("click", function () {
     if (!entries.length) return;
     if (confirm("Delete all " + entries.length + " usernames?")) {
       entries = [];
       persist();
-      renderAll();
+      refreshBoard();
+      renderEntries();
     }
   });
 });
