@@ -3,14 +3,18 @@
    REQUIRES: teams.js, then boards.js, then this file.
    The boards themselves live in boards.js — THIS FILE NEVER CHANGES
    when you add a board. Add a board in boards.js and the tab, the
-   grid, the headings and the counter all follow automatically.
+   grid, the headings, the counter and the Reset button all follow.
 
    One input per box: a customer username. One action: place it on that
    box. Once a box has at least one username it greys out and closes.
 
    Editing: every chip on a box is clickable — click one to rename it or
    delete just that name. Removing the last name on a box un-greys it.
-   Hide all asks first and offers Undo.
+
+   Resetting: every board carries its own Reset, which clears only the
+   boxes on that board. On a tab with two boards stacked (Pairs), each
+   gets its own button, so you can clear the pairs without touching the
+   divisions, or the other way round. Every reset offers Undo.
 
    BACKEND_ENDPOINT: leave "" to store usernames in this browser's
    localStorage only. Set it to your form endpoint to save them centrally.
@@ -67,6 +71,15 @@ function persist() {
 
 function usersOn(targetId) {
   return entries.filter(function (e) { return e.target === targetId; });
+}
+
+/* How many names sit on one whole board. */
+function countOnBoard(boardId) {
+  const board = boardById(boardId);
+  if (!board) return 0;
+  const names = {};
+  board.boxes.forEach(function (b) { names[b.name] = true; });
+  return entries.filter(function (e) { return names[e.target]; }).length;
 }
 
 /* ---------- tabs ----------
@@ -164,24 +177,43 @@ function buildTile(t) {
   return tile;
 }
 
+/* Every board on a stacked tab gets a header row carrying its own
+   Reset button. On a single-board tab the toolbar Reset covers it
+   (same handler, same board). */
+function buildBoardHeader(b) {
+  const head = document.createElement("div");
+  head.className = "sectionhead";
+
+  const h = document.createElement("h3");
+  h.textContent = b.label;
+  head.appendChild(h);
+
+  const n = document.createElement("span");
+  n.className = "sectioncount";
+  n.dataset.countFor = b.id;
+  head.appendChild(n);
+
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.className = "boardreset";
+  reset.dataset.resetFor = b.id;
+  reset.textContent = "Reset " + b.label;
+  reset.title = "Remove every username from the " + b.label + " boxes";
+  reset.addEventListener("click", function () { resetBoard(b.id); });
+  head.appendChild(reset);
+
+  return head;
+}
+
 function renderBoards() {
   const host = $("boards");
   const boards = boardsOnTab(currentTab);
+  const stacked = boards.length > 1;
 
   host.innerHTML = "";
 
   boards.forEach(function (b) {
-    if (boards.length > 1) {
-      const head = document.createElement("div");
-      head.className = "sectionhead";
-      const h = document.createElement("h3");
-      h.textContent = b.label;
-      head.appendChild(h);
-      const n = document.createElement("span");
-      n.textContent = b.boxes.length + (b.boxes.length === 1 ? " box" : " boxes");
-      head.appendChild(n);
-      host.appendChild(head);
-    }
+    if (stacked) host.appendChild(buildBoardHeader(b));
 
     const grid = document.createElement("div");
     grid.className = "board board-" + b.size;
@@ -191,6 +223,31 @@ function renderBoards() {
       if (t) grid.appendChild(buildTile(t));
     });
     host.appendChild(grid);
+  });
+
+  const primary = boards[0];
+  const toolbarReset = $("resetBoard");
+  if (primary) {
+    toolbarReset.dataset.resetFor = primary.id;
+    toolbarReset.textContent = stacked ? "Reset " + primary.label : "Reset board";
+    toolbarReset.title = "Remove every username from the " + primary.label + " boxes";
+  }
+}
+
+function refreshBoardCounts() {
+  document.querySelectorAll("[data-count-for]").forEach(function (el) {
+    const id = el.dataset.countFor;
+    const board = boardById(id);
+    if (!board) return;
+    const n = countOnBoard(id);
+    el.textContent = board.boxes.length + (board.boxes.length === 1 ? " box" : " boxes") +
+      (n ? " · " + n + (n === 1 ? " name" : " names") : "");
+  });
+
+  document.querySelectorAll("[data-reset-for]").forEach(function (el) {
+    const n = countOnBoard(el.dataset.resetFor);
+    el.disabled = n === 0;
+    el.classList.toggle("hasnames", n > 0);
   });
 }
 
@@ -230,6 +287,37 @@ function refreshBoards() {
     }
     if (!isFilled) tile.classList.remove("force-open");
   });
+
+  refreshBoardCounts();
+}
+
+/* ---------- resetting one board ---------- */
+
+function resetBoard(boardId) {
+  const board = boardById(boardId);
+  if (!board) return;
+
+  const names = {};
+  board.boxes.forEach(function (b) { names[b.name] = true; });
+
+  const doomed = entries.filter(function (e) { return names[e.target]; });
+  if (!doomed.length) {
+    $("saved").textContent = "The " + board.label + " board is already empty.";
+    return;
+  }
+
+  const line1 = "Remove all " + doomed.length + " " +
+    (doomed.length === 1 ? "name" : "names") + " from the " + board.label + " board?";
+  const line2 = "Only that board is cleared. You can put them back with Undo.";
+  if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
+
+  undoSnapshot = entries.slice();
+  entries = entries.filter(function (e) { return !names[e.target]; });
+  persist();
+  closeEditor();
+  refreshBoards();
+  renderEntries();
+  showUndo("Cleared " + doomed.length + " from " + board.label + ".");
 }
 
 /* ---------- inline chip editor ---------- */
@@ -334,9 +422,10 @@ function setTab(tabId) {
 
   $("boardTitle").textContent = board.label;
   if (stack.length > 1) {
-    const others = stack.slice(1).map(function (b) { return b.label; }).join(" and ");
+    const rest = stack.slice(1).map(function (b) { return b.label; }).join(" and ");
     $("boardSub").textContent =
-      "Sixteen pairs on top, with " + others + " underneath. Type a username into any box.";
+      "Two boards on this tab — " + board.label + " on top, " + rest +
+      " underneath. Each has its own Reset.";
   } else {
     $("boardSub").textContent =
       board.boxes.length + " boxes. Type a username into a box to put them on it.";
@@ -583,7 +672,7 @@ function showUndo(message) {
   $("undotext").textContent = message;
   $("undobar").classList.add("show");
   if (undoTimer) clearTimeout(undoTimer);
-  undoTimer = setTimeout(hideUndo, 12000);
+  undoTimer = setTimeout(hideUndo, 14000);
 }
 
 function hideUndo() {
@@ -610,26 +699,36 @@ document.addEventListener("DOMContentLoaded", function () {
   $("filter").addEventListener("input", function (e) { applyFilter(e.target.value); });
   $("exportCsv").addEventListener("click", downloadCsv);
 
+  /* toolbar Reset — clears the board this tab is named after */
+  $("resetBoard").addEventListener("click", function () {
+    resetBoard(this.dataset.resetFor || currentTab);
+  });
+
+  /* Hide all — clears every board at once. Last resort, still undoable. */
   $("clearAll").addEventListener("click", function () {
     if (!entries.length) return;
-    if (!confirm("Hide all " + entries.length + " names? You can put them straight back with Undo.")) return;
+    const line1 = "Hide all " + entries.length + " names from every board?";
+    const line2 = "You can put them straight back with Undo.";
+    if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
     undoSnapshot = entries.slice();
     entries = [];
     persist();
+    closeEditor();
     refreshBoards();
     renderEntries();
-    showUndo("Hid " + undoSnapshot.length + " names.");
+    showUndo("Hid all " + undoSnapshot.length + " names.");
   });
 
   $("undobtn").addEventListener("click", function () {
     if (!undoSnapshot) return;
+    const restored = undoSnapshot.length;
     entries = undoSnapshot;
     undoSnapshot = null;
     persist();
     refreshBoards();
     renderEntries();
     hideUndo();
-    $("saved").textContent = "Restored.";
+    $("saved").textContent = "Restored " + restored + " names.";
   });
   $("undoclose").addEventListener("click", hideUndo);
 
