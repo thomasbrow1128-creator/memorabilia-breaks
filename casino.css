@@ -1,133 +1,134 @@
 /* ============================================================
-   Memorabilia Breaks — casino theme
-   Dark felt table, brass rails, gold accents, red seals.
-   Change the seven values in :root to retheme the whole page.
+   Memorabilia Breaks — board theme
+   Chrome plates, lit rims, blue-lit backdrop, gold purchaser names.
+   Change the values in :root to retheme the whole page.
    ============================================================ */
 
 :root{
-  --felt-1:#0b3b26;      /* deep felt (page background) */
-  --felt-2:#062417;      /* darkest felt */
-  --rail:#c9a227;        /* brass / gold rail */
+  --blue-1:#3aa8dd;      /* bright top of the backdrop */
+  --blue-2:#1e6f9f;      /* middle wash */
+  --blue-3:#0a3252;      /* dark bottom */
+  --plate-1:#3d444c;     /* chrome plate, top */
+  --plate-2:#232a33;     /* chrome plate, middle */
+  --plate-3:#12161c;     /* chrome plate, bottom */
+  --rim:#78b4dc;         /* cool rim line */
+  --rail:#c9a227;        /* brass / gold */
   --rail-soft:#e8d48b;   /* highlight gold */
-  --chipred:#b3262b;     /* casino red */
-  --card:#f4efe2;        /* card face cream */
-  --card-ink:#1a1512;    /* ink on card face */
+  --gold-text:#ffcf3f;   /* purchaser names */
+  --chipred:#b3262b;     /* alert red */
+  --label:#8f9aa8;       /* PURCHASER label grey */
 }
 
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
-  margin:0; color:#f0ead8;
+  margin:0; color:#eaf1f7;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   line-height:1.5;
   background:
-    radial-gradient(ellipse at 50% -10%, rgba(201,162,39,.16), transparent 55%),
-    radial-gradient(ellipse at 50% 120%, rgba(0,0,0,.6), transparent 60%),
-    repeating-linear-gradient(45deg, rgba(255,255,255,.014) 0 2px, transparent 2px 5px),
-    linear-gradient(160deg, var(--felt-1), var(--felt-2));
+    radial-gradient(ellipse at 50% -10%, rgba(255,255,255,.18), transparent 55%),
+    radial-gradient(ellipse at 50% 115%, rgba(0,0,0,.55), transparent 62%),
+    linear-gradient(180deg, var(--blue-1), var(--blue-2) 45%, var(--blue-3));
   background-attachment:fixed;
 }
 
 /* ---------- header ---------- */
 header{
-  position:relative; padding:26px 20px 18px; text-align:center;
-  border-bottom:2px solid transparent;
-  border-image:linear-gradient(90deg, transparent, var(--rail) 20%, var(--rail-soft) 50%, var(--rail) 80%, transparent) 1;
-  background:linear-gradient(180deg, rgba(0,0,0,.45), transparent);
+  position:relative; padding:24px 20px 16px; text-align:center;
+  border-bottom:1px solid rgba(150,205,240,.4);
+  background:linear-gradient(180deg, rgba(0,0,0,.28), transparent);
 }
 header h1{
   margin:0 0 6px; font-size:clamp(22px,3.6vw,34px); letter-spacing:.02em;
-  font-weight:800; text-transform:uppercase;
-  background:linear-gradient(180deg, #fff6d4 0%, var(--rail-soft) 45%, var(--rail) 70%, #8a6d12 100%);
-  -webkit-background-clip:text; background-clip:text; color:transparent;
-  text-shadow:0 2px 10px rgba(201,162,39,.18);
+  font-weight:800; text-transform:uppercase; color:#fff;
+  text-shadow:0 2px 10px rgba(0,0,0,.5), 0 0 26px rgba(120,190,235,.35);
 }
-header p{margin:0; color:#b9b49c; font-size:13px; letter-spacing:.03em}
+header p{margin:0; color:#c3d6e6; font-size:13px; letter-spacing:.03em}
 header.compact{padding:6px 12px 5px}
 header.compact h1{font-size:clamp(13px,1.6vw,16px); margin-bottom:0}
 header.compact p{display:none}
 
-/* ---------- tabs: a brass rail with named plaques ---------- */
+/* ---------- tabs ---------- */
 .segment{
-  display:inline-flex; gap:6px; margin:18px 0 0; padding:6px; flex-wrap:wrap;
+  display:inline-flex; gap:6px; margin:16px 0 0; padding:5px; flex-wrap:wrap;
   justify-content:center;
-  background:linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,.3));
-  border:1px solid rgba(201,162,39,.45); border-radius:999px;
-  box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.07);
+  background:linear-gradient(180deg, rgba(0,20,40,.6), rgba(0,20,40,.35));
+  border:1px solid rgba(150,205,240,.4); border-radius:999px;
+  box-shadow:0 6px 18px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.1);
 }
 header.compact .segment{margin:4px 0 0; padding:2px; gap:3px; box-shadow:none}
 .segment button{
-  background:transparent; border:1px solid transparent; color:#c8c2a6; font:inherit;
+  background:transparent; border:1px solid transparent; color:#bfd6e8; font:inherit;
   font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
-  padding:9px 22px; border-radius:999px; cursor:pointer;
+  padding:8px 20px; border-radius:999px; cursor:pointer;
   transition:color .15s ease, background .15s ease, box-shadow .15s ease;
 }
 header.compact .segment button{font-size:9px; padding:3px 10px}
-.segment button:hover{color:var(--rail-soft); background:rgba(201,162,39,.08)}
+.segment button:hover{color:#fff; background:rgba(255,255,255,.1)}
 .segment button.on{
-  color:#2a1f05;
-  background:linear-gradient(180deg, #ffeeb5, var(--rail-soft) 40%, var(--rail) 100%);
-  border-color:var(--rail-soft);
-  box-shadow:0 2px 10px rgba(201,162,39,.4), inset 0 1px 0 rgba(255,255,255,.6);
+  color:#0b2436;
+  background:linear-gradient(180deg, #ffffff, #cfe6f5 55%, #9dc7e0);
+  border-color:#fff;
+  box-shadow:0 2px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.9);
 }
 
-.wrap{max-width:1240px; margin:0 auto; padding:20px 20px 60px}
+.wrap{max-width:1240px; margin:0 auto; padding:18px 20px 60px}
 
 /* ---------- board heading ---------- */
-.boardhead{display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; margin:4px 0 16px}
+.boardhead{display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; margin:4px 0 14px}
 .boardhead h2{
-  margin:0; font-size:19px; letter-spacing:.06em; text-transform:uppercase;
-  color:var(--rail-soft); font-weight:800; text-shadow:0 1px 0 rgba(0,0,0,.6);
+  margin:0; font-size:18px; letter-spacing:.06em; text-transform:uppercase;
+  color:#fff; font-weight:800; text-shadow:0 2px 6px rgba(0,0,0,.5);
 }
-.boardhead span{color:#a9a48c; font-size:12.5px}
+.boardhead span{color:#b6cade; font-size:12.5px}
 
 /* ---------- toolbar ---------- */
-.toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin:0 0 18px}
+.toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin:0 0 16px}
 .toolbar .left{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
 .toolbar input{
-  background:linear-gradient(180deg, rgba(0,0,0,.5), rgba(0,0,0,.32));
-  border:1px solid rgba(201,162,39,.35); color:#f0ead8;
-  border-radius:999px; padding:10px 16px; font-size:13.5px; min-width:210px;
-  box-shadow:inset 0 1px 4px rgba(0,0,0,.5);
+  background:linear-gradient(180deg, rgba(0,25,45,.6), rgba(0,25,45,.4));
+  border:1px solid rgba(150,205,240,.45); color:#eaf1f7;
+  border-radius:999px; padding:9px 16px; font-size:13px; min-width:200px;
+  box-shadow:inset 0 1px 4px rgba(0,0,0,.45);
 }
-.toolbar input::placeholder{color:#8d896f}
-.toolbar input:focus{outline:none; border-color:var(--rail); box-shadow:0 0 0 3px rgba(201,162,39,.16), inset 0 1px 4px rgba(0,0,0,.5)}
-.toolbar .count{color:#a9a48c; font-size:12px; letter-spacing:.04em}
+.toolbar input::placeholder{color:#8fa6b8}
+.toolbar input:focus{outline:none; border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.18), inset 0 1px 4px rgba(0,0,0,.45)}
+.toolbar .count{color:#b6cade; font-size:12px; letter-spacing:.04em}
 button.ghost{
-  background:linear-gradient(180deg, rgba(255,255,255,.09), rgba(0,0,0,.28));
-  color:#e6dfc7; border:1px solid rgba(201,162,39,.4);
-  border-radius:999px; padding:9px 16px; font-size:12.5px; font-weight:600;
+  background:linear-gradient(180deg, rgba(255,255,255,.16), rgba(0,25,45,.4));
+  color:#e9f2fa; border:1px solid rgba(150,205,240,.45);
+  border-radius:999px; padding:8px 15px; font-size:12.5px; font-weight:600;
   letter-spacing:.03em; cursor:pointer;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 2px 8px rgba(0,0,0,.3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 2px 8px rgba(0,0,0,.3);
 }
-button.ghost:hover{border-color:var(--rail-soft); color:#fff8e0}
+button.ghost:hover{border-color:#fff; color:#fff}
 button.ghost:disabled{opacity:.45; cursor:not-allowed}
 
 /* ---------- per-board header row ---------- */
-.sectionhead{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:30px 0 12px}
+.sectionhead{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:26px 0 10px}
 .sectionhead:first-child{margin-top:0}
 .sectionhead h3{
-  margin:0; font-size:14px; letter-spacing:.1em; text-transform:uppercase;
-  color:var(--rail-soft); font-weight:800;
+  margin:0; font-size:13.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:#fff; font-weight:800; text-shadow:0 1px 4px rgba(0,0,0,.5);
 }
-.sectionhead .sectioncount{color:#a9a48c; font-size:11.5px; letter-spacing:.05em}
+.sectionhead .sectioncount{color:#b6cade; font-size:11.5px; letter-spacing:.05em}
 
 .boardreset{
-  margin-left:auto; background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(0,0,0,.3));
-  color:#c9c3a8; border:1px solid rgba(201,162,39,.35);
-  border-radius:999px; padding:6px 14px;
-  font:inherit; font-size:11.5px; font-weight:700; letter-spacing:.05em;
+  margin-left:auto; background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(0,25,45,.4));
+  color:#cfe1f0; border:1px solid rgba(150,205,240,.4);
+  border-radius:999px; padding:5px 13px;
+  font:inherit; font-size:11px; font-weight:700; letter-spacing:.05em;
   text-transform:uppercase; cursor:pointer;
 }
-.boardreset:hover{border-color:var(--chipred); color:#ff9b9e; background:linear-gradient(180deg, rgba(179,38,43,.3), rgba(0,0,0,.3))}
-.boardreset.hasnames{color:#ff9b9e; border-color:rgba(179,38,43,.6)}
+.boardreset:hover{border-color:#ff9b9e; color:#ffd3d5}
+.boardreset.hasnames{color:#ffd3d5; border-color:rgba(255,120,125,.7)}
 .boardreset:disabled{opacity:.35; cursor:not-allowed}
 
 /* ---------- board grids ---------- */
-.board{display:grid; gap:12px; margin-bottom:6px}
+.board{display:grid; gap:11px; margin-bottom:6px}
 .board-large{grid-template-columns:repeat(8,1fr)}
-.board-medium{grid-template-columns:repeat(4,1fr); gap:15px}
-.board-small{grid-template-columns:repeat(3,1fr); gap:14px}
+.board-medium{grid-template-columns:repeat(4,1fr); gap:13px}
+.board-small{grid-template-columns:repeat(4,1fr); gap:11px}
 @media(max-width:980px){ .board-large{grid-template-columns:repeat(4,1fr)} }
 @media(max-width:760px){
   .board-medium{grid-template-columns:repeat(2,1fr)}
@@ -135,283 +136,329 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 }
 @media(max-width:520px){
   .board-large{grid-template-columns:repeat(2,1fr)}
-  .board-small{grid-template-columns:1fr}
+  .board-small{grid-template-columns:repeat(1,1fr)}
 }
 @media(max-width:440px){ .board-medium{grid-template-columns:1fr} }
 
-/* ---------- the tile: a card face inside a brass rail ---------- */
+/* ============================================================
+   THE TILE — a chrome plate: emblem on top, PURCHASER name in
+   gold beneath, all inside a lit rim.
+   ============================================================ */
+
 .tile{
-  position:relative; border-radius:12px; overflow:hidden;
-  background:var(--card);
+  position:relative; overflow:hidden; border-radius:10px;
   display:flex; flex-direction:column;
-  border:1px solid rgba(201,162,39,.5);
+  background:linear-gradient(180deg, var(--plate-1) 0%, var(--plate-2) 42%, var(--plate-3) 100%);
+  border:1px solid rgba(120,180,220,.5);
   box-shadow:
-    0 0 0 1px rgba(0,0,0,.6),
-    0 8px 20px rgba(0,0,0,.45),
-    inset 0 0 0 1px rgba(255,255,255,.25);
+    0 0 0 1px rgba(0,0,0,.7),
+    0 8px 22px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.16);
   transition:transform .16s ease, box-shadow .16s ease, filter .16s ease;
 }
 .tile::after{
-  content:""; position:absolute; inset:3px; border-radius:9px;
-  border:1px solid rgba(201,162,39,.55);
+  content:""; position:absolute; inset:3px; border-radius:7px;
+  border:1px solid rgba(150,200,235,.3);
   pointer-events:none; z-index:4;
 }
 .tile:hover{transform:translateY(-2px);
-  box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 14px 28px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.25)}
+  box-shadow:0 0 0 1px rgba(0,0,0,.7), 0 14px 30px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.16)}
 
-/* the colored band */
-.tile .eb{position:relative; display:grid; place-items:center; padding:12px 8px}
-.board-medium .tile .eb{padding:15px 8px}
-.board-small .tile .eb{padding:14px 9px}
+/* --- the emblem plate --- */
+.tile .eb{
+  position:relative; display:grid; place-items:center;
+  padding:10px 8px 7px; min-height:50px;
+}
+.board-medium .tile .eb{padding:12px 8px 8px; min-height:56px}
+.board-small .tile .eb{padding:11px 8px 8px; min-height:54px}
+
+/* an image when the box names one; the initials stay as the fallback */
+.tile .eb img{
+  display:block; height:100%; max-height:44px; max-width:100%;
+  object-fit:contain;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.7));
+}
+.board-medium .tile .eb img{max-height:50px}
+.board-small .tile .eb img{max-height:46px}
+.tile .eb .initials{
+  font-size:clamp(18px,2.4vw,28px); font-weight:900; letter-spacing:.06em;
+  color:#fff; font-variant-numeric:tabular-nums;
+  text-shadow:0 2px 6px rgba(0,0,0,.8);
+}
+.board-medium .tile .eb .initials{font-size:clamp(18px,2.1vw,25px)}
+.board-small .tile .eb .initials{font-size:clamp(17px,1.9vw,23px)}
+
+/* the sheen sweeping the top of the plate */
 .tile .eb::after{
   content:""; position:absolute; inset:0; pointer-events:none;
-  background:linear-gradient(180deg, rgba(255,255,255,.16), transparent 45%, rgba(0,0,0,.3));
+  background:linear-gradient(180deg, rgba(255,255,255,.1), transparent 60%);
 }
-.tile .eb span{
-  position:relative; z-index:1;
-  font-size:clamp(14px,1.9vw,23px); font-weight:900; letter-spacing:.06em;
-  color:#fff; font-variant-numeric:tabular-nums;
-  text-shadow:0 2px 4px rgba(0,0,0,.6), 0 0 14px rgba(0,0,0,.4);
-}
-.board-medium .tile .eb span{font-size:clamp(15px,1.7vw,20px)}
-.board-small .tile .eb span{font-size:clamp(13px,1.5vw,19px)}
 
-/* the name plate */
-.tile .name{
-  display:block; padding:6px 8px; text-align:center;
-  font-size:10px; font-weight:800; letter-spacing:.09em; text-transform:uppercase;
-  color:var(--card-ink);
-  border-top:1px solid rgba(201,162,39,.5);
-  border-bottom:1px solid rgba(0,0,0,.13);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+/* --- the count badge --- */
+.tile .badge{
+  position:absolute; top:5px; right:5px; z-index:5;
+  min-width:19px; text-align:center;
+  background:linear-gradient(180deg, #ffffff, #bcd8ea);
+  color:#0b2436; font-size:10.5px; font-weight:900;
+  padding:1px 6px; border-radius:999px;
+  border:1px solid rgba(255,255,255,.8);
+  box-shadow:0 2px 6px rgba(0,0,0,.45);
 }
-.board-medium .tile .name{font-size:10.5px; padding:6px 8px}
-.board-small .tile .name{font-size:11px; padding:8px 9px}
 
-/* ---------- the roster ---------- */
+/* --- the PURCHASER plate --- */
+.tile .buyer{
+  position:relative; z-index:4;
+  display:block; padding:3px 6px 6px; text-align:center;
+}
+.tile .buyer::before{
+  content:""; position:absolute; left:12%; right:12%; top:1px; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(201,162,39,.55), transparent);
+}
+.tile .buyer .buylbl{
+  display:block;
+  font-size:8.5px; font-weight:800; letter-spacing:.17em; text-transform:uppercase;
+  color:var(--label);
+  text-shadow:0 1px 0 rgba(0,0,0,.9);
+}
+.board-medium .tile .buyer .buylbl{font-size:9px; letter-spacing:.16em}
+.board-small .tile .buyer .buylbl{font-size:9px; letter-spacing:.16em}
+
+.tile .buyer .buynames{display:block; margin-top:2px}
+
+.tile .buyer .buyname{
+  display:block;
+  font-size:12.5px; font-weight:900; letter-spacing:.02em;
+  color:var(--gold-text); line-height:1.18; word-break:break-word;
+  text-shadow:0 1px 2px rgba(0,0,0,.95), 0 0 14px rgba(255,190,60,.3);
+}
+.tile .buyer .buyname + .buyname{margin-top:2px}
+.tile .buyer .buyname-btn{
+  background:transparent; border:0; font:inherit;
+  font-size:12.5px; font-weight:900; letter-spacing:.02em; color:var(--gold-text);
+  width:100%; cursor:pointer; padding:1px 0;
+}
+.tile .buyer .buyname-btn:hover{color:#fff3c2; text-shadow:0 0 16px rgba(255,215,90,.7)}
+.tile .buyer .buyopen{
+  color:#9fb4c6; font-weight:800; letter-spacing:.12em;
+  text-transform:uppercase; font-size:10px;
+}
+.board-medium .tile .buyer .buyname,
+.board-medium .tile .buyer .buyname-btn{font-size:13.5px}
+.board-small .tile .buyer .buyname,
+.board-small .tile .buyer .buyname-btn{font-size:13.5px}
+
+/* --- the roster: the edit surface, quiet until you hover --- */
 .tile .roster{
-  display:flex; flex-wrap:wrap; gap:4px; padding:7px 8px; min-height:30px;
-  align-content:flex-start;
-  background:linear-gradient(180deg, rgba(0,0,0,.06), rgba(0,0,0,.13));
-  border-bottom:1px solid rgba(0,0,0,.12);
+  display:flex; flex-wrap:wrap; gap:3px; justify-content:center;
+  padding:0 6px 6px; min-height:0;
 }
-.board-medium .tile .roster{min-height:34px; flex:1}
-.board-small .tile .roster{min-height:38px; flex:1; padding:8px 9px}
+.board-medium .tile .roster{min-height:0}
+.board-small .tile .roster{min-height:0; padding:0 8px 8px}
 
-/* chips — casino plaques with a gold edge */
 .chip{
-  position:relative;
-  background:linear-gradient(180deg, #ffffff, #e9e3d2);
-  border:1px solid rgba(201,162,39,.75); border-radius:999px;
-  padding:2px 10px; font-size:9.5px; font-weight:800; letter-spacing:.03em;
-  font-family:inherit; color:#241d15;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(201,162,39,.45); border-radius:999px;
+  padding:1px 8px; font-size:9px; font-weight:700; letter-spacing:.03em;
+  font-family:inherit; color:#ffe6a8;
   max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   cursor:pointer;
-  box-shadow:0 1px 2px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.9);
 }
-.board-small .chip{padding:3px 11px; font-size:10px}
-.chip:hover{
-  color:#8a1d21; border-color:var(--chipred);
-  box-shadow:0 1px 3px rgba(0,0,0,.35), inset 0 0 0 1px rgba(179,38,43,.35);
-}
+.chip:hover{background:rgba(201,162,39,.22); color:#fff3cd}
 
-/* the count badge — a brass token */
-.tile .badge{
-  position:absolute; top:6px; right:6px; z-index:5;
-  min-width:20px; text-align:center;
-  background:linear-gradient(180deg, #ffeeb5, var(--rail-soft) 45%, var(--rail));
-  color:#2a1f05; font-size:10.5px; font-weight:900;
-  padding:2px 6px; border-radius:999px;
-  border:1px solid rgba(255,255,255,.6);
-  box-shadow:0 2px 6px rgba(0,0,0,.5);
-}
-
-/* ---------- the add-a-name bar ---------- */
+/* --- the add-a-name row --- */
 .addbar{
-  display:flex; gap:6px; padding:7px 8px;
-  background:linear-gradient(180deg, rgba(0,0,0,.1), rgba(0,0,0,.2));
+  display:flex; gap:6px; padding:6px 7px; margin-top:auto;
+  background:linear-gradient(180deg, rgba(0,0,0,.3), rgba(0,0,0,.5));
+  border-top:1px solid rgba(150,200,235,.16);
 }
-.board-small .addbar{padding:8px 9px}
+.board-small .addbar{padding:7px 8px}
 .addbar input{
   flex:1; min-width:0; font-family:inherit;
-  background:#fffdf6; border:1px solid rgba(201,162,39,.55);
-  border-radius:8px; padding:6px 9px; font-size:11px; color:#241d15;
-  box-shadow:inset 0 2px 4px rgba(0,0,0,.14);
+  background:rgba(0,0,0,.45); border:1px solid rgba(150,200,235,.35);
+  border-radius:6px; padding:5px 8px; font-size:11px; color:#eef5fb;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.5);
 }
-.board-small .addbar input{padding:7px 10px; font-size:12px}
-.addbar input::placeholder{color:#9b917a; font-style:italic}
-.addbar input:focus{outline:none; border-color:var(--rail); box-shadow:0 0 0 3px rgba(201,162,39,.22), inset 0 2px 4px rgba(0,0,0,.14)}
+.board-small .addbar input{padding:6px 9px; font-size:12px}
+.addbar input::placeholder{color:#7d8f9f; font-style:italic}
+.addbar input:focus{outline:none; border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.16), inset 0 2px 4px rgba(0,0,0,.5)}
 .addbar button{
-  background:linear-gradient(180deg, #d8a92c, #a47c10);
-  color:#2a1f05; border:1px solid rgba(255,240,190,.75);
-  border-radius:8px; padding:0 12px; font-size:15px; font-weight:900;
+  background:linear-gradient(180deg, #f3d873, #b98f14);
+  color:#2a1f05; border:1px solid rgba(255,248,215,.75);
+  border-radius:6px; padding:0 11px; font-size:14px; font-weight:900;
   cursor:pointer; line-height:1; font-family:inherit;
-  box-shadow:0 2px 6px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.5);
+  box-shadow:0 2px 6px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.6);
 }
-.board-small .addbar button{padding:0 14px; font-size:16px}
-.addbar button:hover{filter:brightness(1.1)}
+.board-small .addbar button{padding:0 13px; font-size:15px}
+.addbar button:hover{filter:brightness(1.08)}
 
-/* ---------- the closed state: dimmed card with a red seal ---------- */
-.tile.filled{filter:saturate(.35) brightness(.82)}
+/* ============================================================
+   THE CLOSED STATE — the plate cools and dims, the emblem fades
+   back, and the purchaser name keeps burning.
+   ============================================================ */
+
+.tile.filled{filter:saturate(.45) brightness(.85)}
 .tile.filled .addbar{display:none}
+.tile.filled .roster{display:none}
 .tile.filled::before{
   content:""; position:absolute; inset:0; z-index:3; pointer-events:none;
-  background:
-    radial-gradient(circle at 50% 42%, rgba(201,162,39,.16), transparent 62%),
-    linear-gradient(180deg, rgba(20,15,8,.42), rgba(20,15,8,.55));
+  background:linear-gradient(180deg, rgba(8,16,26,.4), rgba(8,16,26,.62));
 }
-.tile.filled .roster,
-.tile.filled .name,
-.tile.filled .eb{position:relative; z-index:4}
+.tile.filled .eb,
+.tile.filled .buyer,
+.tile.filled .filledbar{position:relative; z-index:4}
+.tile.filled .eb img,
+.tile.filled .eb .initials{opacity:.7}
+.tile.filled .buyer .buyname,
+.tile.filled .buyer .buyname-btn{
+  color:#ffd75a; text-shadow:0 1px 3px rgba(0,0,0,.95), 0 0 18px rgba(255,195,70,.45);
+}
 
 .filledbar{
   display:none; align-items:center; justify-content:space-between; gap:8px;
-  padding:6px 9px; order:5; position:relative; z-index:4;
-  background:linear-gradient(180deg, rgba(179,38,43,.92), rgba(120,20,24,.95));
-  border-top:1px solid rgba(255,220,150,.5);
+  padding:4px 8px; order:6;
+  background:linear-gradient(180deg, rgba(179,38,43,.8), rgba(105,16,20,.88));
+  border-top:1px solid rgba(255,220,150,.4);
 }
 .tile.filled .filledbar{display:flex}
 .filledtext{
   display:flex; align-items:center; gap:6px;
-  font-size:9.5px; font-weight:900; letter-spacing:.14em; text-transform:uppercase;
+  font-size:9px; font-weight:900; letter-spacing:.14em; text-transform:uppercase;
   color:#ffe7c9;
 }
 .filledtext::before{
-  content:""; width:6px; height:6px; border-radius:50%;
+  content:""; width:5px; height:5px; border-radius:50%;
   background:radial-gradient(circle at 35% 30%, #fff3cd, var(--rail) 70%);
   box-shadow:0 0 6px rgba(255,225,140,.8);
 }
 .unlock{
-  background:linear-gradient(180deg, rgba(255,255,255,.2), rgba(0,0,0,.2));
-  border:1px solid rgba(255,225,170,.6); color:#fff4de;
-  border-radius:999px; padding:3px 11px; font-size:9.5px; font-weight:800;
+  background:linear-gradient(180deg, rgba(255,255,255,.2), rgba(0,0,0,.25));
+  border:1px solid rgba(255,225,170,.55); color:#fff4de;
+  border-radius:999px; padding:2px 10px; font-size:9px; font-weight:800;
   letter-spacing:.06em; text-transform:uppercase; cursor:pointer; font-family:inherit;
 }
-.unlock:hover{background:linear-gradient(180deg, rgba(255,235,190,.35), rgba(0,0,0,.2)); color:#fff}
+.unlock:hover{background:linear-gradient(180deg, rgba(255,235,190,.34), rgba(0,0,0,.25)); color:#fff}
 
-/* ---------- the inline chip editor ---------- */
+/* ---------- the inline editor ---------- */
 .chipeditor{
   display:flex; flex-wrap:wrap; gap:5px; align-items:center; width:100%;
-  padding:7px; border-radius:10px;
-  background:linear-gradient(180deg, #2b2113, #1a1309);
-  border:1px solid var(--rail);
-  box-shadow:0 4px 14px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
+  padding:7px; border-radius:9px; margin-top:4px;
+  background:linear-gradient(180deg, #1b2733, #0d151d);
+  border:1px solid rgba(150,205,240,.6);
+  box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
 }
 .chipeditor input{
   flex:1 1 100%; min-width:0; font-family:inherit;
-  background:#fffdf6; border:1px solid rgba(201,162,39,.6); color:#241d15;
-  border-radius:7px; padding:6px 9px; font-size:11.5px;
-  box-shadow:inset 0 2px 4px rgba(0,0,0,.16);
+  background:#f7fbff; border:1px solid rgba(150,205,240,.7); color:#0b1a26;
+  border-radius:6px; padding:6px 9px; font-size:11.5px;
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.14);
 }
-.chipeditor input:focus{outline:none; border-color:var(--rail-soft); box-shadow:0 0 0 3px rgba(201,162,39,.25)}
+.chipeditor input:focus{outline:none; border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.25)}
 .cesave{
-  background:linear-gradient(180deg, #d8a92c, #a47c10); color:#2a1f05;
-  border:1px solid rgba(255,240,190,.7); border-radius:7px;
+  background:linear-gradient(180deg, #f3d873, #b98f14); color:#2a1f05;
+  border:1px solid rgba(255,248,215,.8); border-radius:6px;
   padding:4px 11px; font-size:10px; font-weight:900; letter-spacing:.05em;
   text-transform:uppercase; cursor:pointer; font-family:inherit;
 }
 .cedel{
   background:linear-gradient(180deg, var(--chipred), #7d1a1e); color:#ffefe4;
-  border:1px solid rgba(255,190,180,.5); border-radius:7px;
+  border:1px solid rgba(255,190,180,.5); border-radius:6px;
   padding:4px 11px; font-size:10px; font-weight:900; letter-spacing:.05em;
   text-transform:uppercase; cursor:pointer; font-family:inherit;
 }
 .cecancel{
-  background:transparent; border:1px solid rgba(201,162,39,.4); color:#cbc4a6;
-  border-radius:7px; padding:4px 11px; font-size:10px; font-weight:800;
+  background:transparent; border:1px solid rgba(150,205,240,.5); color:#cfe1f0;
+  border-radius:6px; padding:4px 11px; font-size:10px; font-weight:800;
   letter-spacing:.05em; text-transform:uppercase; cursor:pointer; font-family:inherit;
 }
-.cesave:hover, .cedel:hover{filter:brightness(1.12)}
-.cecancel:hover{border-color:var(--rail-soft); color:#fff8e0}
+.cesave:hover, .cedel:hover{filter:brightness(1.1)}
+.cecancel:hover{border-color:#fff; color:#fff}
 
 /* ---------- panels ---------- */
 .panel{
   position:relative;
-  background:linear-gradient(180deg, rgba(0,0,0,.42), rgba(0,0,0,.28));
-  border:1px solid rgba(201,162,39,.38); border-radius:14px;
-  padding:20px; margin:28px 0 18px;
-  box-shadow:0 10px 26px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.05);
+  background:linear-gradient(180deg, rgba(0,20,38,.55), rgba(0,20,38,.35));
+  border:1px solid rgba(150,205,240,.35); border-radius:14px;
+  padding:20px; margin:26px 0 18px;
+  box-shadow:0 10px 26px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
 }
 .panel::before{
   content:""; position:absolute; inset:5px; border-radius:10px;
-  border:1px solid rgba(201,162,39,.2); pointer-events:none;
+  border:1px solid rgba(150,205,240,.16); pointer-events:none;
 }
 .panel h2{
   margin:0 0 6px; font-size:14px; font-weight:800;
-  letter-spacing:.1em; text-transform:uppercase; color:var(--rail-soft);
+  letter-spacing:.1em; text-transform:uppercase; color:#fff;
 }
-.panel .sub{margin:0 0 16px; color:#a9a48c; font-size:12.5px}
-.panel .count{color:#a9a48c}
+.panel .sub{margin:0 0 16px; color:#b6cade; font-size:12.5px}
+.panel .count{color:#b6cade}
 
 /* ---------- the roster list ---------- */
 table{width:100%; border-collapse:collapse; font-size:13px}
-th,td{text-align:left; padding:9px 11px; border-bottom:1px solid rgba(201,162,39,.18)}
-th{color:var(--rail); font-weight:800; font-size:10.5px; text-transform:uppercase; letter-spacing:.1em}
-tbody tr:hover{background:rgba(201,162,39,.05)}
-.empty{color:#a9a48c; font-size:13px; padding:14px 0}
+th,td{text-align:left; padding:9px 11px; border-bottom:1px solid rgba(150,205,240,.2)}
+th{color:#cfe1f0; font-weight:800; font-size:10.5px; text-transform:uppercase; letter-spacing:.1em}
+tbody tr:hover{background:rgba(255,255,255,.05)}
+.empty{color:#b6cade; font-size:13px; padding:14px 0}
 
 .del{
-  background:transparent; border:1px solid rgba(179,38,43,.6); color:#ff9b9e;
+  background:transparent; border:1px solid rgba(255,120,125,.6); color:#ffc0c3;
   border-radius:999px; padding:4px 12px; font-size:11px; font-weight:700;
   letter-spacing:.04em; text-transform:uppercase; cursor:pointer; font-family:inherit;
 }
-.del:hover{background:rgba(179,38,43,.2); border-color:var(--chipred); color:#ffd9d4}
+.del:hover{background:rgba(179,38,43,.28); border-color:#ff9b9e; color:#ffe0e1}
 .nameedit{
-  background:transparent; border:0; color:#f4e7c4; font:inherit; font-size:13px;
-  font-weight:700; padding:3px 6px; border-radius:6px; cursor:pointer; text-align:left;
+  background:transparent; border:0; color:#ffe9a8; font:inherit; font-size:13px;
+  font-weight:800; padding:3px 6px; border-radius:6px; cursor:pointer; text-align:left;
 }
-.nameedit:hover{background:rgba(201,162,39,.14); color:#fff6d8}
+.nameedit:hover{background:rgba(255,215,90,.16); color:#fff6d8}
 .roweditinput{
-  background:#fffdf6; border:1px solid var(--rail); color:#241d15;
-  border-radius:7px; padding:5px 9px; font-size:13px; font-family:inherit;
-  width:130px; margin-right:5px; box-shadow:inset 0 2px 4px rgba(0,0,0,.15);
+  background:#f7fbff; border:1px solid rgba(150,205,240,.8); color:#0b1a26;
+  border-radius:6px; padding:5px 9px; font-size:13px; font-family:inherit;
+  width:130px; margin-right:5px; box-shadow:inset 0 2px 4px rgba(0,0,0,.14);
 }
-.roweditinput:focus{outline:none; box-shadow:0 0 0 3px rgba(201,162,39,.25)}
+.roweditinput:focus{outline:none; box-shadow:0 0 0 3px rgba(255,255,255,.25)}
 
 .note{
-  background:linear-gradient(180deg, rgba(201,162,39,.09), rgba(0,0,0,.2));
+  background:linear-gradient(180deg, rgba(255,255,255,.1), rgba(0,20,38,.3));
   border-left:3px solid var(--rail); border-radius:8px;
-  padding:14px 16px; font-size:12.5px; color:#ded7bd; line-height:1.65;
+  padding:14px 16px; font-size:12.5px; color:#dbe8f2; line-height:1.65;
 }
-.note strong{color:#f7ecc9}
+.note strong{color:#fff}
 .note code{
-  background:rgba(0,0,0,.5); padding:2px 6px; border-radius:5px;
-  font-size:11.5px; color:var(--rail-soft); border:1px solid rgba(201,162,39,.25);
+  background:rgba(0,0,0,.45); padding:2px 6px; border-radius:5px;
+  font-size:11.5px; color:#ffe6a8; border:1px solid rgba(201,162,39,.3);
 }
-.ok{color:var(--rail-soft); font-size:12px; font-weight:600}
+.ok{color:#ffe6a8; font-size:12px; font-weight:600}
 
 /* ---------- undo bar ---------- */
 #undobar{
   position:fixed; left:50%; bottom:24px; z-index:60;
   transform:translateX(-50%) translateY(160%);
   display:flex; align-items:center; gap:16px;
-  background:linear-gradient(180deg, #241b0d, #120c05);
-  border:1px solid var(--rail); border-radius:999px;
+  background:linear-gradient(180deg, #12293c, #061520);
+  border:1px solid rgba(150,205,240,.6); border-radius:999px;
   padding:11px 13px 11px 22px;
-  box-shadow:0 14px 36px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.08);
+  box-shadow:0 14px 36px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.1);
   transition:transform .24s cubic-bezier(.2,.8,.3,1);
 }
 #undobar.show{transform:translateX(-50%) translateY(0)}
-#undotext{font-size:13px; color:#f0ead8}
+#undotext{font-size:13px; color:#eaf1f7}
 #undobtn{
-  background:linear-gradient(180deg, #ffeeb5, var(--rail-soft) 45%, var(--rail));
-  color:#2a1f05; border:1px solid rgba(255,250,220,.7); border-radius:999px;
+  background:linear-gradient(180deg, #ffffff, #cfe6f5 55%, #9dc7e0);
+  color:#0b2436; border:1px solid #fff; border-radius:999px;
   padding:8px 20px; font-size:12px; font-weight:900; letter-spacing:.08em;
   text-transform:uppercase; cursor:pointer; font-family:inherit;
-  box-shadow:0 2px 8px rgba(201,162,39,.4), inset 0 1px 0 rgba(255,255,255,.6);
+  box-shadow:0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.9);
 }
-#undobtn:hover{filter:brightness(1.08)}
+#undobtn:hover{filter:brightness(1.06)}
 #undoclose{
-  background:transparent; border:0; color:#a9a48c; font-size:17px;
+  background:transparent; border:0; color:#9fb4c6; font-size:17px;
   cursor:pointer; padding:0 8px; line-height:1;
 }
-#undoclose:hover{color:#f0ead8}
+#undoclose:hover{color:#fff}
 
 /* ============================================================
-   COMPACT MODE
-   Used on any tab with more than one board so both boards fit on
-   one screen. app.js adds .compact to <header> and to .wrap;
-   every rule below hangs off that.
+   COMPACT MODE — any tab with more than one board, so both fit
+   on one screen. app.js adds .compact to <header> and .wrap.
    ============================================================ */
 
 .wrap.compact{padding:6px 14px 12px}
@@ -429,55 +476,52 @@ tbody tr:hover{background:rgba(201,162,39,.05)}
 .wrap.compact .sectionhead .sectioncount{font-size:9px}
 .wrap.compact .boardreset{padding:2px 8px; font-size:8.5px}
 
-/* four across on both boards so the whole page stays short */
 .wrap.compact .board{gap:5px; margin-bottom:0}
 .wrap.compact .board-small{grid-template-columns:repeat(4,1fr); gap:5px}
 .wrap.compact .board-medium{grid-template-columns:repeat(4,1fr); gap:5px}
 
-/* -- the tiles, cut right down --
-   The whole point of compact mode is that 24 cards share one screen,
-   so every piece below is sized to the minimum that still reads. */
-
 .wrap.compact .tile{border-radius:5px}
-.wrap.compact .tile::after{inset:1px; border-radius:4px; border-color:rgba(201,162,39,.35)}
+.wrap.compact .tile::after{inset:1px; border-radius:4px}
 .wrap.compact .tile:hover{transform:none}
 
-/* the colored band — short, but still the loudest thing on the card */
-.wrap.compact .board-small .tile .eb{padding:1px 3px}
-.wrap.compact .board-small .tile .eb span{font-size:9.5px; letter-spacing:0}
-.wrap.compact .board-medium .tile .eb{padding:1px 3px}
-.wrap.compact .board-medium .tile .eb span{font-size:9.5px; letter-spacing:0}
+.wrap.compact .board-small .tile .eb{padding:4px 4px 3px; min-height:30px}
+.wrap.compact .board-medium .tile .eb{padding:4px 4px 3px; min-height:30px}
+.wrap.compact .board-small .tile .eb img{max-height:26px}
+.wrap.compact .board-medium .tile .eb img{max-height:26px}
+.wrap.compact .board-small .tile .eb .initials{font-size:12px}
+.wrap.compact .board-medium .tile .eb .initials{font-size:12px}
 
-/* the name plate */
-.wrap.compact .board-small .tile .name{font-size:7px; padding:1px 3px; letter-spacing:.01em}
-.wrap.compact .board-medium .tile .name{font-size:7px; padding:1px 3px; letter-spacing:.01em}
+.wrap.compact .board-small .tile .buyer{padding:2px 4px 4px}
+.wrap.compact .board-medium .tile .buyer{padding:2px 4px 4px}
+.wrap.compact .board-small .tile .buyer .buylbl{font-size:6.5px; letter-spacing:.1em}
+.wrap.compact .board-medium .tile .buyer .buylbl{font-size:6.5px; letter-spacing:.1em}
+.wrap.compact .board-small .tile .buyer .buyname,
+.wrap.compact .board-small .tile .buyer .buyname-btn,
+.wrap.compact .board-medium .tile .buyer .buyname,
+.wrap.compact .board-medium .tile .buyer .buyname-btn{font-size:10px}
+.wrap.compact .tile .buyer::before{display:none}
+.wrap.compact .tile.filled .roster{display:flex}
 
-/* the roster: a thin strip that still shows who is in */
-.wrap.compact .board-small .tile .roster{min-height:9px; padding:1px 3px; gap:2px; flex:0 0 auto}
-.wrap.compact .board-medium .tile .roster{min-height:9px; padding:1px 3px; gap:2px; flex:0 0 auto}
-.wrap.compact .chip{padding:0 4px; font-size:6.5px}
-.wrap.compact .board-small .chip{padding:0 4px; font-size:6.5px}
+.wrap.compact .board-small .tile .roster{padding:0 4px 3px; gap:2px}
+.wrap.compact .board-medium .tile .roster{padding:0 4px 3px; gap:2px}
+.wrap.compact .chip{padding:0 5px; font-size:7px}
 
-/* the input row: shallow, but the field stays a real tap target */
-.wrap.compact .board-small .addbar{padding:1px 2px; gap:2px}
-.wrap.compact .board-medium .addbar{padding:1px 2px; gap:2px}
-.wrap.compact .addbar input{padding:0 4px; font-size:9px; border-radius:3px}
-.wrap.compact .board-small .addbar input{padding:0 4px; font-size:9px}
-.wrap.compact .board-small .addbar button{padding:0 5px; font-size:10px; border-radius:3px}
-.wrap.compact .board-medium .addbar button{padding:0 5px; font-size:10px; border-radius:3px}
+.wrap.compact .board-small .addbar{padding:2px 3px; gap:3px}
+.wrap.compact .board-medium .addbar{padding:2px 3px; gap:3px}
+.wrap.compact .addbar input{padding:1px 5px; font-size:9.5px; border-radius:4px}
+.wrap.compact .board-small .addbar input{padding:1px 5px; font-size:9.5px}
+.wrap.compact .board-small .addbar button{padding:0 6px; font-size:11px; border-radius:4px}
+.wrap.compact .board-medium .addbar button{padding:0 6px; font-size:11px; border-radius:4px}
 
-/* the closed seal bar — a thin red rule with the count on it */
-.wrap.compact .filledbar{padding:0 3px; gap:3px; min-height:11px}
-.wrap.compact .filledtext{font-size:6px; letter-spacing:.04em; gap:2px}
+.wrap.compact .filledbar{padding:0 4px; gap:3px; min-height:12px}
+.wrap.compact .filledtext{font-size:6.5px; letter-spacing:.05em; gap:2px}
 .wrap.compact .filledtext::before{width:3px; height:3px; box-shadow:none}
 .wrap.compact .unlock{padding:0 4px; font-size:6.5px; letter-spacing:0}
 
-/* the editor must stay usable, so it keeps a near-normal size */
+.wrap.compact .tile .badge{top:2px; right:2px; font-size:7.5px; padding:0 4px; min-width:12px; box-shadow:none}
+
 .wrap.compact .chipeditor{padding:4px; gap:3px; border-radius:6px}
 .wrap.compact .chipeditor input{font-size:10px; padding:4px 6px}
 .wrap.compact .cesave,
 .wrap.compact .cedel,
 .wrap.compact .cecancel{padding:2px 7px; font-size:8px; border-radius:4px}
-
-/* panels below the fold keep their normal look — you scroll to those
-   on purpose, so they do not need tightening */
