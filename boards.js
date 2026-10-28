@@ -33,6 +33,9 @@
    `name` is what gets stored and shown. It must be unique across
    every board, or two boxes would share one entry list.
 
+   `abbr` (optional) is the short code shown in the colour block. If
+   you leave it off, one is derived from the name.
+
    `stacksWith` (optional): an array of other board ids to draw
    underneath this board on the same tab. The Pairs tab uses this
    to put the divisions underneath the pairs.
@@ -55,7 +58,7 @@ function boxColors(box) {
   return ["#2b303c", "#e8ecf3"];
 }
 
-/* Helper — initials for the color block when a box has no short code. */
+/* Helper — initials for the colour block when a box has no short code. */
 function boxAbbr(box) {
   if (box.abbr) return box.abbr;
   const parts = String(box.name).split(",");
@@ -68,6 +71,16 @@ function boxAbbr(box) {
     return words.map(function (w) { return w[0]; }).join("").toUpperCase();
   }
   return String(box.name).replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase();
+}
+
+/* Look a team up by its abbreviation or its nickname, so a pair can be
+   written either way and still resolve to the official code. */
+function teamCode(abbrOrNick) {
+  const t = TEAMS.find(function (x) {
+    return x.abbr.toUpperCase() === String(abbrOrNick).toUpperCase() ||
+           x.name.toLowerCase() === String(abbrOrNick).toLowerCase();
+  });
+  return t ? t.abbr : String(abbrOrNick).toUpperCase();
 }
 
 /* ---------- the box lists ---------- */
@@ -85,25 +98,37 @@ const DIVISION_BOXES = DIVISIONS.map(function (d) {
   };
 });
 
-/* The 16 pairs exactly as listed on the board. */
+/* The 16 pairs. Each carries an explicit `abbr` built from the two
+   teams' own codes in teams.js, so a pair reads the same way a single
+   team does — "DAL, JAX" rather than a made-up short form. */
 const PAIR_BOXES = [
-  "Cowboys, Jags",
-  "Chiefs, Cardinals",
-  "Broncos, Saints",
-  "Eagles, Panthers",
-  "Vikings, Titans",
-  "Packers, Falcons",
-  "Seahawks, Chargers",
-  "Bucs, Commanders",
-  "Ravens, Rams",
-  "Patriots, Browns",
-  "49ers, Bears",
-  "Lions, Raiders",
-  "Bengals, Colts",
-  "Bills, Jets",
-  "Steelers, Texans",
-  "Dolphins, Giants"
-].map(function (n) { return { name: n }; });
+  { name: "Cowboys, Jags",      teams: ["DAL", "JAX"] },
+  { name: "Chiefs, Cardinals",  teams: ["KC",  "ARI"] },
+  { name: "Broncos, Saints",    teams: ["DEN", "NO"]  },
+  { name: "Eagles, Panthers",   teams: ["PHI", "CAR"] },
+  { name: "Vikings, Titans",    teams: ["MIN", "TEN"] },
+  { name: "Packers, Falcons",   teams: ["GB",  "ATL"] },
+  { name: "Seahawks, Chargers", teams: ["SEA", "LAC"] },
+  { name: "Bucs, Commanders",   teams: ["TB",  "WAS"] },
+  { name: "Ravens, Rams",       teams: ["BAL", "LAR"] },
+  { name: "Patriots, Browns",   teams: ["NE",  "CLE"] },
+  { name: "49ers, Bears",       teams: ["SF",  "CHI"] },
+  { name: "Lions, Raiders",     teams: ["DET", "LV"]  },
+  { name: "Bengals, Colts",     teams: ["CIN", "IND"] },
+  { name: "Bills, Jets",        teams: ["BUF", "NYJ"] },
+  { name: "Steelers, Texans",   teams: ["PIT", "HOU"] },
+  { name: "Dolphins, Giants",   teams: ["MIA", "NYG"] }
+].map(function (p) {
+  const codes = p.teams.map(teamCode);
+  const first = TEAMS.find(function (x) { return x.abbr === codes[0]; });
+  const colours = first ? first.colors : ["#2b303c", "#e8ecf3"];
+  return {
+    name: p.name,
+    abbr: codes.join(", "),
+    color: colours[0],
+    bar: colours[1]
+  };
+});
 
 /* ---------- the boards themselves ---------- */
 
@@ -216,6 +241,23 @@ function checkBoards() {
       if (!boardById(extra)) {
         problems.push("Board " + b.id + " stacks an unknown board: " + extra);
       }
+    });
+  });
+
+  /* A pair naming a team that isn't in teams.js would silently fall
+     back to the typed text, so flag it here instead. */
+  BOARDS.forEach(function (b) {
+    (b.boxes || []).forEach(function (box) {
+      if (!box.teams) return;
+      box.teams.forEach(function (code) {
+        const found = TEAMS.some(function (x) {
+          return x.abbr.toUpperCase() === String(code).toUpperCase() ||
+                 x.name.toLowerCase() === String(code).toLowerCase();
+        });
+        if (!found) {
+          problems.push("Box " + box.name + " names an unknown team: " + code);
+        }
+      });
     });
   });
 
