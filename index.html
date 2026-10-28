@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memorabilia Breaks — 32-Team Entry Board</title>
+<style>
+  :root{
+    --bg:#12141a; --panel:#1b1e26; --panel2:#232733; --line:#333949;
+    --ink:#eef1f7; --muted:#9aa3b4; --accent:#3ddc84; --danger:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;
+  }
+  header{
+    padding:28px 20px 20px; text-align:center; border-bottom:1px solid var(--line);
+  }
+  header h1{margin:0 0 6px; font-size:clamp(20px,3.4vw,32px); letter-spacing:-.02em}
+  header p{margin:0; color:var(--muted); font-size:14px}
+  .wrap{max-width:1180px; margin:0 auto; padding:22px 20px 60px}
+
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:center;
+    margin:0 0 22px;
+  }
+  .toolbar input{
+    background:var(--panel); border:1px solid var(--line); color:var(--ink);
+    border-radius:8px; padding:9px 12px; font-size:14px; min-width:220px; flex:1 1 220px;
+    max-width:320px;
+  }
+  .toolbar .count{color:var(--muted); font-size:13px}
+
+  .board{
+    display:grid; grid-template-columns:repeat(8,1fr); gap:10px; margin-bottom:26px;
+  }
+  @media(max-width:900px){ .board{grid-template-columns:repeat(4,1fr)} }
+  @media(max-width:520px){ .board{grid-template-columns:repeat(2,1fr)} }
+
+  .tile{
+    position:relative; border:1px solid var(--line); border-radius:10px; overflow:hidden;
+    background:var(--panel); aspect-ratio:1/1; display:flex; flex-direction:column;
+    cursor:pointer; padding:0; text-align:center; color:var(--ink); font:inherit;
+    transition:transform .12s ease, border-color .12s ease;
+  }
+  .tile:hover{transform:translateY(-2px); border-color:#5a6480}
+  .tile:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .tile[aria-pressed="true"]{border-color:var(--accent)}
+  .tile .badge{
+    position:absolute; top:6px; right:6px; background:var(--accent); color:#08210f;
+    font-size:11px; font-weight:700; padding:1px 6px; border-radius:99px;
+  }
+  .tile .eb{
+    flex:1; width:100%; display:grid; place-items:center;
+  }
+  .tile .eb span{
+    font-size:clamp(15px,2.1vw,26px); font-weight:800; letter-spacing:.03em; color:#fff;
+    text-shadow:0 1px 3px rgba(0,0,0,.45);
+  }
+  .tile .name{
+    display:block; padding:5px 3px; font-size:10px; font-weight:700; letter-spacing:.04em;
+    text-transform:uppercase; color:#0d0f14; background:#fff;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px;
+    margin-bottom:18px;
+  }
+  .panel h2{margin:0 0 4px; font-size:17px}
+  .panel .sub{margin:0 0 16px; color:var(--muted); font-size:13px}
+  .grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px}
+  label{display:block; font-size:12px; color:var(--muted); margin-bottom:4px}
+  input[type=text],input[type=number],input[type=email],input[type=date],select,textarea{
+    width:100%; background:var(--panel2); border:1px solid var(--line); color:var(--ink);
+    border-radius:8px; padding:9px 11px; font-size:14px; font-family:inherit;
+  }
+  textarea{min-height:70px; resize:vertical}
+  .row{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
+  button.btn{
+    background:var(--accent); color:#08210f; border:0; border-radius:8px;
+    padding:10px 16px; font-size:14px; font-weight:700; cursor:pointer;
+  }
+  button.btn:hover{filter:brightness(1.08)}
+  button.ghost{
+    background:transparent; color:var(--ink); border:1px solid var(--line);
+    border-radius:8px; padding:10px 16px; font-size:14px; cursor:pointer;
+  }
+  button.ghost:hover{border-color:#5a6480}
+  button:disabled{opacity:.5; cursor:not-allowed}
+
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line)}
+  th{color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.05em}
+  .empty{color:var(--muted); font-size:13px; padding:14px 0}
+  .del{background:transparent; border:1px solid var(--line); color:var(--danger);
+    border-radius:6px; padding:3px 9px; font-size:12px; cursor:pointer}
+  .del:hover{border-color:var(--danger)}
+  .note{
+    background:#1d2430; border-left:3px solid #4b7bd6; border-radius:6px;
+    padding:12px 14px; font-size:13px; color:#c6cede;
+  }
+  .note code{background:#12161f; padding:1px 5px; border-radius:4px; font-size:12px}
+  .ok{color:var(--accent); font-size:13px; margin-left:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Memorabilia Breaks</h1>
+  <p>Pick a team, then enter the customer's break entries by hand.</p>
+</header>
+
+<div class="wrap">
+
+  <div class="toolbar">
+    <input id="filter" type="text" placeholder="Filter teams…" aria-label="Filter teams">
+    <span class="count" id="count">32 teams</span>
+    <button class="ghost" id="clearSel" type="button">Clear selection</button>
+  </div>
+
+  <div class="board" id="board" role="group" aria-label="NFL team board"></div>
+
+  <div class="panel">
+    <h2 id="formTitle">Entry form</h2>
+    <p class="sub" id="formSub">Select a team on the board to begin.</p>
+
+    <form id="entryForm" style="display:none" autocomplete="off">
+      <div class="grid2">
+        <div>
+          <label for="customer">Customer name *</label>
+          <input id="customer" name="customer" type="text" required>
+        </div>
+        <div>
+          <label for="email">Customer email</label>
+          <input id="email" name="email" type="email">
+        </div>
+        <div>
+          <label for="team">Team *</label>
+          <select id="team" name="team" required></select>
+        </div>
+        <div>
+          <label for="product">Product / set</label>
+          <input id="product" name="product" type="text" placeholder="e.g. 2026 Prizm hobby box">
+        </div>
+        <div>
+          <label for="spots">Spots / quantity</label>
+          <input id="spots" name="spots" type="number" min="1" step="1" value="1">
+        </div>
+        <div>
+          <label for="amount">Amount paid (USD)</label>
+          <input id="amount" name="amount" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div>
+          <label for="date">Break date</label>
+          <input id="date" name="date" type="date">
+        </div>
+        <div>
+          <label for="status">Status</label>
+          <select id="status" name="status">
+            <option>Pending</option>
+            <option>Paid</option>
+            <option>Shipped</option>
+            <option>Cancelled</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <label for="notes">Notes</label>
+        <textarea id="notes" name="notes" placeholder="Card pulled, shipping note, anything else…"></textarea>
+      </div>
+      <div class="row">
+        <button class="btn" type="submit">Add entry</button>
+        <button class="ghost" type="reset">Reset form</button>
+        <span class="ok" id="saved"></span>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Entries <span class="count" id="entryCount"></span></h2>
+    <p class="sub">Sorted newest first. Export the CSV when you're ready to move the data somewhere permanent.</p>
+    <div id="entries"></div>
+    <div class="row">
+      <button class="ghost" id="exportCsv" type="button">Download CSV</button>
+      <button class="ghost" id="clearAll" type="button">Delete all entries</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Where entries are stored</h2>
+    <div class="note">
+      This is a static site, so entries are saved in this browser's <code>localStorage</code> — they persist
+      on this device and this browser only, and nothing is sent to a server. To make entries save centrally
+      and be visible to your whole team, point the form at a backend: open <code>app.js</code> and set
+      <code>BACKEND_ENDPOINT</code> to your form endpoint (Formspree, Netlify Forms, Google Apps Script,
+      Supabase…). The submit path is already wired — see <code>saveEntry()</code> in <code>app.js</code>.
+    </div>
+  </div>
+
+</div>
+
+<script src="teams.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
