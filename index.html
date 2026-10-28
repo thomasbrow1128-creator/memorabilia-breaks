@@ -50,7 +50,8 @@
   @media(max-width:440px){ .board-div{grid-template-columns:1fr} }
 
   .tile{position:relative; border:1px solid var(--line); border-radius:10px; overflow:hidden;
-    background:var(--panel); display:flex; flex-direction:column; transition:opacity .15s ease, filter .15s ease}
+    background:var(--panel); display:flex; flex-direction:column;
+    transition:filter .15s ease, border-color .15s ease}
   .tile .eb{display:grid; place-items:center; padding:10px 6px}
   .board-div .tile .eb{padding:18px 8px}
   .tile .eb span{font-size:clamp(14px,1.9vw,24px); font-weight:800; letter-spacing:.03em; color:#fff;
@@ -60,11 +61,16 @@
     text-transform:uppercase; color:#0d0f14; white-space:nowrap; overflow:hidden;
     text-overflow:ellipsis; text-align:center}
   .board-div .tile .name{font-size:11px; padding:5px 6px}
-  .tile .roster{display:flex; flex-wrap:wrap; gap:3px; padding:5px; min-height:26px; background:rgba(0,0,0,.3)}
+  .tile .roster{display:flex; flex-wrap:wrap; gap:3px; padding:5px; min-height:26px;
+    background:rgba(0,0,0,.3); align-content:flex-start}
   .board-div .tile .roster{gap:4px; padding:6px 8px; min-height:34px; flex:1}
-  .chip{background:rgba(255,255,255,.16); border-radius:99px; padding:1px 6px; font-size:9px;
-    font-weight:600; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .board-div .chip{padding:2px 8px; font-size:10px}
+
+  .chip{background:rgba(255,255,255,.16); border:1px solid transparent; border-radius:99px;
+    padding:1px 7px; font-size:9px; font-weight:600; font-family:inherit; color:var(--ink);
+    max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer}
+  .board-div .chip{padding:2px 9px; font-size:10px}
+  .chip:hover{background:rgba(255,255,255,.3); border-color:rgba(255,255,255,.45)}
+
   .tile .badge{position:absolute; top:5px; right:5px; background:var(--accent); color:#08210f;
     font-size:11px; font-weight:700; padding:1px 6px; border-radius:99px; z-index:3}
   .addbar{display:flex; gap:6px; padding:5px; background:rgba(0,0,0,.38)}
@@ -78,31 +84,32 @@
   .board-div .addbar button{padding:0 12px; font-size:15px}
   .addbar button:hover{filter:brightness(1.08)}
 
-  /* the grey "this one's filled" state */
-  .tile.filled .eb,
-  .tile.filled .name,
-  .tile.filled .roster,
-  .tile.filled .addbar{
-    filter:grayscale(1) brightness(.72);
-  }
+  .tile.filled .eb span,
+  .tile.filled .name{filter:grayscale(1) brightness(.7)}
   .tile.filled .addbar{display:none}
-  .tile.filled .filledoverlay{display:flex}
 
-  .filledoverlay{
-    display:none; position:absolute; inset:0; z-index:2;
-    background:rgba(10,12,16,.66); backdrop-filter:blur(1px);
-    flex-direction:column; align-items:center; justify-content:center; gap:7px;
-    padding:8px; text-align:center;
-  }
-  .filledtext{font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
-    color:#fff; background:rgba(61,220,132,.22); border:1px solid rgba(61,220,132,.5);
-    border-radius:99px; padding:3px 10px}
-  .unlock{
-    background:transparent; border:1px solid var(--line); color:var(--ink);
-    border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer;
-  }
+  .filledbar{display:none; align-items:center; justify-content:space-between; gap:6px;
+    padding:4px 6px; background:rgba(61,220,132,.1); border-top:1px solid rgba(61,220,132,.25); order:5}
+  .tile.filled .filledbar{display:flex}
+  .filledtext{font-size:9px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--accent)}
+  .unlock{background:transparent; border:1px solid var(--line); color:var(--ink);
+    border-radius:6px; padding:2px 8px; font-size:10px; cursor:pointer; font-family:inherit}
   .unlock:hover{border-color:#5a6480}
-  .tile.locked .unlock{display:none}
+
+  .chipeditor{display:flex; flex-wrap:wrap; gap:4px; align-items:center; width:100%;
+    padding:5px; background:#0f1218; border:1px solid var(--accent); border-radius:8px}
+  .chipeditor input{flex:1 1 100%; min-width:0; background:#151a22; border:1px solid var(--line);
+    color:var(--ink); border-radius:6px; padding:5px 7px; font-size:11px; font-family:inherit}
+  .cesave{background:var(--accent); color:#08210f; border:0; border-radius:6px;
+    padding:3px 9px; font-size:10px; font-weight:800; cursor:pointer; font-family:inherit}
+  .cedel{background:transparent; border:1px solid var(--danger); color:var(--danger);
+    border-radius:6px; padding:3px 9px; font-size:10px; cursor:pointer; font-family:inherit}
+  .cecancel{background:transparent; border:1px solid var(--line); color:var(--muted);
+    border-radius:6px; padding:3px 9px; font-size:10px; cursor:pointer; font-family:inherit}
+  .cesave:hover{filter:brightness(1.08)}
+  .cedel:hover{background:rgba(255,107,107,.12)}
+  .cecancel:hover{color:var(--ink)}
 
   .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:18px}
   .panel h2{margin:0 0 4px; font-size:16px}
@@ -112,12 +119,30 @@
   th{color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.05em}
   .empty{color:var(--muted); font-size:13px; padding:12px 0}
   .del{background:transparent; border:1px solid var(--line); color:var(--danger);
-    border-radius:6px; padding:3px 9px; font-size:12px; cursor:pointer}
+    border-radius:6px; padding:3px 9px; font-size:12px; cursor:pointer; font-family:inherit}
   .del:hover{border-color:var(--danger)}
+  .nameedit{background:transparent; border:0; color:var(--ink); font:inherit; font-size:13px;
+    padding:2px 4px; border-radius:5px; cursor:pointer; text-align:left}
+  .nameedit:hover{background:rgba(255,255,255,.08)}
+  .roweditinput{background:#0f1218; border:1px solid var(--accent); color:var(--ink);
+    border-radius:6px; padding:4px 7px; font-size:13px; font-family:inherit; width:130px; margin-right:4px}
   .note{background:#1d2430; border-left:3px solid #4b7bd6; border-radius:6px;
     padding:12px 14px; font-size:13px; color:#c6cede}
   .note code{background:#12161f; padding:1px 5px; border-radius:4px; font-size:12px}
   .ok{color:var(--accent); font-size:12px}
+
+  #undobar{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(140%);
+    display:flex; align-items:center; gap:14px; z-index:50;
+    background:#1b2430; border:1px solid var(--line); border-radius:99px;
+    padding:10px 12px 10px 20px; box-shadow:0 10px 30px rgba(0,0,0,.5);
+    transition:transform .22s ease}
+  #undobar.show{transform:translateX(-50%) translateY(0)}
+  #undotext{font-size:13px; color:var(--ink)}
+  #undobtn{background:var(--accent); color:#08210f; border:0; border-radius:99px;
+    padding:7px 16px; font-size:13px; font-weight:800; cursor:pointer; font-family:inherit}
+  #undoclose{background:transparent; border:0; color:var(--muted); font-size:16px;
+    cursor:pointer; padding:0 6px}
+  #undoclose:hover{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -146,7 +171,7 @@
     </div>
     <div class="left">
       <button class="ghost" id="exportCsv" type="button">Download CSV</button>
-      <button class="ghost" id="clearAll" type="button">Delete all</button>
+      <button class="ghost" id="clearAll" type="button">Hide all</button>
     </div>
   </div>
 
@@ -154,23 +179,30 @@
 
   <div class="panel">
     <h2>Everyone entered <span class="count" id="entryCount"></span></h2>
-    <p class="sub">Every username with the box it was placed on — both boards together. Remove one with Delete.</p>
+    <p class="sub">Click any name to rename it, and Delete removes just that one name. Nothing here clears the whole board.</p>
     <div id="entries"></div>
     <p class="ok" id="saved"></p>
   </div>
 
   <div class="panel">
-    <h2>Where the usernames go</h2>
+    <h2>How to fix a name</h2>
     <div class="note">
-      A box greys out as soon as it has a username, so you can see at a glance what's been filled. Use
-      <strong>Add another</strong> to put a second person on a box that's already greyed, and <strong>Delete</strong>
-      in the list below to clear one — emptying a box un-greys it.<br><br>
-      Usernames are saved in this browser's <code>localStorage</code> — they stay on this device and this
-      browser only, and nothing is sent to a server. To save everything centrally, open <code>app.js</code>
-      and set <code>BACKEND_ENDPOINT</code> to your form endpoint.
+      <strong>On the board:</strong> every name sits in a greyed box as a small pill. Click the pill and a tiny
+      editor opens right there — change the spelling and hit <strong>Save</strong>, or hit <strong>Remove</strong> to
+      take that one person off. Nothing else on the board is touched.<br><br>
+      <strong>In the list below:</strong> click any name to rename it in place, or use <strong>Delete</strong> on that
+      row. Removing the last name from a box turns it back to full color so you can type a new one in.<br><br>
+      <strong>Hide all</strong> is the only button that touches everything — and it offers an <strong>Undo</strong>
+      straight afterwards if you hit it by mistake.
     </div>
   </div>
 
+</div>
+
+<div id="undobar">
+  <span id="undotext"></span>
+  <button id="undobtn" type="button">Undo</button>
+  <button id="undoclose" type="button" aria-label="Dismiss">&times;</button>
 </div>
 
 <script src="teams.js"></script>
