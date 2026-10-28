@@ -126,7 +126,7 @@ function buildTile(t) {
   buyer.appendChild(names);
   tile.appendChild(buyer);
 
-  /* the username field — open while the box is free */
+  /* the username field - open while the box is free */
   const bar = document.createElement("form");
   bar.className = "addbar";
   const input = document.createElement("input");
@@ -222,7 +222,7 @@ function refreshBoardCounts() {
     if (!board) return;
     const n = countOnBoard(id);
     el.textContent = board.boxes.length + (board.boxes.length === 1 ? " box" : " boxes") +
-      (n ? " \u00b7 " + n + (n === 1 ? " name" : " names") : "");
+      (n ? " - " + n + (n === 1 ? " name" : " names") : "");
   });
 
   document.querySelectorAll("[data-reset-for]").forEach(function (el) {
@@ -251,7 +251,7 @@ function paintBuyerPlate(tile, list) {
     line.type = "button";
     line.className = "buyname buyname-btn";
     line.textContent = e.username;
-    line.title = "Click to rename or remove @" + e.username;
+    line.title = "Click to rename or remove " + e.username;
     line.addEventListener("click", function (ev) {
       ev.stopPropagation();
       openEditor(e.id);
@@ -287,7 +287,7 @@ function refreshBoards() {
     const lockText = tile.querySelector(".lockedtext");
     if (lockText) {
       lockText.textContent = taken
-        ? "Taken \u2014 remove the name to free this box"
+        ? "Taken - remove the name to free this box"
         : "";
     }
   });
@@ -377,7 +377,7 @@ function openEditor(entryId) {
     closeEditor();
     refreshBoards();
     renderEntries();
-    $("saved").textContent = "Renamed to @" + next + " on " + entry.target;
+    $("saved").textContent = "Renamed to " + next + " on " + entry.target;
   }
 
   save.addEventListener("click", commit);
@@ -390,7 +390,7 @@ function openEditor(entryId) {
     const where = entry.target;
     closeEditor();
     removeUser(entryId);
-    $("saved").textContent = "Removed @" + name + " from " + where + \" \u2014 that box is free again.\";
+    $("saved").textContent = "Removed " + name + " from " + where + " - that box is free again.";
   });
   cancel.addEventListener("click", function () {
     closeEditor();
@@ -434,13 +434,13 @@ function setTab(tabId) {
   if (stack.length > 1) {
     const rest = stack.slice(1).map(function (b) { return b.label; }).join(" and ");
     $("boardSub").textContent =
-      "Both boards on this screen \u2014 " + board.label + " on top, " + rest +
+      "Both boards on this screen - " + board.label + " on top, " + rest +
       " underneath. Each has its own Reset.";
   } else {
     $("boardSub").textContent =
       board.boxes.length + " boxes, one person each. Type a username into a free box.";
   }
-  $("filter").placeholder = "Filter " + board.label.toLowerCase() + "\u2026";
+  $("filter").placeholder = "Filter " + board.label.toLowerCase();
 
   renderBoards();
   refreshBoards();
@@ -490,7 +490,7 @@ async function addUser(targetId, rawName) {
 
     refreshBoards();
     renderEntries();
-    $("saved").textContent = "Added @" + username + " to " + targetId;
+    $("saved").textContent = "Added " + username + " to " + targetId;
   } catch (err) {
     $("saved").textContent = "Could not save: " + err.message;
   }
@@ -547,7 +547,7 @@ function renderEntries() {
     tr.appendChild(tdWhere);
 
     const when = new Date(e.createdAt);
-    tr.appendChild(textCell(isNaN(when) ? "\u2014" : when.toLocaleString()));
+    tr.appendChild(textCell(isNaN(when) ? "never" : when.toLocaleString()));
 
     const td = document.createElement("td");
     const del = document.createElement("button");
@@ -601,7 +601,7 @@ function startRowEdit(tr, entry) {
     persist();
     refreshBoards();
     renderEntries();
-    $("saved").textContent = "Renamed to @" + next + " on " + entry.target;
+    $("saved").textContent = "Renamed to " + next + " on " + entry.target;
   }
 
   save.addEventListener("click", commit);
