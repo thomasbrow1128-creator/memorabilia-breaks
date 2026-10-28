@@ -41,7 +41,12 @@
     border-radius:8px; padding:8px 13px; font-size:13px; cursor:pointer}
   button.ghost:hover{border-color:#5a6480}
 
-  .board{display:grid; gap:10px; margin-bottom:24px}
+  .sectionhead{display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; margin:26px 0 10px}
+  .sectionhead:first-child{margin-top:0}
+  .sectionhead h3{margin:0; font-size:15px; letter-spacing:-.01em}
+  .sectionhead span{color:var(--muted); font-size:12px}
+
+  .board{display:grid; gap:10px; margin-bottom:6px}
   .board-team{grid-template-columns:repeat(8,1fr)}
   .board-div{grid-template-columns:repeat(4,1fr); gap:14px}
   .board-pair{grid-template-columns:repeat(3,1fr); gap:12px}
@@ -60,11 +65,11 @@
     background:var(--panel); display:flex; flex-direction:column;
     transition:filter .15s ease, border-color .15s ease}
   .tile .eb{display:grid; place-items:center; padding:10px 6px}
-  .board-div .tile .eb{padding:18px 8px}
+  .board-div .tile .eb{padding:13px 6px}
   .board-pair .tile .eb{padding:12px 8px}
   .tile .eb span{font-size:clamp(14px,1.9vw,24px); font-weight:800; letter-spacing:.03em; color:#fff;
     text-shadow:0 1px 3px rgba(0,0,0,.45)}
-  .board-div .tile .eb span{font-size:clamp(18px,2.6vw,30px)}
+  .board-div .tile .eb span{font-size:clamp(15px,1.7vw,20px)}
   .board-pair .tile .eb span{font-size:clamp(13px,1.5vw,19px)}
   .tile .name{display:block; padding:5px 6px; font-size:10px; font-weight:700; letter-spacing:.04em;
     text-transform:uppercase; color:#0d0f14; white-space:nowrap; overflow:hidden;
@@ -73,26 +78,26 @@
   .board-pair .tile .name{font-size:11.5px; padding:7px 8px}
   .tile .roster{display:flex; flex-wrap:wrap; gap:3px; padding:5px; min-height:26px;
     background:rgba(0,0,0,.3); align-content:flex-start}
-  .board-div .tile .roster{gap:4px; padding:6px 8px; min-height:34px; flex:1}
+  .board-div .tile .roster{gap:3px; padding:5px 7px; min-height:30px; flex:1}
   .board-pair .tile .roster{gap:4px; padding:6px 8px; min-height:34px; flex:1}
 
   .chip{background:rgba(255,255,255,.16); border:1px solid transparent; border-radius:99px;
     padding:1px 7px; font-size:9px; font-weight:600; font-family:inherit; color:var(--ink);
     max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer}
-  .board-div .chip, .board-pair .chip{padding:2px 9px; font-size:10px}
+  .board-pair .chip{padding:2px 9px; font-size:10px}
   .chip:hover{background:rgba(255,255,255,.3); border-color:rgba(255,255,255,.45)}
 
   .tile .badge{position:absolute; top:5px; right:5px; background:var(--accent); color:#08210f;
     font-size:11px; font-weight:700; padding:1px 6px; border-radius:99px; z-index:3}
   .addbar{display:flex; gap:6px; padding:5px; background:rgba(0,0,0,.38)}
-  .board-div .addbar, .board-pair .addbar{padding:6px}
+  .board-pair .addbar{padding:6px}
   .addbar input{flex:1; min-width:0; background:#0f1218; border:1px solid var(--line); color:var(--ink);
     border-radius:6px; padding:5px 7px; font-size:11px; font-family:inherit}
-  .board-div .addbar input, .board-pair .addbar input{padding:6px 8px; font-size:12px}
+  .board-pair .addbar input{padding:6px 8px; font-size:12px}
   .addbar input::placeholder{color:#6c7688}
   .addbar button{background:var(--accent); color:#08210f; border:0; border-radius:6px;
     padding:0 10px; font-size:14px; font-weight:800; cursor:pointer; line-height:1}
-  .board-div .addbar button, .board-pair .addbar button{padding:0 12px; font-size:15px}
+  .board-pair .addbar button{padding:0 12px; font-size:15px}
   .addbar button:hover{filter:brightness(1.08)}
 
   .tile.filled .eb span,
@@ -122,7 +127,7 @@
   .cedel:hover{background:rgba(255,107,107,.12)}
   .cecancel:hover{color:var(--ink)}
 
-  .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:18px}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; margin:28px 0 18px}
   .panel h2{margin:0 0 4px; font-size:16px}
   .panel .sub{margin:0 0 14px; color:var(--muted); font-size:13px}
   table{width:100%; border-collapse:collapse; font-size:13px}
@@ -139,7 +144,6 @@
     border-radius:6px; padding:4px 7px; font-size:13px; font-family:inherit; width:130px; margin-right:4px}
   .note{background:#1d2430; border-left:3px solid #4b7bd6; border-radius:6px;
     padding:12px 14px; font-size:13px; color:#c6cede}
-  .note code{background:#12161f; padding:1px 5px; border-radius:4px; font-size:12px}
   .ok{color:var(--accent); font-size:12px}
 
   #undobar{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(140%);
@@ -187,7 +191,7 @@
     </div>
   </div>
 
-  <div class="board board-team" id="board" role="tabpanel" aria-label="NFL team board"></div>
+  <div id="boards"></div>
 
   <div class="panel">
     <h2>Everyone entered <span class="count" id="entryCount"></span></h2>
