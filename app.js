@@ -1,33 +1,27 @@
 /* Memorabilia Breaks — one page, any number of boards.
 
    REQUIRES: teams.js, then boards.js, then this file.
-   The boards themselves live in boards.js — THIS FILE NEVER CHANGES
-   when you add a board. Add a board in boards.js and the tab, the
-   grid, the headings, the counter and the Reset button all follow.
 
-   Each tile is a chrome plate: an emblem on top (an image when the box
-   supplies one, otherwise the team initials), then a PURCHASER plate in
-   gold, and a red strip at the foot listing the names entered.
+   Each tile is an abbreviation block: the team's short code on a
+   colour plate, with a PURCHASER plate under it showing the names.
 
-   One input per box: a customer username. One action: place it on that
-   box. Once a box has at least one username it dims and closes.
+   CLICKING THE ABBREVIATION opens that box for typing. Clicking
+   anywhere else on the row does the same. Only one box is open at a
+   time.
 
-   Editing: every name is clickable — on the gold plate or in the red
-   strip — to rename it or delete just that name. Removing the last name
-   un-dims the box.
+   Editing: every name on the gold plate is clickable to rename or
+   delete just that name.
 
    Resetting: every board carries its own Reset, which clears only the
    boxes on that board. Every reset offers Undo.
 
    BACKEND_ENDPOINT: leave "" to store usernames in this browser's
-   localStorage only. Set it to your form endpoint to save them centrally.
+   localStorage only.
    --------------------------------------------------------------- */
 
 const BACKEND_ENDPOINT = "";
 const STORE_KEY = "memorabilia-breaks-usernames-v1";
 
-/* Tabs with more than one board get the tightened layout so everything
-   fits on screen without scrolling. */
 const COMPACT_TABS = { pairs: true };
 
 const $ = (id) => document.getElementById(id);
@@ -35,9 +29,9 @@ const $ = (id) => document.getElementById(id);
 let entries = [];            // { id, username, target, createdAt }
 let currentTab = "teams";    // a board id from BOARDS
 
-/* ---------- element lookup, without CSS selectors ----------
-   Box names contain commas and spaces, so a CSS selector built from a
-   name would break. Walk the tiles and compare data attributes instead. */
+/* ---------- lookups that avoid CSS selectors ----------
+   Box names contain commas and spaces, so a selector built from a name
+   would break. Walk the tiles and compare data attributes instead. */
 
 function tileFor(targetId) {
   const tiles = document.querySelectorAll(".tile");
@@ -45,11 +39,6 @@ function tileFor(targetId) {
     if (tiles[i].dataset.target === targetId) return tiles[i];
   }
   return null;
-}
-
-function rosterFor(targetId) {
-  const tile = tileFor(targetId);
-  return tile ? tile.querySelector(".roster") : null;
 }
 
 function normalizeName(raw) {
@@ -80,7 +69,6 @@ function usersOn(targetId) {
   return entries.filter(function (e) { return e.target === targetId; });
 }
 
-/* How many names sit on one whole board. */
 function countOnBoard(boardId) {
   const board = boardById(boardId);
   if (!board) return 0;
@@ -89,8 +77,7 @@ function countOnBoard(boardId) {
   return entries.filter(function (e) { return names[e.target]; }).length;
 }
 
-/* ---------- tabs ----------
-   Built from BOARDS, so a new board gets a tab automatically. */
+/* ---------- tabs ---------- */
 
 function buildTabs() {
   const nav = $("tabs");
@@ -107,7 +94,7 @@ function buildTabs() {
   });
 }
 
-/* ---------- board construction ---------- */
+/* ---------- one tile ---------- */
 
 function buildTile(t) {
   const tile = document.createElement("div");
@@ -120,7 +107,7 @@ function buildTile(t) {
   badge.style.display = "none";
   tile.appendChild(badge);
 
-  /* --- the emblem plate --- */
+  /* --- the abbreviation block: always the short code --- */
   const eb = document.createElement("div");
   eb.className = "eb";
   eb.style.background = t.colors[0];
@@ -129,22 +116,9 @@ function buildTile(t) {
   initials.className = "initials";
   initials.textContent = t.abbr;
   eb.appendChild(initials);
-
-  if (t.image) {
-    const img = document.createElement("img");
-    img.alt = t.name;
-    img.decoding = "async";
-    img.loading = "lazy";
-    img.addEventListener("load", function () {
-      if (initials.parentNode) initials.parentNode.removeChild(initials);
-    });
-    img.addEventListener("error", function () {
-      img.style.display = "none";
-    });
-    img.src = t.image;
-    eb.appendChild(img);
-  }
   tile.appendChild(eb);
+
+  eb.title = "Click to enter a username for " + t.name;
 
   /* --- the PURCHASER plate --- */
   const buyer = document.createElement("div");
@@ -159,13 +133,7 @@ function buildTile(t) {
   buyer.appendChild(names);
   tile.appendChild(buyer);
 
-  /* the roster is kept for editing, sitting under the plate */
-  const roster = document.createElement("div");
-  roster.className = "roster";
-  roster.dataset.roster = t.id;
-  tile.appendChild(roster);
-
-  /* --- the add-a-name row --- */
+  /* --- the input row --- */
   const bar = document.createElement("form");
   bar.className = "addbar";
   const input = document.createElement("input");
@@ -188,10 +156,9 @@ function buildTile(t) {
   });
   tile.appendChild(bar);
 
-  /* --- the closed strip: the names themselves, not a count --- */
+  /* --- the closed strip --- */
   const filledbar = document.createElement("div");
   filledbar.className = "filledbar";
-
   const filledNames = document.createElement("span");
   filledNames.className = "fillednames";
   filledNames.dataset.fillednames = t.id;
@@ -201,23 +168,48 @@ function buildTile(t) {
   unlock.type = "button";
   unlock.className = "unlock";
   unlock.textContent = "+";
-  unlock.title = "Reopen this box to add another username";
+  unlock.title = "Add another username to this box";
   unlock.addEventListener("click", function (ev) {
     ev.stopPropagation();
-    tile.classList.add("force-open");
-    refreshBoards();
-    const i = tile.querySelector(".addbar input");
-    if (i) i.focus();
+    openTile(t.id);
   });
   filledbar.appendChild(unlock);
   tile.appendChild(filledbar);
 
+  /* --- clicking the tile opens it for typing --- */
+  tile.addEventListener("click", function (ev) {
+    if (ev.target.closest(".addbar")) return;
+    if (ev.target.closest(".chipeditor")) return;
+    openTile(t.id);
+  });
+
   return tile;
 }
 
-/* Every board on a stacked tab gets a header row carrying its own
-   Reset button. On a single-board tab the toolbar Reset covers it
-   (same handler, same board). */
+/* Open one box: reveal its input, put the cursor in it, and close any
+   other box that was open. This is what makes the abbreviation itself
+   actionable. */
+function openTile(targetId) {
+  const tile = tileFor(targetId);
+  if (!tile) return;
+
+  closeEditor();
+  document.querySelectorAll(".tile.force-open").forEach(function (el) {
+    if (el !== tile) el.classList.remove("force-open");
+  });
+
+  tile.classList.add("force-open");
+  refreshBoards();
+
+  const input = tile.querySelector(".addbar input");
+  if (input) {
+    input.focus();
+    input.select();
+  }
+}
+
+/* ---------- board headers ---------- */
+
 function buildBoardHeader(b) {
   const head = document.createElement("div");
   head.className = "sectionhead";
@@ -289,7 +281,7 @@ function refreshBoardCounts() {
   });
 }
 
-/* Paint the gold plate. One line per name, or OPEN when the box is free. */
+/* Paint the gold plate: one line per name, or OPEN when the box is free. */
 function paintBuyerPlate(tile, list) {
   const host = tile.querySelector("[data-names]");
   if (!host) return;
@@ -319,29 +311,11 @@ function paintBuyerPlate(tile, list) {
 
 function refreshBoards() {
   targetsOnTab(currentTab).forEach(function (t) {
-    const roster = rosterFor(t.id);
     const tile = tileFor(t.id);
-    if (!roster || !tile) return;
+    if (!tile) return;
 
     const list = usersOn(t.id);
-
-    /* the gold plate is the primary readout */
     paintBuyerPlate(tile, list);
-
-    /* the roster holds the small chips, used as the edit surface */
-    roster.innerHTML = "";
-    list.forEach(function (e) {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = "chip";
-      chip.textContent = e.username;
-      chip.title = "Edit or remove @" + e.username;
-      chip.addEventListener("click", function (ev) {
-        ev.stopPropagation();
-        openEditor(e.id);
-      });
-      roster.appendChild(chip);
-    });
 
     const badge = tile.querySelector(".badge");
     badge.textContent = list.length;
@@ -352,7 +326,6 @@ function refreshBoards() {
     const editing = tile.querySelector(".chipeditor") !== null;
     tile.classList.toggle("filled", isFilled && !forcedOpen && !editing);
 
-    /* the red strip lists the names themselves — no counts, no label */
     const filledNames = tile.querySelector("[data-fillednames]");
     if (filledNames) {
       filledNames.innerHTML = "";
@@ -368,6 +341,7 @@ function refreshBoards() {
         filledNames.appendChild(span);
       });
     }
+
     if (!isFilled) tile.classList.remove("force-open");
   });
 
@@ -403,7 +377,7 @@ function resetBoard(boardId) {
   showUndo("Cleared " + doomed.length + " from " + board.label + ".");
 }
 
-/* ---------- inline chip editor ---------- */
+/* ---------- renaming one name ---------- */
 
 function openEditor(entryId) {
   const entry = entries.find(function (e) { return e.id === entryId; });
@@ -416,7 +390,7 @@ function openEditor(entryId) {
   tile.classList.add("force-open");
   refreshBoards();
 
-  const host = tile.querySelector(".roster");
+  const host = tile.querySelector(".buyer");
   if (!host) return;
 
   const box = document.createElement("div");
@@ -520,7 +494,7 @@ function setTab(tabId) {
       " underneath. Each has its own Reset.";
   } else {
     $("boardSub").textContent =
-      board.boxes.length + " boxes. Type a username into a box to put them on it.";
+      board.boxes.length + " boxes. Click a box to enter a username.";
   }
   $("filter").placeholder = "Filter " + board.label.toLowerCase() + "\u2026";
 
@@ -530,7 +504,7 @@ function setTab(tabId) {
   $("saved").textContent = "";
 }
 
-/* ---------- add / remove ---------- */
+/* ---------- add and remove ---------- */
 
 async function addUser(targetId, rawName) {
   const username = normalizeName(rawName);
@@ -590,7 +564,7 @@ function renderEntries() {
   if (!entries.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = "Nothing entered yet. Type a username into any box above.";
+    p.textContent = "Nothing entered yet. Click a box above to add the first name.";
     host.appendChild(p);
     return;
   }
@@ -699,8 +673,8 @@ function textCell(text) {
 }
 
 /* ---------- export ----------
-   Built with character codes throughout: this is the exact spot where a
-   stray backslash inside a quoted string once stopped the whole script. */
+   Built from character codes: a stray backslash in a quoted string here
+   once stopped the whole script from parsing. */
 
 function csvEscape(v) {
   const QUOTE = String.fromCharCode(34);
@@ -822,7 +796,8 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   $("undoclose").addEventListener("click", hideUndo);
 
-  document.addEventListener("click", function () {
+  document.addEventListener("click", function (ev) {
+    if (ev.target.closest(".chipeditor")) return;
     if (document.querySelector(".chipeditor")) {
       closeEditor();
       refreshBoards();
