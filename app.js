@@ -1,12 +1,15 @@
-/* Memorabilia Breaks — one page, two boards (Teams / Divisions)
+/* Memorabilia Breaks — one page, three boards (Teams / Divisions / Pairs)
 
    This file is self-contained: it needs only teams.js above it.
    Switching views never navigates — it swaps which board is drawn.
 
    One input per box: a customer username. One action: place it on that
-   team or that division. Once a box has at least one username it greys
-   out and closes, so you can see at a glance what's been filled; emptying
-   it (via Delete in the list below) reopens it.
+   team, division, or pair. Once a box has at least one username it greys
+   out and closes.
+
+   Editing: every chip on a box is clickable — click one to rename it or
+   delete just that name. Removing the last name on a box un-greys it.
+   Hide all asks first and offers Undo.
 
    BACKEND_ENDPOINT: leave "" to store usernames in this browser's
    localStorage only. Set it to your form endpoint to save them centrally.
@@ -18,9 +21,9 @@ const STORE_KEY = "memorabilia-breaks-usernames-v1";
 const $ = (id) => document.getElementById(id);
 
 let entries = [];          // { id, username, target, createdAt }
-let currentView = "teams"; // "teams" | "divisions"
+let currentView = "teams"; // "teams" | "divisions" | "pairs"
 
-/* ---------- the two boards ---------- */
+/* ---------- the three boards ---------- */
 
 const TEAM_TARGETS = TEAMS.map(function (t) {
   return { id: t.abbr, abbr: t.abbr, name: t.city + " " + t.name, colors: t.colors };
@@ -35,8 +38,47 @@ const DIVISION_TARGETS = DIVISIONS.map(function (d) {
   };
 });
 
+/* The 16 pairs exactly as listed on the board. */
+const PAIRS = [
+  ["Cowboys", "Jags"],
+  ["Chiefs", "Cardinals"],
+  ["Broncos", "Saints"],
+  ["Eagles", "Panthers"],
+  ["Vikings", "Titans"],
+  ["Packers", "Falcons"],
+  ["Seahawks", "Chargers"],
+  ["Bucs", "Commanders"],
+  ["Ravens", "Rams"],
+  ["Patriots", "Browns"],
+  ["49ers", "Bears"],
+  ["Lions", "Raiders"],
+  ["Bengals", "Colts"],
+  ["Bills", "Jets"],
+  ["Steelers", "Texans"],
+  ["Dolphins", "Giants"]
+];
+
+function colorsForNickname(nick) {
+  const t = TEAMS.find(function (x) {
+    return x.name.toLowerCase() === String(nick).toLowerCase();
+  });
+  return t ? t.colors : ["#2b303c", "#e8ecf3"];
+}
+
+const PAIR_TARGETS = PAIRS.map(function (p) {
+  const label = p[0] + ", " + p[1];
+  return {
+    id: label,
+    abbr: p[0].slice(0, 3).toUpperCase() + ", " + p[1].slice(0, 3).toUpperCase(),
+    name: label,
+    colors: colorsForNickname(p[0])
+  };
+});
+
 function targetsFor(view) {
-  return view === "divisions" ? DIVISION_TARGETS : TEAM_TARGETS;
+  if (view === "divisions") return DIVISION_TARGETS;
+  if (view === "pairs") return PAIR_TARGETS;
+  return TEAM_TARGETS;
 }
 
 /* ---------- labels ---------- */
@@ -46,12 +88,18 @@ function targetLabel(id) {
   if (t) return t.city + " " + t.name;
   const d = DIVISIONS.find(function (x) { return x.name === id; });
   if (d) return d.name;
+  const p = PAIR_TARGETS.find(function (x) { return x.id === id; });
+  if (p) return p.name;
   return id;
 }
 
-/* Division names contain spaces, so quote them for querySelector. */
+/* Names contain spaces and commas, so quote them for querySelector. */
 function cssEscape(v) {
   return String(v).replace(/"/g, '\\"');
+}
+
+function normalizeName(raw) {
+  return (raw || "").trim().replace(/^@/, "");
 }
 
 /* ---------- storage ---------- */
@@ -83,11 +131,15 @@ function usersOn(targetId) {
 function renderBoard() {
   const board = $("board");
   const list = targetsFor(currentView);
+  const cls =
+    currentView === "divisions" ? "board-div" :
+    currentView === "pairs" ? "board-pair" : "board-team";
 
-  board.className = "board " + (currentView === "divisions" ? "board-div" : "board-team");
+  board.className = "board " + cls;
   board.setAttribute(
     "aria-label",
-    currentView === "divisions" ? "NFL division board" : "NFL team board"
+    currentView === "divisions" ? "NFL division board" :
+    currentView === "pairs" ? "NFL pair board" : "NFL team board"
   );
   board.innerHTML = "";
 
@@ -143,12 +195,11 @@ function renderBoard() {
     });
     tile.appendChild(bar);
 
-    /* the grey "filled" layer, shown only while the box has usernames */
-    const filled = document.createElement("div");
-    filled.className = "filledoverlay";
+    const filledbar = document.createElement("div");
+    filledbar.className = "filledbar";
     const filledText = document.createElement("span");
-    filled.className = "filledtext";
-    filled.appendChild(filledText);
+    filledText.className = "filledtext";
+    filledbar.appendChild(filledText);
     const unlock = document.createElement("button");
     unlock.type = "button";
     unlock.className = "unlock";
@@ -161,8 +212,8 @@ function renderBoard() {
       const i = tile.querySelector(".addbar input");
       if (i) i.focus();
     });
-    filled.appendChild(unlock);
-    tile.appendChild(filled);
+    filledbar.appendChild(unlock);
+    tile.appendChild(filledbar);
 
     board.appendChild(tile);
   });
@@ -177,10 +228,15 @@ function refreshBoard() {
     roster.innerHTML = "";
     const list = usersOn(t.id);
     list.forEach(function (e) {
-      const chip = document.createElement("span");
+      const chip = document.createElement("button");
+      chip.type = "button";
       chip.className = "chip";
       chip.textContent = e.username;
-      chip.title = e.username;
+      chip.title = "Edit or remove @" + e.username;
+      chip.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        openEditor(e.id);
+      });
       roster.appendChild(chip);
     });
 
@@ -188,24 +244,129 @@ function refreshBoard() {
     badge.textContent = list.length;
     badge.style.display = list.length ? "" : "none";
 
-    /* the grey-out switch */
     const isFilled = list.length > 0;
     const forcedOpen = tile.classList.contains("force-open");
-    tile.classList.toggle("filled", isFilled && !forcedOpen);
+    const editing = tile.querySelector(".chipeditor") !== null;
+    tile.classList.toggle("filled", isFilled && !forcedOpen && !editing);
 
     const filledText = tile.querySelector(".filledtext");
     if (filledText) {
       filledText.textContent = isFilled ? list.length + " entered" : "";
     }
-    /* when a box empties out, drop any stale force-open */
     if (!isFilled) tile.classList.remove("force-open");
+  });
+}
+
+/* ---------- inline chip editor ---------- */
+
+function openEditor(entryId) {
+  const entry = entries.find(function (e) { return e.id === entryId; });
+  if (!entry) return;
+
+  const tile = document.querySelector('.tile[data-target="' + cssEscape(entry.target) + '"]');
+  if (!tile) return;
+
+  closeEditor();
+  tile.classList.add("force-open");
+  refreshBoard();
+
+  const host = tile.querySelector(".roster");
+  if (!host) return;
+
+  const box = document.createElement("div");
+  box.className = "chipeditor";
+  box.addEventListener("click", function (ev) { ev.stopPropagation(); });
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = entry.username;
+  input.setAttribute("aria-label", "Edit username");
+  input.autocomplete = "off";
+  input.spellcheck = false;
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "cesave";
+  save.textContent = "Save";
+
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "cedel";
+  del.textContent = "Remove";
+
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "cecancel";
+  cancel.textContent = "Cancel";
+
+  box.appendChild(input);
+  box.appendChild(save);
+  box.appendChild(del);
+  box.appendChild(cancel);
+
+  function commit() {
+    const next = normalizeName(input.value);
+    if (!next) { input.focus(); return; }
+    entry.username = next;
+    persist();
+    closeEditor();
+    refreshBoard();
+    renderEntries();
+    $("saved").textContent = "Renamed to @" + next + " on " + targetLabel(entry.target);
+  }
+
+  save.addEventListener("click", commit);
+  input.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+    if (ev.key === "Escape") { ev.preventDefault(); closeEditor(); refreshBoard(); }
+  });
+  del.addEventListener("click", function () {
+    const name = entry.username;
+    const where = targetLabel(entry.target);
+    closeEditor();
+    removeUser(entryId);
+    $("saved").textContent = "Removed @" + name + " from " + where;
+  });
+  cancel.addEventListener("click", function () {
+    closeEditor();
+    refreshBoard();
+  });
+
+  host.appendChild(box);
+  tile.classList.remove("filled");
+  input.focus();
+  input.select();
+}
+
+function closeEditor() {
+  document.querySelectorAll(".chipeditor").forEach(function (el) {
+    el.parentNode.removeChild(el);
   });
 }
 
 /* ---------- view switching ---------- */
 
+const VIEW_INFO = {
+  teams: {
+    title: "Teams",
+    sub: "Thirty-two teams. Type a username into a team's box to put them on it.",
+    placeholder: "Filter teams…"
+  },
+  divisions: {
+    title: "Divisions",
+    sub: "Eight divisions. Type a username into a division's box to put them on it.",
+    placeholder: "Filter divisions…"
+  },
+  pairs: {
+    title: "Pick your Pairs",
+    sub: "Sixteen pairs. Type a username into a pair's box to put them on it.",
+    placeholder: "Filter pairs…"
+  }
+};
+
 function setView(view) {
-  currentView = view === "divisions" ? "divisions" : "teams";
+  currentView = VIEW_INFO[view] ? view : "teams";
+  const info = VIEW_INFO[currentView];
 
   document.querySelectorAll("[data-view-btn]").forEach(function (b) {
     const on = b.dataset.viewBtn === currentView;
@@ -213,13 +374,9 @@ function setView(view) {
     b.setAttribute("aria-selected", on ? "true" : "false");
   });
 
-  $("boardTitle").textContent = currentView === "divisions" ? "Divisions" : "Teams";
-  $("boardSub").textContent =
-    currentView === "divisions"
-      ? "Eight divisions. Type a username into a division's box to put them on it."
-      : "Thirty-two teams. Type a username into a team's box to put them on it.";
-  $("filter").placeholder =
-    currentView === "divisions" ? "Filter divisions…" : "Filter teams…";
+  $("boardTitle").textContent = info.title;
+  $("boardSub").textContent = info.sub;
+  $("filter").placeholder = info.placeholder;
 
   renderBoard();
   refreshBoard();
@@ -230,7 +387,7 @@ function setView(view) {
 /* ---------- add / remove ---------- */
 
 async function addUser(targetId, rawName) {
-  const username = (rawName || "").trim().replace(/^@/, "");
+  const username = normalizeName(rawName);
   const input = document.querySelector(
     '.tile[data-target="' + cssEscape(targetId) + '"] .addbar input'
   );
@@ -260,7 +417,6 @@ async function addUser(targetId, rawName) {
     entries.unshift(entry);
     if (!BACKEND_ENDPOINT && !persist()) throw new Error("Could not write to local storage");
 
-    /* a box that already had usernames was reopened on purpose — close it again */
     const tile = document.querySelector('.tile[data-target="' + cssEscape(targetId) + '"]');
     if (tile) tile.classList.remove("force-open");
 
@@ -310,10 +466,18 @@ function renderEntries() {
     const tr = document.createElement("tr");
 
     const tdUser = document.createElement("td");
-    tdUser.textContent = "@" + e.username;
+    const nameBtn = document.createElement("button");
+    nameBtn.type = "button";
+    nameBtn.className = "nameedit";
+    nameBtn.textContent = "@" + e.username;
+    nameBtn.title = "Click to rename";
+    nameBtn.addEventListener("click", function () { startRowEdit(tr, e); });
+    tdUser.appendChild(nameBtn);
     tr.appendChild(tdUser);
 
-    tr.appendChild(textCell(targetLabel(e.target)));
+    const tdWhere = document.createElement("td");
+    tdWhere.textContent = targetLabel(e.target);
+    tr.appendChild(tdWhere);
 
     const when = new Date(e.createdAt);
     tr.appendChild(textCell(isNaN(when) ? "—" : when.toLocaleString()));
@@ -323,6 +487,7 @@ function renderEntries() {
     del.type = "button";
     del.className = "del";
     del.textContent = "Delete";
+    del.title = "Remove only this name";
     del.addEventListener("click", function () { removeUser(e.id); });
     td.appendChild(del);
     tr.appendChild(td);
@@ -331,6 +496,56 @@ function renderEntries() {
   });
   table.appendChild(tbody);
   host.appendChild(table);
+}
+
+function startRowEdit(tr, entry) {
+  if (tr.dataset.editing === "1") return;
+  tr.dataset.editing = "1";
+
+  const tdUser = tr.children[0];
+  tdUser.innerHTML = "";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = entry.username;
+  input.className = "roweditinput";
+  input.setAttribute("aria-label", "Edit username");
+  input.autocomplete = "off";
+  input.spellcheck = false;
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "cesave";
+  save.textContent = "Save";
+
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "cecancel";
+  cancel.textContent = "Cancel";
+
+  tdUser.appendChild(input);
+  tdUser.appendChild(save);
+  tdUser.appendChild(cancel);
+
+  function commit() {
+    const next = normalizeName(input.value);
+    if (!next) { input.focus(); return; }
+    entry.username = next;
+    persist();
+    refreshBoard();
+    renderEntries();
+    $("saved").textContent = "Renamed to @" + next + " on " + targetLabel(entry.target);
+  }
+
+  save.addEventListener("click", commit);
+  input.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+    if (ev.key === "Escape") { ev.preventDefault(); renderEntries(); }
+  });
+  cancel.addEventListener("click", function () { renderEntries(); });
+
+  input.focus();
+  input.select();
 }
 
 function textCell(text) {
@@ -390,6 +605,21 @@ function applyFilter(q) {
 
 /* ---------- boot ---------- */
 
+let undoSnapshot = null;
+let undoTimer = null;
+
+function showUndo(message) {
+  $("undotext").textContent = message;
+  $("undobar").classList.add("show");
+  if (undoTimer) clearTimeout(undoTimer);
+  undoTimer = setTimeout(hideUndo, 12000);
+}
+
+function hideUndo() {
+  $("undobar").classList.remove("show");
+  undoSnapshot = null;
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   loadEntries();
   setView("teams");
@@ -400,13 +630,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
   $("filter").addEventListener("input", function (e) { applyFilter(e.target.value); });
   $("exportCsv").addEventListener("click", downloadCsv);
+
   $("clearAll").addEventListener("click", function () {
     if (!entries.length) return;
-    if (confirm("Delete all " + entries.length + " usernames?")) {
-      entries = [];
-      persist();
+    if (!confirm("Hide all " + entries.length + " names? You can put them straight back with Undo.")) return;
+    undoSnapshot = entries.slice();
+    entries = [];
+    persist();
+    refreshBoard();
+    renderEntries();
+    showUndo("Hid " + undoSnapshot.length + " names.");
+  });
+
+  $("undobtn").addEventListener("click", function () {
+    if (!undoSnapshot) return;
+    entries = undoSnapshot;
+    undoSnapshot = null;
+    persist();
+    refreshBoard();
+    renderEntries();
+    hideUndo();
+    $("saved").textContent = "Restored.";
+  });
+  $("undoclose").addEventListener("click", hideUndo);
+
+  document.addEventListener("click", function () {
+    if (document.querySelector(".chipeditor")) {
+      closeEditor();
       refreshBoard();
-      renderEntries();
     }
   });
 });
