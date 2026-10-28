@@ -1,17 +1,16 @@
 /* ============================================================
    Memorabilia Breaks — board theme
-   Dark navy panel, gold rules, stacked rows with a PURCHASER
-   plate and an always-visible username field.
-   Change :root to retheme.
+   Deep tournament felt, brass rails, chrome tiles with a lit
+   gold name plate. Change :root to retheme the whole page.
    ============================================================ */
 
 :root{
-  --blue-1:#2f7fc4;      /* the lit top of the backdrop */
-  --blue-2:#12437a;      /* the middle wash */
-  --blue-3:#061c33;      /* the dark bottom */
+  --blue-1:#3a8fd4;      /* the lit top of the backdrop */
+  --blue-2:#1d5a9c;      /* the middle wash */
+  --blue-3:#06182c;      /* the dark bottom */
   --panel:#0b2440;       /* the board panel */
-  --panel-2:#123257;     /* a row */
-  --panel-3:#0e2a49;     /* the alternating row */
+  --panel-2:#17416c;     /* a row */
+  --panel-3:#0b2239;     /* the alternating row */
   --rail:#c9a227;        /* brass / gold */
   --rail-soft:#e8d48b;   /* highlight gold */
   --gold-text:#ffcf3f;   /* purchaser names */
@@ -26,58 +25,79 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   line-height:1.5;
   background:
-    radial-gradient(ellipse at 50% -10%, rgba(255,255,255,.20), transparent 55%),
-    radial-gradient(ellipse at 50% 115%, rgba(0,0,0,.6), transparent 62%),
-    linear-gradient(180deg, var(--blue-1), var(--blue-2) 45%, var(--blue-3));
+    radial-gradient(ellipse 90% 50% at 50% -12%, rgba(120,205,255,.30), transparent 60%),
+    radial-gradient(ellipse 70% 40% at 12% 108%, rgba(255,190,60,.10), transparent 62%),
+    radial-gradient(ellipse 70% 40% at 88% 108%, rgba(60,150,255,.12), transparent 62%),
+    radial-gradient(ellipse at 50% 118%, rgba(0,0,0,.7), transparent 60%),
+    linear-gradient(180deg, #3a8fd4 0%, #1d5a9c 22%, #0d3b6e 48%, #06182c 78%, #030c18 100%);
   background-attachment:fixed;
 }
 
 /* ---------- header ---------- */
 header{
-  position:relative; padding:22px 20px 14px; text-align:center;
-  border-bottom:1px solid rgba(150,205,240,.4);
-  background:linear-gradient(180deg, rgba(0,0,0,.3), transparent);
+  position:relative; padding:26px 20px 16px; text-align:center;
+  border-bottom:1px solid rgba(201,162,39,.35);
+  background:linear-gradient(180deg, rgba(0,0,0,.34), transparent);
 }
 header h1{
   margin:0 0 6px; font-size:clamp(22px,3.6vw,34px); letter-spacing:.02em;
   font-weight:800; text-transform:uppercase; color:#fff;
-  text-shadow:0 2px 10px rgba(0,0,0,.5), 0 0 26px rgba(120,190,235,.35);
+  text-shadow:0 3px 14px rgba(0,0,0,.6), 0 0 34px rgba(140,205,255,.45);
   overflow-wrap:anywhere;
+}
+header h1::after{
+  content:""; display:block; width:min(360px,72%); height:3px; margin:12px auto 0;
+  border-radius:3px;
+  background:linear-gradient(90deg, transparent, var(--rail) 18%, var(--rail-soft) 50%, var(--rail) 82%, transparent);
+  box-shadow:0 0 14px rgba(201,162,39,.65);
 }
 header p{margin:0; color:#c3d6e6; font-size:13px; letter-spacing:.03em}
 header.compact{padding:6px 12px 5px}
 header.compact h1{font-size:clamp(13px,1.6vw,16px); margin-bottom:0}
+header.compact h1::after{margin-top:5px; height:2px}
 header.compact p{display:none}
 
 /* ---------- tabs ---------- */
 .segment{
   display:inline-flex; gap:6px; margin:16px 0 0; padding:5px; flex-wrap:wrap;
   justify-content:center;
-  background:linear-gradient(180deg, rgba(0,20,40,.65), rgba(0,20,40,.4));
-  border:1px solid rgba(150,205,240,.4); border-radius:999px;
+  background:linear-gradient(180deg, rgba(4,22,42,.9), rgba(2,12,26,.75));
+  border:1px solid rgba(201,162,39,.55); border-radius:999px;
+  box-shadow:0 8px 26px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.10);
 }
 header.compact .segment{margin:4px 0 0; padding:2px; gap:3px}
 .segment button{
-  background:transparent; border:1px solid transparent; color:#bfd6e8; font:inherit;
+  background:transparent; border:1px solid transparent; color:#b9cfe4; font:inherit;
   font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
   padding:8px 20px; border-radius:999px; cursor:pointer; white-space:nowrap;
+  transition:color .15s, background .15s, transform .12s;
 }
 header.compact .segment button{font-size:9px; padding:3px 10px}
-.segment button:hover{color:#fff; background:rgba(255,255,255,.1)}
+.segment button:hover{color:#fff; background:rgba(255,255,255,.1); transform:translateY(-1px)}
 .segment button.on{
-  color:#0b2436;
-  background:linear-gradient(180deg, #ffffff, #cfe6f5 55%, #9dc7e0);
-  border-color:#fff;
+  color:#241a02;
+  background:linear-gradient(180deg, #fff6d8, #f0cf62 45%, #b98d14);
+  border-color:#ffeeb0;
+  box-shadow:0 3px 12px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.75);
 }
 
-.wrap{max-width:1240px; margin:0 auto; padding:18px 20px 60px}
+/* the board sits on a felt mat */
+.wrap{
+  max-width:1240px; margin:0 auto; padding:18px 20px 60px;
+  background:linear-gradient(180deg, rgba(3,16,30,.34), rgba(3,16,30,.12));
+  border-left:1px solid rgba(201,162,39,.16);
+  border-right:1px solid rgba(201,162,39,.16);
+  border-radius:18px;
+  box-shadow:inset 0 0 90px rgba(0,0,0,.35);
+}
 
 /* ---------- board heading ---------- */
 .boardhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin:4px 0 12px}
 .boardhead h2{
   margin:0; font-size:17px; letter-spacing:.07em; text-transform:uppercase;
-  color:#fff; font-weight:800; text-shadow:0 2px 6px rgba(0,0,0,.5);
-  min-width:0; overflow:hidden; text-overflow:ellipsis;
+  font-weight:800; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  background:linear-gradient(90deg, #ffffff, #d6e9fa);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
 }
 .boardhead span{color:#b6cade; font-size:12.5px; min-width:0}
 
@@ -94,12 +114,13 @@ header.compact .segment button{font-size:9px; padding:3px 10px}
 .toolbar input:focus{outline:none; border-color:#fff}
 .toolbar .count{color:#b6cade; font-size:12px; flex:0 0 auto; white-space:nowrap}
 button.ghost{
-  background:linear-gradient(180deg, rgba(255,255,255,.16), rgba(0,25,45,.45));
-  color:#e9f2fa; border:1px solid rgba(150,205,240,.45);
+  background:linear-gradient(180deg, rgba(255,255,255,.20), rgba(0,25,45,.55));
+  color:#e9f2fa; border:1px solid rgba(201,162,39,.45);
   border-radius:999px; padding:8px 15px; font-size:12.5px; font-weight:600;
   cursor:pointer; white-space:nowrap; flex:0 0 auto;
+  transition:border-color .15s, box-shadow .15s, color .15s;
 }
-button.ghost:hover{border-color:#fff; color:#fff}
+button.ghost:hover{border-color:var(--rail-soft); color:#fff; box-shadow:0 0 16px rgba(201,162,39,.3)}
 button.ghost:disabled{opacity:.45; cursor:not-allowed}
 
 /* ---------- per-board header row ---------- */
@@ -107,9 +128,10 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 .sectionhead:first-child{margin-top:0}
 .sectionhead h3{
   margin:0; font-size:12.5px; letter-spacing:.14em; text-transform:uppercase;
-  color:#fff; font-weight:900; padding-left:10px; border-left:3px solid var(--rail);
+  color:#fff; font-weight:900; padding-left:10px; border-left:4px solid var(--rail);
   min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
+.sectionhead h3::before{content:"\25C6"; color:var(--rail); font-size:8px; margin-right:6px; vertical-align:1px}
 .sectionhead .sectioncount{color:#a9c2da; font-size:11px; flex:0 0 auto; white-space:nowrap}
 
 .boardreset{
@@ -150,10 +172,14 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
   display:flex; flex-direction:row; align-items:stretch; flex-wrap:wrap;
   min-height:44px; max-width:100%;
   background:linear-gradient(180deg, var(--panel-2), var(--panel-3));
-  border:1px solid rgba(120,180,220,.4);
-  box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 2px 7px rgba(0,0,0,.4);
+  border:1px solid rgba(150,200,240,.5);
+  box-shadow:0 0 0 1px rgba(0,0,0,.7), 0 3px 12px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.10);
+  transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
-.tile:hover{border-color:rgba(201,162,39,.8)}
+.tile:hover{
+  border-color:rgba(255,215,110,.9);
+  box-shadow:0 0 0 1px rgba(0,0,0,.7), 0 6px 22px rgba(0,0,0,.55), 0 0 22px rgba(201,162,39,.28);
+}
 
 /* the abbreviation cell */
 .tile .eb{
@@ -164,7 +190,7 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 .tile .eb .initials{
   font-size:13px; font-weight:900; letter-spacing:.02em;
   color:#fff; text-align:center; line-height:1.1; padding:0 3px;
-  text-shadow:0 2px 4px rgba(0,0,0,.85);
+  text-shadow:0 2px 6px rgba(0,0,0,.9), 0 0 18px rgba(255,255,255,.18);
   overflow-wrap:anywhere; word-break:break-word;
   max-width:100%; overflow:hidden;
 }
@@ -193,6 +219,7 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
   display:block;
   font-size:12px; font-weight:900; letter-spacing:.03em; text-transform:uppercase;
   color:var(--gold-text); line-height:1.25;
+  text-shadow:0 1px 3px rgba(0,0,0,.7);
   overflow-wrap:anywhere; word-break:break-word;
   max-width:100%; overflow:hidden;
 }
@@ -200,9 +227,9 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 /* the empty slot */
 .tile .buyer .buyopen{
   display:inline-block; margin-top:1px; padding:0 7px;
-  border:1px solid rgba(150,200,235,.35); border-radius:3px;
-  background:rgba(0,0,0,.3); line-height:1.5;
-  color:#8ba3b8; font-weight:700; letter-spacing:.14em;
+  border:1px solid rgba(150,205,240,.45); border-radius:3px;
+  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(0,0,0,.32));
+  line-height:1.5; color:#a8c0d6; font-weight:700; letter-spacing:.14em;
   text-transform:uppercase; font-size:8px;
 }
 
@@ -221,9 +248,8 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 
 /* ============================================================
    THE USERNAME FIELD — ALWAYS VISIBLE
-   This is the fix. The input is not hidden and is not revealed by
-   a class. It sits on every box, always, so typing works whatever
-   else happens on the page.
+   The input is not hidden and is not revealed by a class. It sits
+   on every box, always, so typing works whatever else happens.
    ============================================================ */
 
 .tile .addbar{
@@ -231,46 +257,51 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
   flex:1 1 100%; order:9;
   padding:5px 6px; min-width:0;
   background:rgba(0,0,0,.36);
-  border-top:1px solid rgba(150,200,235,.16);
+  border-top:1px solid rgba(160,205,240,.22);
 }
 .tile .addbar input{
   flex:1 1 auto; min-width:0; font-family:inherit;
-  background:#f7fbff; border:1px solid rgba(150,205,240,.6); color:#0b1a26;
+  background:linear-gradient(180deg, #ffffff, #eef6ff);
+  border:1px solid rgba(150,205,240,.6); color:#0b1a26;
   border-radius:4px; padding:5px 8px; font-size:12px;
-  box-shadow:inset 0 2px 4px rgba(0,0,0,.14);
+  box-shadow:inset 0 2px 5px rgba(0,20,40,.18);
 }
 .tile .addbar input::placeholder{color:#8093a4; font-style:italic}
 .tile .addbar input:focus{
   outline:none; border-color:#fff;
-  box-shadow:0 0 0 2px rgba(255,255,255,.3), inset 0 2px 4px rgba(0,0,0,.14);
+  box-shadow:0 0 0 2px rgba(255,255,255,.3), inset 0 2px 5px rgba(0,20,40,.18);
 }
 .tile .addbar button{
   flex:0 0 auto;
-  background:linear-gradient(180deg, #f3d873, #b98f14);
+  background:linear-gradient(180deg, #ffe9a0, #d9ab2a 48%, #a97c0c);
   color:#2a1f05; border:1px solid rgba(255,248,215,.8);
   border-radius:4px; padding:0 12px; font-size:14px; font-weight:900;
   cursor:pointer; line-height:1.6; font-family:inherit;
-  box-shadow:0 2px 6px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.6);
+  box-shadow:0 2px 8px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.7);
 }
-.tile .addbar button:hover{filter:brightness(1.08)}
+.tile .addbar button:hover{filter:brightness(1.12)}
 
 /* ============================================================
-   THE TEAMS BOARD — square tiles, field still always visible
+   THE TEAMS BOARD — square chrome tiles
    ============================================================ */
 
 .board-large .tile{
   flex-direction:column; flex-wrap:nowrap; align-items:stretch;
-  background:linear-gradient(180deg, #3d444c 0%, #232a33 42%, #12161c 100%);
-  border-color:rgba(120,180,220,.5);
-  border-radius:10px;
+  background:linear-gradient(180deg, #4b545f 0%, #2f3742 38%, #1a2029 72%, #0e1218 100%);
+  border-color:rgba(165,205,240,.55);
+  border-radius:12px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.75), 0 5px 18px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.14);
 }
 .board-large .tile .eb{
   width:auto; align-self:auto; border-right:0;
+  border-bottom:1px solid rgba(0,0,0,.45);
+  box-shadow:inset 0 0 40px rgba(0,0,0,.3);
   padding:12px 8px 8px; min-height:0;
 }
 .board-large .tile .eb .initials{font-size:clamp(16px,2.1vw,24px)}
 .board-large .tile .buyer{
   flex:0 0 auto; text-align:center; padding:2px 6px 5px;
+  background:linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.04));
 }
 .board-large .tile .buyer .buylbl{font-size:8px; letter-spacing:.16em}
 .board-large .tile .buyer .buyname,
@@ -324,13 +355,15 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 
 .panel{
   position:relative;
-  background:linear-gradient(180deg, rgba(0,20,38,.6), rgba(0,20,38,.4));
-  border:1px solid rgba(150,205,240,.35); border-radius:14px;
+  background:linear-gradient(180deg, rgba(6,26,48,.75), rgba(3,14,28,.55));
+  border:1px solid rgba(201,162,39,.28); border-radius:14px;
   padding:20px; margin:24px 0 18px;
+  box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
 }
 .panel h2{
   margin:0 0 6px; font-size:14px; font-weight:800;
   letter-spacing:.1em; text-transform:uppercase; color:#fff;
+  border-bottom:1px solid rgba(201,162,39,.22); padding-bottom:8px;
   overflow-wrap:anywhere;
 }
 .panel .sub{margin:0 0 16px; color:#b6cade; font-size:12.5px}
@@ -381,7 +414,7 @@ th{color:#cfe1f0; font-weight:800; font-size:10.5px; text-transform:uppercase; l
   transform:translateX(-50%) translateY(160%);
   display:flex; align-items:center; gap:16px;
   background:linear-gradient(180deg, #12293c, #061520);
-  border:1px solid rgba(150,205,240,.6); border-radius:999px;
+  border:1px solid rgba(201,162,39,.6); border-radius:999px;
   padding:11px 13px 11px 22px;
   transition:transform .24s cubic-bezier(.2,.8,.3,1);
   max-width:calc(100vw - 32px);
@@ -402,30 +435,32 @@ th{color:#cfe1f0; font-weight:800; font-size:10.5px; text-transform:uppercase; l
 #undoclose:hover{color:#fff}
 
 /* ============================================================
-   A TAKEN BOX — the customer's name stays lit, the rest greys.
-   No explanatory wording appears anywhere on the box; the
-   grey itself is the signal.
+   A TAKEN BOX - the buyer's name stays lit, everything else greys.
+   No wording anywhere; the grey IS the message. The box keeps its
+   exact size so the grid never jumps as names go in and out.
    ============================================================ */
 
-.tile.taken{ border-color:rgba(130,145,160,.35); }
+.tile.taken{
+  background:linear-gradient(180deg, #2b3340 0%, #1c222b 55%, #141920 100%);
+  border-color:rgba(140,152,166,.3);
+  box-shadow:0 0 0 1px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.tile.taken .eb{ filter:grayscale(1) brightness(.62); }
+.tile.taken .eb .initials{ color:rgba(255,255,255,.55); text-shadow:none; }
+.tile.taken .badge{ filter:grayscale(1); opacity:.35; }
+.tile.taken .buyer .buylbl{ color:rgba(150,166,182,.45); }
 
-.tile.taken .eb,
-.tile.taken .badge{ filter:grayscale(1); opacity:.4; }
-
-.tile.taken .buyer .buylbl{ filter:grayscale(1); opacity:.35; }
-
+/* the one live thing on a dead box */
 .tile.taken .buyer .buyname,
 .tile.taken .buyer .buyname-btn{
-  color:var(--gold-text); opacity:1; filter:none;
-  text-shadow:0 0 12px rgba(255,207,63,.45), 0 2px 4px rgba(0,0,0,.9);
+  color:#ffd75e;
+  text-shadow:0 0 14px rgba(255,205,70,.5), 0 2px 4px rgba(0,0,0,.95);
 }
+.tile.taken .buyer .buyname-btn:hover{ color:#fff3c4; }
 
-.tile.taken .addbar{
-  background:rgba(0,0,0,.42);
-  border-top-color:rgba(150,200,235,.08);
-}
-.tile.taken .addbar input,
-.tile.taken .addbar button{ filter:grayscale(1); opacity:.3; }
+.tile.taken .addbar{ background:rgba(0,0,0,.5); border-top-color:rgba(150,200,235,.06); }
+.tile.taken .addbar input{ filter:grayscale(1); opacity:.28; }
+.tile.taken .addbar button{ filter:grayscale(1); opacity:.22; }
 
 /* ============================================================
    COMPACT MODE — the pairs tab, so all 24 boxes fit one screen
