@@ -1,7 +1,8 @@
 /* ============================================================
    Memorabilia Breaks — board theme
-   Dark navy panel, gold rules, stacked emblem rows with a
-   PURCHASER plate beside each. Change :root to retheme.
+   Dark navy panel, gold rules, stacked rows with a PURCHASER
+   plate and an always-visible username field.
+   Change :root to retheme.
    ============================================================ */
 
 :root{
@@ -9,9 +10,8 @@
   --blue-2:#12437a;      /* the middle wash */
   --blue-3:#061c33;      /* the dark bottom */
   --panel:#0b2440;       /* the board panel */
-  --panel-2:#123257;     /* a stacked row */
+  --panel-2:#123257;     /* a row */
   --panel-3:#0e2a49;     /* the alternating row */
-  --rim:#5b9fd6;         /* the cool rim line */
   --rail:#c9a227;        /* brass / gold */
   --rail-soft:#e8d48b;   /* highlight gold */
   --gold-text:#ffcf3f;   /* purchaser names */
@@ -55,14 +55,12 @@ header.compact p{display:none}
   justify-content:center;
   background:linear-gradient(180deg, rgba(0,20,40,.65), rgba(0,20,40,.4));
   border:1px solid rgba(150,205,240,.4); border-radius:999px;
-  box-shadow:0 6px 18px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.1);
 }
-header.compact .segment{margin:4px 0 0; padding:2px; gap:3px; box-shadow:none}
+header.compact .segment{margin:4px 0 0; padding:2px; gap:3px}
 .segment button{
   background:transparent; border:1px solid transparent; color:#bfd6e8; font:inherit;
   font-size:12.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
   padding:8px 20px; border-radius:999px; cursor:pointer; white-space:nowrap;
-  transition:color .15s ease, background .15s ease, box-shadow .15s ease;
 }
 header.compact .segment button{font-size:9px; padding:3px 10px}
 .segment button:hover{color:#fff; background:rgba(255,255,255,.1)}
@@ -70,55 +68,18 @@ header.compact .segment button{font-size:9px; padding:3px 10px}
   color:#0b2436;
   background:linear-gradient(180deg, #ffffff, #cfe6f5 55%, #9dc7e0);
   border-color:#fff;
-  box-shadow:0 2px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.9);
 }
 
 .wrap{max-width:1240px; margin:0 auto; padding:18px 20px 60px}
 
-/* ---------- the board panel: a framed navy card like the sheet ---------- */
-.panel-board{
-  position:relative; border-radius:14px; padding:14px;
-  background:linear-gradient(180deg, var(--panel), #071a30);
-  border:2px solid rgba(120,190,235,.55);
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.7),
-    0 14px 34px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.1);
-}
-.panel-board::before{
-  content:""; position:absolute; inset:5px; border-radius:10px;
-  border:1px solid rgba(120,190,235,.28); pointer-events:none;
-}
-
-/* the gold-ruled title bar across the top of the panel */
-.panel-title{
-  display:flex; align-items:center; gap:10px; flex-wrap:wrap; row-gap:4px;
-  padding:8px 12px; margin:0 0 12px; border-radius:8px;
-  background:linear-gradient(180deg, rgba(0,20,40,.9), rgba(0,14,28,.9));
-  border:1px solid rgba(201,162,39,.55);
-  border-bottom:2px solid rgba(201,162,39,.75);
-}
-.panel-title h2{
-  margin:0; font-size:13.5px; font-weight:900; letter-spacing:.14em;
-  text-transform:uppercase; color:#fff;
-  flex:0 1 auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.panel-title .sub{
-  color:#a9c2da; font-size:11px; letter-spacing:.04em;
-  flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-}
-
-/* ---------- board heading (outside the panel) ---------- */
+/* ---------- board heading ---------- */
 .boardhead{display:flex; flex-wrap:wrap; gap:4px 8px; align-items:baseline; margin:4px 0 12px}
 .boardhead h2{
   margin:0; font-size:17px; letter-spacing:.07em; text-transform:uppercase;
   color:#fff; font-weight:800; text-shadow:0 2px 6px rgba(0,0,0,.5);
-  flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
+  min-width:0; overflow:hidden; text-overflow:ellipsis;
 }
-.boardhead span{
-  color:#b6cade; font-size:12.5px;
-  flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis;
-}
+.boardhead span{color:#b6cade; font-size:12.5px; min-width:0}
 
 /* ---------- toolbar ---------- */
 .toolbar{display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; justify-content:space-between; margin:0 0 14px}
@@ -128,20 +89,15 @@ header.compact .segment button{font-size:9px; padding:3px 10px}
   border:1px solid rgba(150,205,240,.45); color:#eaf1f7;
   border-radius:999px; padding:9px 16px; font-size:13px;
   flex:1 1 180px; min-width:0; max-width:340px;
-  box-shadow:inset 0 1px 4px rgba(0,0,0,.45);
 }
 .toolbar input::placeholder{color:#8fa6b8}
-.toolbar input:focus{outline:none; border-color:#fff; box-shadow:0 0 0 3px rgba(255,255,255,.18), inset 0 1px 4px rgba(0,0,0,.45)}
-.toolbar .count{
-  color:#b6cade; font-size:12px; letter-spacing:.04em;
-  flex:0 0 auto; white-space:nowrap;
-}
+.toolbar input:focus{outline:none; border-color:#fff}
+.toolbar .count{color:#b6cade; font-size:12px; flex:0 0 auto; white-space:nowrap}
 button.ghost{
   background:linear-gradient(180deg, rgba(255,255,255,.16), rgba(0,25,45,.45));
   color:#e9f2fa; border:1px solid rgba(150,205,240,.45);
   border-radius:999px; padding:8px 15px; font-size:12.5px; font-weight:600;
-  letter-spacing:.03em; cursor:pointer; white-space:nowrap; flex:0 0 auto;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 2px 8px rgba(0,0,0,.3);
+  cursor:pointer; white-space:nowrap; flex:0 0 auto;
 }
 button.ghost:hover{border-color:#fff; color:#fff}
 button.ghost:disabled{opacity:.45; cursor:not-allowed}
@@ -151,30 +107,27 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 .sectionhead:first-child{margin-top:0}
 .sectionhead h3{
   margin:0; font-size:12.5px; letter-spacing:.14em; text-transform:uppercase;
-  color:#fff; font-weight:900; text-shadow:0 1px 4px rgba(0,0,0,.5);
-  padding-left:10px; border-left:3px solid var(--rail);
-  flex:0 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  color:#fff; font-weight:900; padding-left:10px; border-left:3px solid var(--rail);
+  min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
-.sectionhead .sectioncount{
-  color:#a9c2da; font-size:11px; letter-spacing:.05em;
-  flex:0 0 auto; white-space:nowrap;
-}
+.sectionhead .sectioncount{color:#a9c2da; font-size:11px; flex:0 0 auto; white-space:nowrap}
 
 .boardreset{
   margin-left:auto; background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(0,25,45,.45));
   color:#cfe1f0; border:1px solid rgba(150,205,240,.4);
   border-radius:999px; padding:5px 13px;
   font:inherit; font-size:11px; font-weight:700; letter-spacing:.05em;
-  text-transform:uppercase; cursor:pointer;
-  flex:0 0 auto; white-space:nowrap;
+  text-transform:uppercase; cursor:pointer; flex:0 0 auto; white-space:nowrap;
 }
 .boardreset:hover{border-color:#ff9b9e; color:#ffd3d5}
 .boardreset.hasnames{color:#ffd3d5; border-color:rgba(255,120,125,.7)}
 .boardreset:disabled{opacity:.35; cursor:not-allowed}
 
 /* ============================================================
-   THE GRID — one row per box on the pairs and divisions boards;
-   a square tile grid on the teams board.
+   THE GRID
+   Teams: 8 across of square tiles. Pairs and divisions: one column
+   of full-width rows. The username field sits on EVERY box and is
+   always visible, so nothing has to be revealed or toggled.
    ============================================================ */
 
 .board{display:grid; gap:10px; margin-bottom:4px}
@@ -182,7 +135,6 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 @media(max-width:980px){ .board-large{grid-template-columns:repeat(4,minmax(0,1fr))} }
 @media(max-width:520px){ .board-large{grid-template-columns:repeat(2,minmax(0,1fr))} }
 
-/* pairs and divisions: a column of fixed-height rows */
 .board-small,
 .board-medium{
   grid-template-columns:minmax(0,1fr);
@@ -190,109 +142,71 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 }
 
 /* ============================================================
-   THE ROW — emblem cell, then a two-line purchaser block.
-   Both cells are top-aligned so nothing ever overlaps, and the
-   row is a fixed height so 24 of them share one screen.
+   THE BOX — rows for pairs and divisions
    ============================================================ */
 
 .tile{
-  position:relative; overflow:hidden; border-radius:7px;
-  display:flex; flex-direction:row; align-items:stretch;
-  min-height:46px; max-width:100%;
+  position:relative; border-radius:7px;
+  display:flex; flex-direction:row; align-items:stretch; flex-wrap:wrap;
+  min-height:44px; max-width:100%;
   background:linear-gradient(180deg, var(--panel-2), var(--panel-3));
   border:1px solid rgba(120,180,220,.4);
-  box-shadow:
-    0 0 0 1px rgba(0,0,0,.6),
-    0 2px 7px rgba(0,0,0,.4),
-    inset 0 1px 0 rgba(255,255,255,.07);
-  transition:border-color .16s ease, box-shadow .16s ease;
+  box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 2px 7px rgba(0,0,0,.4);
 }
-.tile::after{
-  content:""; position:absolute; inset:1px; border-radius:5px;
-  border:1px solid rgba(150,200,235,.14);
-  pointer-events:none; z-index:4;
-}
-.tile:hover{border-color:rgba(201,162,39,.8);
-  box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 4px 12px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1)}
+.tile:hover{border-color:rgba(201,162,39,.8)}
 
-/* --- the emblem cell: a square at the left, full height of the row --- */
+/* the abbreviation cell */
 .tile .eb{
   position:relative; display:grid; place-items:center; flex:0 0 auto;
-  width:52px; align-self:stretch; overflow:hidden;
-  border-right:1px solid rgba(0,0,0,.35);
-}
-.tile .eb img{
-  display:block; width:auto; height:auto;
-  max-height:30px; max-width:34px;
-  object-fit:contain;
-  filter:drop-shadow(0 2px 3px rgba(0,0,0,.75));
+  width:54px; align-self:stretch; overflow:hidden;
+  border-right:1px solid rgba(0,0,0,.4);
 }
 .tile .eb .initials{
   font-size:13px; font-weight:900; letter-spacing:.02em;
-  color:#fff; font-variant-numeric:tabular-nums;
+  color:#fff; text-align:center; line-height:1.1; padding:0 3px;
   text-shadow:0 2px 4px rgba(0,0,0,.85);
-  text-align:center; line-height:1.1; padding:0 2px;
-  max-width:100%; overflow:hidden; text-overflow:ellipsis;
   overflow-wrap:anywhere; word-break:break-word;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-}
-.tile .eb::after{
-  content:""; position:absolute; inset:0; pointer-events:none;
-  background:linear-gradient(180deg, rgba(255,255,255,.12), transparent 55%);
+  max-width:100%; overflow:hidden;
 }
 
-/* the team's name is carried in the tooltip, not printed in the row */
 .tile .name{
   position:absolute; width:1px; height:1px; overflow:hidden;
   clip:rect(0 0 0 0); white-space:nowrap;
 }
 
-/* --- the purchaser block: label on line one, the name on line two --- */
+/* the purchaser plate */
 .tile .buyer{
-  position:relative; z-index:4; flex:1 1 auto;
+  position:relative; z-index:4; flex:1 1 140px;
   min-width:0; overflow:hidden;
   display:flex; flex-direction:column; justify-content:center;
-  padding:4px 10px 5px 9px; text-align:left;
+  padding:4px 10px 4px 9px; text-align:left;
 }
 .tile .buyer .buylbl{
   display:block;
   font-size:7.5px; font-weight:800; letter-spacing:.2em; text-transform:uppercase;
-  color:var(--label); line-height:1.3;
-  text-shadow:0 1px 0 rgba(0,0,0,.9);
-  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  color:var(--label); line-height:1.3; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
 }
-.tile .buyer .buynames{display:block; min-height:0; min-width:0}
+.tile .buyer .buynames{display:block; min-width:0}
 
 .tile .buyer .buyname{
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  display:block;
   font-size:12px; font-weight:900; letter-spacing:.03em; text-transform:uppercase;
-  color:var(--gold-text); line-height:1.2;
-  max-width:100%; overflow:hidden; text-overflow:ellipsis;
+  color:var(--gold-text); line-height:1.25;
   overflow-wrap:anywhere; word-break:break-word;
-  text-shadow:0 1px 2px rgba(0,0,0,.95);
+  max-width:100%; overflow:hidden;
 }
-.tile .buyer .buyname + .buyname{margin-top:2px}
-.tile .buyer .buyname-btn{
-  background:transparent; border:0; font:inherit; text-align:left; width:100%;
-  font-size:12px; font-weight:900; letter-spacing:.03em; text-transform:uppercase;
-  color:var(--gold-text); cursor:pointer; padding:0; line-height:1.2;
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-  max-width:100%; overflow:hidden; text-overflow:ellipsis;
-  overflow-wrap:anywhere; word-break:break-word;
-}
-.tile .buyer .buyname-btn:hover{color:#fff3c2}
 
-/* the empty slot: a small bordered chip reading OPEN, on its own line */
+/* the empty slot */
 .tile .buyer .buyopen{
   display:inline-block; margin-top:1px; padding:0 7px;
   border:1px solid rgba(150,200,235,.35); border-radius:3px;
   background:rgba(0,0,0,.3); line-height:1.5;
   color:#8ba3b8; font-weight:700; letter-spacing:.14em;
   text-transform:uppercase; font-size:8px;
-  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 
-/* --- the count badge --- */
+/* the count badge */
 .tile .badge{
   position:absolute; top:3px; right:3px; z-index:5;
   min-width:16px; text-align:center;
@@ -302,120 +216,59 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
   border:1px solid rgba(255,255,255,.55);
 }
 
-/* --- the roster and the add row: full width, below the row content --- */
-.tile .roster{
-  display:none; flex-wrap:wrap; gap:4px; flex:1 1 100%;
-  padding:0 8px 6px; min-width:0;
-}
-.chip{
-  background:rgba(255,255,255,.08);
-  border:1px solid rgba(201,162,39,.45); border-radius:999px;
-  padding:0 7px; font-size:8.5px; font-weight:700; letter-spacing:.03em;
-  font-family:inherit; color:#ffe6a8; line-height:1.7;
-  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  cursor:pointer;
-}
-.chip:hover{background:rgba(201,162,39,.22); color:#fff3cd}
-
-.addbar{
-  display:none; gap:5px; padding:5px 6px; flex:1 1 100%;
-  background:rgba(0,0,0,.34);
-  border-top:1px solid rgba(150,200,235,.14);
-  min-width:0;
-}
-.addbar input{
-  flex:1 1 auto; min-width:0; font-family:inherit;
-  background:rgba(0,0,0,.5); border:1px solid rgba(150,200,235,.4);
-  border-radius:4px; padding:4px 8px; font-size:12px; color:#eef5fb;
-  box-shadow:inset 0 2px 4px rgba(0,0,0,.5);
-}
-.addbar input::placeholder{color:#7d8f9f; font-style:italic; overflow:hidden; text-overflow:ellipsis}
-.addbar input:focus{outline:none; border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.18)}
-.addbar button{
-  background:linear-gradient(180deg, #f3d873, #b98f14);
-  color:#2a1f05; border:1px solid rgba(255,248,215,.75);
-  border-radius:4px; padding:0 11px; font-size:13px; font-weight:900;
-  cursor:pointer; line-height:1.5; font-family:inherit; flex:0 0 auto;
-  box-shadow:0 2px 6px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.6);
-}
-.addbar button:hover{filter:brightness(1.08)}
+/* the chip row — only used while renaming */
+.tile .roster{display:none}
 
 /* ============================================================
-   OPEN AND CLOSED — the row grows when you click it, and keeps one
-   clean line when it holds a name.
+   THE USERNAME FIELD — ALWAYS VISIBLE
+   This is the fix. The input is not hidden and is not revealed by
+   a class. It sits on every box, always, so typing works whatever
+   else happens on the page.
    ============================================================ */
 
-.tile.force-open{flex-wrap:wrap}
-.tile.force-open .addbar{display:flex}
-.tile.force-open .roster{display:flex}
-
-.tile.filled .addbar{display:none}
-.tile.filled .roster{display:none}
-
-/* the red strip and its stacked names are retired — the gold name on
-   the plate is the single readout, so a closed row is one line tall */
-.filledbar{display:none !important}
-.fillednames{display:none !important}
-
-/* ---------- the inline editor ---------- */
-.chipeditor{
-  display:flex; flex-wrap:wrap; gap:5px; align-items:center; flex:1 1 100%;
-  padding:6px; border-radius:6px; min-width:0;
-  background:linear-gradient(180deg, #13293f, #08192b);
-  border:1px solid rgba(201,162,39,.8);
-  box-shadow:0 4px 14px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
+.tile .addbar{
+  display:flex; align-items:center; gap:5px;
+  flex:1 1 100%; order:9;
+  padding:5px 6px; min-width:0;
+  background:rgba(0,0,0,.36);
+  border-top:1px solid rgba(150,200,235,.16);
 }
-.chipeditor input{
-  flex:1 1 100%; min-width:0; font-family:inherit;
-  background:#f7fbff; border:1px solid rgba(150,205,240,.7); color:#0b1a26;
+.tile .addbar input{
+  flex:1 1 auto; min-width:0; font-family:inherit;
+  background:#f7fbff; border:1px solid rgba(150,205,240,.6); color:#0b1a26;
   border-radius:4px; padding:5px 8px; font-size:12px;
   box-shadow:inset 0 2px 4px rgba(0,0,0,.14);
 }
-.chipeditor input:focus{outline:none; border-color:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.25)}
-.cesave{
-  background:linear-gradient(180deg, #f3d873, #b98f14); color:#2a1f05;
-  border:1px solid rgba(255,248,215,.8); border-radius:4px;
-  padding:3px 10px; font-size:9.5px; font-weight:900; letter-spacing:.05em;
-  text-transform:uppercase; cursor:pointer; font-family:inherit;
-  white-space:nowrap; flex:0 0 auto;
+.tile .addbar input::placeholder{color:#8093a4; font-style:italic}
+.tile .addbar input:focus{
+  outline:none; border-color:#fff;
+  box-shadow:0 0 0 2px rgba(255,255,255,.3), inset 0 2px 4px rgba(0,0,0,.14);
 }
-.cedel{
-  background:linear-gradient(180deg, var(--chipred), #7d1a1e); color:#ffefe4;
-  border:1px solid rgba(255,190,180,.5); border-radius:4px;
-  padding:3px 10px; font-size:9.5px; font-weight:900; letter-spacing:.05em;
-  text-transform:uppercase; cursor:pointer; font-family:inherit;
-  white-space:nowrap; flex:0 0 auto;
+.tile .addbar button{
+  flex:0 0 auto;
+  background:linear-gradient(180deg, #f3d873, #b98f14);
+  color:#2a1f05; border:1px solid rgba(255,248,215,.8);
+  border-radius:4px; padding:0 12px; font-size:14px; font-weight:900;
+  cursor:pointer; line-height:1.6; font-family:inherit;
+  box-shadow:0 2px 6px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.6);
 }
-.cecancel{
-  background:transparent; border:1px solid rgba(150,205,240,.5); color:#cfe1f0;
-  border-radius:4px; padding:3px 10px; font-size:9.5px; font-weight:800;
-  letter-spacing:.05em; text-transform:uppercase; cursor:pointer; font-family:inherit;
-  white-space:nowrap; flex:0 0 auto;
-}
-.cesave:hover, .cedel:hover{filter:brightness(1.1)}
-.cecancel:hover{border-color:#fff; color:#fff}
+.tile .addbar button:hover{filter:brightness(1.08)}
 
 /* ============================================================
-   THE TEAMS BOARD keeps its square tiles — there the emblem IS the
-   tile, so the row rules above are undone for .board-large.
+   THE TEAMS BOARD — square tiles, field still always visible
    ============================================================ */
 
 .board-large .tile{
-  flex-direction:column; align-items:stretch; min-height:0;
+  flex-direction:column; flex-wrap:nowrap; align-items:stretch;
   background:linear-gradient(180deg, #3d444c 0%, #232a33 42%, #12161c 100%);
   border-color:rgba(120,180,220,.5);
   border-radius:10px;
 }
 .board-large .tile .eb{
   width:auto; align-self:auto; border-right:0;
-  padding:10px 8px 6px; min-height:48px;
+  padding:12px 8px 8px; min-height:0;
 }
-.board-large .tile .eb img{max-height:40px; max-width:44px}
-.board-large .tile .eb .initials{font-size:clamp(18px,2.4vw,26px); -webkit-line-clamp:1}
-.board-large .tile .name{
-  position:static; width:auto; height:0; overflow:hidden; clip:auto;
-  display:block; padding:0; margin:0; font-size:0; line-height:0;
-}
+.board-large .tile .eb .initials{font-size:clamp(16px,2.1vw,24px)}
 .board-large .tile .buyer{
   flex:0 0 auto; text-align:center; padding:2px 6px 5px;
 }
@@ -423,32 +276,66 @@ button.ghost:disabled{opacity:.45; cursor:not-allowed}
 .board-large .tile .buyer .buyname,
 .board-large .tile .buyer .buyname-btn{font-size:11px; text-align:center}
 .board-large .tile .buyer .buyopen{font-size:8px}
-.board-large .tile .addbar,
-.board-large .tile .roster{display:none}
-.board-large .tile.force-open .addbar{display:flex}
-.board-large .tile.force-open .roster{display:flex}
+.board-large .tile .addbar{padding:5px; flex:1 1 auto}
+.board-large .tile .addbar input{padding:5px 6px; font-size:11px}
+.board-large .tile .addbar button{padding:0 8px; font-size:13px}
 
-/* ---------- panels below the boards ---------- */
+/* ============================================================
+   THE RENAME PANEL
+   ============================================================ */
+
+.chipeditor{
+  display:flex; flex-wrap:wrap; gap:5px; align-items:center;
+  flex:1 1 100%; order:8;
+  padding:6px; border-radius:6px; min-width:0;
+  background:linear-gradient(180deg, #13293f, #08192b);
+  border:1px solid rgba(201,162,39,.85);
+}
+.chipeditor input{
+  flex:1 1 100%; min-width:0; font-family:inherit;
+  background:#f7fbff; border:1px solid rgba(150,205,240,.75); color:#0b1a26;
+  border-radius:4px; padding:5px 8px; font-size:12px;
+}
+.chipeditor input:focus{outline:none; box-shadow:0 0 0 2px rgba(255,255,255,.25)}
+.cesave{
+  background:linear-gradient(180deg, #f3d873, #b98f14); color:#2a1f05;
+  border:1px solid rgba(255,248,215,.8); border-radius:4px;
+  padding:3px 10px; font-size:9.5px; font-weight:900; letter-spacing:.05em;
+  text-transform:uppercase; cursor:pointer; font-family:inherit; white-space:nowrap;
+}
+.cedel{
+  background:linear-gradient(180deg, var(--chipred), #7d1a1e); color:#ffefe4;
+  border:1px solid rgba(255,190,180,.5); border-radius:4px;
+  padding:3px 10px; font-size:9.5px; font-weight:900; letter-spacing:.05em;
+  text-transform:uppercase; cursor:pointer; font-family:inherit; white-space:nowrap;
+}
+.cecancel{
+  background:transparent; border:1px solid rgba(150,205,240,.5); color:#cfe1f0;
+  border-radius:4px; padding:3px 10px; font-size:9.5px; font-weight:800;
+  letter-spacing:.05em; text-transform:uppercase; cursor:pointer; font-family:inherit;
+  white-space:nowrap;
+}
+.cesave:hover, .cedel:hover{filter:brightness(1.1)}
+.cecancel:hover{border-color:#fff; color:#fff}
+
+/* ============================================================
+   PANELS, TABLE, UNDO BAR
+   ============================================================ */
+
 .panel{
   position:relative;
   background:linear-gradient(180deg, rgba(0,20,38,.6), rgba(0,20,38,.4));
   border:1px solid rgba(150,205,240,.35); border-radius:14px;
   padding:20px; margin:24px 0 18px;
-  box-shadow:0 10px 26px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06);
-}
-.panel::before{
-  content:""; position:absolute; inset:5px; border-radius:10px;
-  border:1px solid rgba(150,205,240,.16); pointer-events:none;
 }
 .panel h2{
   margin:0 0 6px; font-size:14px; font-weight:800;
   letter-spacing:.1em; text-transform:uppercase; color:#fff;
   overflow-wrap:anywhere;
 }
-.panel .sub{margin:0 0 16px; color:#b6cade; font-size:12.5px; overflow-wrap:anywhere}
+.panel .sub{margin:0 0 16px; color:#b6cade; font-size:12.5px}
 .panel .count{color:#b6cade}
 
-/* ---------- the roster list ---------- */
 table{table-layout:fixed; width:100%; border-collapse:collapse; font-size:13px}
 th,td{text-align:left; padding:9px 11px; border-bottom:1px solid rgba(150,205,240,.2);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
@@ -457,7 +344,6 @@ th:nth-child(2),td:nth-child(2){width:30%}
 th:nth-child(3),td:nth-child(3){width:26%}
 th:nth-child(4),td:nth-child(4){width:18%}
 th{color:#cfe1f0; font-weight:800; font-size:10.5px; text-transform:uppercase; letter-spacing:.1em}
-tbody tr:hover{background:rgba(255,255,255,.05)}
 .empty{color:#b6cade; font-size:13px; padding:14px 0}
 
 .del{
@@ -466,42 +352,30 @@ tbody tr:hover{background:rgba(255,255,255,.05)}
   letter-spacing:.04em; text-transform:uppercase; cursor:pointer; font-family:inherit;
   white-space:nowrap;
 }
-.del:hover{background:rgba(179,38,43,.28); border-color:#ff9b9e; color:#ffe0e1}
+.del:hover{background:rgba(179,38,43,.28); border-color:#ff9b9e}
 .nameedit{
   background:transparent; border:0; color:#ffe9a8; font:inherit; font-size:13px;
   font-weight:800; padding:3px 6px; border-radius:6px; cursor:pointer; text-align:left;
-  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block;
+  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
-.nameedit:hover{background:rgba(255,215,90,.16); color:#fff6d8}
 .roweditinput{
   background:#f7fbff; border:1px solid rgba(150,205,240,.8); color:#0b1a26;
   border-radius:5px; padding:5px 9px; font-size:13px; font-family:inherit;
-  width:130px; margin-right:5px; box-shadow:inset 0 2px 4px rgba(0,0,0,.14);
+  width:130px; margin-right:5px;
 }
-.roweditinput:focus{outline:none; box-shadow:0 0 0 3px rgba(255,255,255,.25)}
 
 .note{
   background:linear-gradient(180deg, rgba(255,255,255,.1), rgba(0,20,38,.3));
   border-left:3px solid var(--rail); border-radius:8px;
   padding:14px 16px; font-size:12.5px; color:#dbe8f2; line-height:1.65;
-  overflow-wrap:anywhere;
 }
 .note strong{color:#fff}
 .note code{
   background:rgba(0,0,0,.45); padding:2px 6px; border-radius:5px;
   font-size:11.5px; color:#ffe6a8; border:1px solid rgba(201,162,39,.3);
-  overflow-wrap:anywhere;
 }
 .ok{color:#ffe6a8; font-size:12px; font-weight:600}
 
-/* ---------- the division spots block ---------- */
-.spots{margin-top:16px; padding-top:12px; border-top:2px solid rgba(201,162,39,.5)}
-.spots h3{
-  margin:0 0 10px; font-size:12.5px; font-weight:900;
-  letter-spacing:.16em; text-transform:uppercase; color:#fff;
-}
-
-/* ---------- undo bar ---------- */
 #undobar{
   position:fixed; left:50%; bottom:24px; z-index:60;
   transform:translateX(-50%) translateY(160%);
@@ -509,143 +383,57 @@ tbody tr:hover{background:rgba(255,255,255,.05)}
   background:linear-gradient(180deg, #12293c, #061520);
   border:1px solid rgba(150,205,240,.6); border-radius:999px;
   padding:11px 13px 11px 22px;
-  box-shadow:0 14px 36px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.1);
   transition:transform .24s cubic-bezier(.2,.8,.3,1);
   max-width:calc(100vw - 32px);
 }
 #undobar.show{transform:translateX(-50%) translateY(0)}
-#undotext{font-size:13px; color:#eaf1f7; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+#undotext{font-size:13px; color:#eaf1f7; min-width:0; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
 #undobtn{
   background:linear-gradient(180deg, #ffffff, #cfe6f5 55%, #9dc7e0);
   color:#0b2436; border:1px solid #fff; border-radius:999px;
   padding:8px 20px; font-size:12px; font-weight:900; letter-spacing:.08em;
-  text-transform:uppercase; cursor:pointer; font-family:inherit;
-  box-shadow:0 2px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.9);
-  white-space:nowrap; flex:0 0 auto;
+  text-transform:uppercase; cursor:pointer; font-family:inherit; white-space:nowrap;
 }
-#undobtn:hover{filter:brightness(1.06)}
 #undoclose{
   background:transparent; border:0; color:#9fb4c6; font-size:17px;
-  cursor:pointer; padding:0 8px; line-height:1; flex:0 0 auto;
+  cursor:pointer; padding:0 8px; flex:0 0 auto;
 }
 #undoclose:hover{color:#fff}
 
 /* ============================================================
-   COMPACT MODE — any tab with more than one board. Rows get shorter
-   and tighter so every box fits one screen.
+   COMPACT MODE — the pairs tab, so all 24 boxes fit one screen
    ============================================================ */
 
 .wrap.compact{padding:6px 14px 12px}
-
 .wrap.compact .boardhead{margin:4px 0 4px}
 .wrap.compact .boardhead h2{font-size:12px}
 .wrap.compact .boardhead span{font-size:9.5px}
-
 .wrap.compact .toolbar{margin:0 0 6px}
 .wrap.compact .toolbar input{padding:4px 11px; font-size:10.5px; flex:1 1 130px}
 .wrap.compact button.ghost{padding:4px 10px; font-size:10px}
-
 .wrap.compact .sectionhead{margin:6px 0 4px}
 .wrap.compact .sectionhead h3{font-size:10px; letter-spacing:.1em; padding-left:7px; border-left-width:2px}
 .wrap.compact .sectionhead .sectioncount{font-size:9px}
 .wrap.compact .boardreset{padding:2px 8px; font-size:8.5px}
-
 .wrap.compact .board{gap:4px; margin-bottom:0}
 .wrap.compact .board-small,
 .wrap.compact .board-medium{grid-template-columns:minmax(0,1fr); gap:4px}
 
-/* the row, cut to fit all 24 */
-.wrap.compact .tile{border-radius:4px; min-height:26px}
-.wrap.compact .tile::after{inset:0; border-radius:3px}
-.wrap.compact .tile .eb{width:30px}
-.wrap.compact .tile .eb img{max-height:18px; max-width:24px}
+.wrap.compact .tile{border-radius:4px; min-height:24px}
+.wrap.compact .tile .eb{width:32px}
 .wrap.compact .tile .eb .initials{font-size:8.5px; line-height:1.05}
-.wrap.compact .tile .buyer{padding:1px 6px 2px 5px}
+.wrap.compact .tile .buyer{padding:1px 6px 1px 5px; flex:1 1 90px}
 .wrap.compact .tile .buyer .buylbl{font-size:5.5px; letter-spacing:.12em}
 .wrap.compact .tile .buyer .buyname,
-.wrap.compact .tile .buyer .buyname-btn{font-size:9px; -webkit-line-clamp:1}
-.wrap.compact .tile .buyer .buyopen{font-size:6.5px; padding:0 4px; letter-spacing:.08em}
-.wrap.compact .tile .badge{top:1px; right:1px; font-size:6.5px; padding:0 3px; min-width:10px; border-color:transparent}
-.wrap.compact .addbar{padding:3px 4px; gap:4px}
-.wrap.compact .addbar input{padding:3px 6px; font-size:10px; border-radius:3px}
-.wrap.compact .addbar button{padding:0 8px; font-size:12px; border-radius:3px}
-.wrap.compact .chip{padding:0 5px; font-size:7px}
-.wrap.compact .chipeditor{padding:4px; gap:3px; border-radius:5px}
+.wrap.compact .tile .buyer .buyname-btn{font-size:9px}
+.wrap.compact .tile .buyer .buyopen{font-size:6.5px; padding:0 4px}
+.wrap.compact .tile .badge{top:1px; right:1px; font-size:6.5px; padding:0 3px; min-width:10px}
+.wrap.compact .tile .addbar{padding:3px 4px; gap:4px; flex:1 1 100%}
+.wrap.compact .tile .addbar input{padding:3px 6px; font-size:10px; border-radius:3px}
+.wrap.compact .tile .addbar button{padding:0 8px; font-size:12px; border-radius:3px}
+.wrap.compact .chipeditor{padding:4px; gap:3px}
 .wrap.compact .chipeditor input{font-size:10px; padding:4px 6px}
 .wrap.compact .cesave,
 .wrap.compact .cedel,
-.wrap.compact .cecancel{padding:2px 7px; font-size:8px; border-radius:3px}
-.wrap.compact .spots{margin-top:8px; padding-top:7px}
-.wrap.compact .spots h3{font-size:10px; margin-bottom:6px}
-
-/* ============================================================
-   ANTI-OVERLAP GUARD
-   Nothing inside a box may spill or collide with its neighbour.
-   Three causes are handled: a flex child that refuses to shrink
-   (min-width:0 everywhere), text that is wider than its box
-   (wrap or ellipsis everywhere), and a value that runs to more
-   lines than the row has height for (line-clamp everywhere).
-   ============================================================ */
-
-/* 1 — no flex or grid child may refuse to shrink */
-.tile, .tile *, .board, .board *,
-.sectionhead, .sectionhead *, .panel-title, .panel-title *,
-.toolbar, .toolbar *, .boardhead, .boardhead *{
-  min-width:0; min-height:0;
-}
-
-/* 2 — nothing may escape its own box */
-.tile, .tile .eb, .tile .buyer, .tile .roster, .addbar,
-.chipeditor, .panel, .panel-board, .sectionhead, .toolbar, .boardhead{
-  overflow:hidden;
-}
-
-/* 3 — every text run either wraps or is clipped with an ellipsis */
-.tile .buyer .buylbl,
-.tile .buyer .buyname,
-.tile .buyer .buyname-btn,
-.tile .buyer .buyopen,
-.tile .eb .initials,
-.chip,
-.sectionhead h3,
-.sectionhead .sectioncount,
-.boardreset,
-.panel-title h2,
-.panel-title .sub,
-.boardhead h2,
-.boardhead span,
-.toolbar .count,
-button.ghost,
-.spots h3{
-  max-width:100%;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-/* 4 — a long unbroken word (a run-together username) wraps inside the
-   row instead of widening it */
-.tile .buyer .buyname,
-.tile .buyer .buyname-btn,
-.tile .eb .initials,
-.nameedit,
-.note{
-  overflow-wrap:anywhere; word-break:break-word;
-}
-
-/* 5 — a value may hold at most two lines, so a three-line name can
-   never make one row taller than its neighbours */
-.tile .buyer .buyname,
-.tile .buyer .buyname-btn{
-  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
-}
-.tile .buyer .buylbl{white-space:nowrap}
-
-/* 6 — a very narrow window: shrink the emblem cell rather than let the
-   two cells fight over the same pixels */
-@media(max-width:420px){
-  .tile .eb{width:42px}
-  .tile .buyer{padding:3px 8px 4px 7px}
-  .tile .buyer .buyname,
-  .tile .buyer .buyname-btn{font-size:11px}
-  .wrap{padding-left:12px; padding-right:12px}
-}
+.wrap.compact .cecancel{padding:2px 7px; font-size:8px}
