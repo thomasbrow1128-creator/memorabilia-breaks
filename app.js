@@ -2,18 +2,16 @@
 
    REQUIRES: teams.js, then boards.js, then this file.
 
-   Each tile is an abbreviation block: the team's short code on a
-   colour plate, with a PURCHASER plate under it showing the names.
+   ONE PERSON PER BOX. Each box holds a single username. While the
+   box is free its username field is open and the box is bright.
+   The moment a name is saved the box greys out and the field
+   closes. Removing that name un-greys the box and reopens it.
 
-   CLICKING THE ABBREVIATION opens that box for typing. Clicking
-   anywhere else on the row does the same. Only one box is open at a
-   time.
+   Editing: the name on the gold plate is clickable to rename it or
+   remove it.
 
-   Editing: every name on the gold plate is clickable to rename or
-   delete just that name.
-
-   Resetting: every board carries its own Reset, which clears only the
-   boxes on that board. Every reset offers Undo.
+   Resetting: every board carries its own Reset, which clears only
+   the boxes on that board. Every reset offers Undo.
 
    BACKEND_ENDPOINT: leave "" to store usernames in this browser's
    localStorage only.
@@ -29,9 +27,7 @@ const $ = (id) => document.getElementById(id);
 let entries = [];            // { id, username, target, createdAt }
 let currentTab = "teams";    // a board id from BOARDS
 
-/* ---------- lookups that avoid CSS selectors ----------
-   Box names contain commas and spaces, so a selector built from a name
-   would break. Walk the tiles and compare data attributes instead. */
+/* ---------- lookups that avoid CSS selectors ---------- */
 
 function tileFor(targetId) {
   const tiles = document.querySelectorAll(".tile");
@@ -94,7 +90,7 @@ function buildTabs() {
   });
 }
 
-/* ---------- one tile ---------- */
+/* ---------- one box ---------- */
 
 function buildTile(t) {
   const tile = document.createElement("div");
@@ -107,20 +103,17 @@ function buildTile(t) {
   badge.style.display = "none";
   tile.appendChild(badge);
 
-  /* --- the abbreviation block: always the short code --- */
+  /* the abbreviation block */
   const eb = document.createElement("div");
   eb.className = "eb";
   eb.style.background = t.colors[0];
-
   const initials = document.createElement("span");
   initials.className = "initials";
   initials.textContent = t.abbr;
   eb.appendChild(initials);
   tile.appendChild(eb);
 
-  eb.title = "Click to enter a username for " + t.name;
-
-  /* --- the PURCHASER plate --- */
+  /* the purchaser plate */
   const buyer = document.createElement("div");
   buyer.className = "buyer";
   const buylbl = document.createElement("span");
@@ -133,7 +126,7 @@ function buildTile(t) {
   buyer.appendChild(names);
   tile.appendChild(buyer);
 
-  /* --- the input row --- */
+  /* the username field — open while the box is free */
   const bar = document.createElement("form");
   bar.className = "addbar";
   const input = document.createElement("input");
@@ -152,60 +145,18 @@ function buildTile(t) {
     ev.preventDefault();
     addUser(t.id, input.value);
     input.value = "";
-    input.focus();
   });
   tile.appendChild(bar);
 
-  /* --- the closed strip --- */
-  const filledbar = document.createElement("div");
-  filledbar.className = "filledbar";
-  const filledNames = document.createElement("span");
-  filledNames.className = "fillednames";
-  filledNames.dataset.fillednames = t.id;
-  filledbar.appendChild(filledNames);
-
-  const unlock = document.createElement("button");
-  unlock.type = "button";
-  unlock.className = "unlock";
-  unlock.textContent = "+";
-  unlock.title = "Add another username to this box";
-  unlock.addEventListener("click", function (ev) {
-    ev.stopPropagation();
-    openTile(t.id);
-  });
-  filledbar.appendChild(unlock);
-  tile.appendChild(filledbar);
-
-  /* --- clicking the tile opens it for typing --- */
-  tile.addEventListener("click", function (ev) {
-    if (ev.target.closest(".addbar")) return;
-    if (ev.target.closest(".chipeditor")) return;
-    openTile(t.id);
-  });
+  /* the strip shown while the box is taken */
+  const lock = document.createElement("div");
+  lock.className = "lockedbar";
+  const lockText = document.createElement("span");
+  lockText.className = "lockedtext";
+  lock.appendChild(lockText);
+  tile.appendChild(lock);
 
   return tile;
-}
-
-/* Open one box: reveal its input, put the cursor in it, and close any
-   other box that was open. This is what makes the abbreviation itself
-   actionable. */
-function openTile(targetId) {
-  const tile = tileFor(targetId);
-  if (!tile) return;
-
-  closeEditor();
-  document.querySelectorAll(".tile.force-open").forEach(function (el) {
-    if (el !== tile) el.classList.remove("force-open");
-  });
-
-  tile.classList.add("force-open");
-  refreshBoards();
-
-  const input = tile.querySelector(".addbar input");
-  if (input) {
-    input.focus();
-    input.select();
-  }
 }
 
 /* ---------- board headers ---------- */
@@ -281,7 +232,7 @@ function refreshBoardCounts() {
   });
 }
 
-/* Paint the gold plate: one line per name, or OPEN when the box is free. */
+/* the gold plate: the name holding the box, or OPEN when free */
 function paintBuyerPlate(tile, list) {
   const host = tile.querySelector("[data-names]");
   if (!host) return;
@@ -300,7 +251,7 @@ function paintBuyerPlate(tile, list) {
     line.type = "button";
     line.className = "buyname buyname-btn";
     line.textContent = e.username;
-    line.title = "Edit or remove @" + e.username;
+    line.title = "Click to rename or remove @" + e.username;
     line.addEventListener("click", function (ev) {
       ev.stopPropagation();
       openEditor(e.id);
@@ -321,28 +272,24 @@ function refreshBoards() {
     badge.textContent = list.length;
     badge.style.display = list.length ? "" : "none";
 
-    const isFilled = list.length > 0;
-    const forcedOpen = tile.classList.contains("force-open");
-    const editing = tile.querySelector(".chipeditor") !== null;
-    tile.classList.toggle("filled", isFilled && !forcedOpen && !editing);
+    /* Taken -> greyed and closed. Free -> bright and open. */
+    const taken = list.length > 0;
+    tile.classList.toggle("taken", taken);
 
-    const filledNames = tile.querySelector("[data-fillednames]");
-    if (filledNames) {
-      filledNames.innerHTML = "";
-      list.forEach(function (e) {
-        const span = document.createElement("span");
-        span.className = "filledname";
-        span.textContent = e.username;
-        span.title = "Edit or remove @" + e.username;
-        span.addEventListener("click", function (ev) {
-          ev.stopPropagation();
-          openEditor(e.id);
-        });
-        filledNames.appendChild(span);
-      });
+    const input = tile.querySelector(".addbar input");
+    const btn = tile.querySelector(".addbar button");
+    if (input) {
+      input.disabled = taken;
+      input.placeholder = taken ? "taken" : "username";
     }
+    if (btn) btn.disabled = taken;
 
-    if (!isFilled) tile.classList.remove("force-open");
+    const lockText = tile.querySelector(".lockedtext");
+    if (lockText) {
+      lockText.textContent = taken
+        ? "Taken \u2014 remove the name to free this box"
+        : "";
+    }
   });
 
   refreshBoardCounts();
@@ -377,7 +324,7 @@ function resetBoard(boardId) {
   showUndo("Cleared " + doomed.length + " from " + board.label + ".");
 }
 
-/* ---------- renaming one name ---------- */
+/* ---------- renaming or removing one name ---------- */
 
 function openEditor(entryId) {
   const entry = entries.find(function (e) { return e.id === entryId; });
@@ -387,8 +334,6 @@ function openEditor(entryId) {
   if (!tile) return;
 
   closeEditor();
-  tile.classList.add("force-open");
-  refreshBoards();
 
   const host = tile.querySelector(".buyer");
   if (!host) return;
@@ -445,7 +390,7 @@ function openEditor(entryId) {
     const where = entry.target;
     closeEditor();
     removeUser(entryId);
-    $("saved").textContent = "Removed @" + name + " from " + where;
+    $("saved").textContent = "Removed @" + name + " from " + where + \" \u2014 that box is free again.\";
   });
   cancel.addEventListener("click", function () {
     closeEditor();
@@ -453,7 +398,6 @@ function openEditor(entryId) {
   });
 
   host.appendChild(box);
-  tile.classList.remove("filled");
   input.focus();
   input.select();
 }
@@ -494,7 +438,7 @@ function setTab(tabId) {
       " underneath. Each has its own Reset.";
   } else {
     $("boardSub").textContent =
-      board.boxes.length + " boxes. Click a box to enter a username.";
+      board.boxes.length + " boxes, one person each. Type a username into a free box.";
   }
   $("filter").placeholder = "Filter " + board.label.toLowerCase() + "\u2026";
 
@@ -510,6 +454,14 @@ async function addUser(targetId, rawName) {
   const username = normalizeName(rawName);
   const tile = tileFor(targetId);
   const input = tile ? tile.querySelector(".addbar input") : null;
+
+  /* one person per box: refuse a second name on a taken box */
+  if (usersOn(targetId).length) {
+    $("saved").textContent =
+      targetId + " is already taken. Remove that name first.";
+    return;
+  }
+
   if (!username) {
     if (input) input.focus();
     return;
@@ -536,9 +488,6 @@ async function addUser(targetId, rawName) {
     entries.unshift(entry);
     if (!BACKEND_ENDPOINT && !persist()) throw new Error("Could not write to local storage");
 
-    const t = tileFor(targetId);
-    if (t) t.classList.remove("force-open");
-
     refreshBoards();
     renderEntries();
     $("saved").textContent = "Added @" + username + " to " + targetId;
@@ -564,7 +513,7 @@ function renderEntries() {
   if (!entries.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = "Nothing entered yet. Click a box above to add the first name.";
+    p.textContent = "Nothing entered yet. Type a username into a free box above.";
     host.appendChild(p);
     return;
   }
@@ -605,7 +554,7 @@ function renderEntries() {
     del.type = "button";
     del.className = "del";
     del.textContent = "Delete";
-    del.title = "Remove only this name";
+    del.title = "Free this box again";
     del.addEventListener("click", function () { removeUser(e.id); });
     td.appendChild(del);
     tr.appendChild(td);
@@ -672,16 +621,13 @@ function textCell(text) {
   return td;
 }
 
-/* ---------- export ----------
-   Built from character codes: a stray backslash in a quoted string here
-   once stopped the whole script from parsing. */
+/* ---------- export ---------- */
 
 function csvEscape(v) {
   const QUOTE = String.fromCharCode(34);
   const COMMA = String.fromCharCode(44);
   const NEWLINE = String.fromCharCode(10);
   const s = String(v == null ? "" : v);
-
   if (s.indexOf(QUOTE) !== -1 || s.indexOf(COMMA) !== -1 || s.indexOf(NEWLINE) !== -1) {
     return QUOTE + s.split(QUOTE).join(QUOTE + QUOTE) + QUOTE;
   }
@@ -693,18 +639,15 @@ function downloadCsv() {
     $("saved").textContent = "Nothing to export yet.";
     return;
   }
-
   const NEWLINE = String.fromCharCode(10);
   const rows = ["username,placed_on,added"];
   const sorted = entries.slice().sort(function (a, b) {
     if (a.target !== b.target) return a.target.localeCompare(b.target);
     return new Date(a.createdAt) - new Date(b.createdAt);
   });
-
   sorted.forEach(function (e) {
     rows.push(csvEscape(e.username) + "," + csvEscape(e.target) + "," + csvEscape(e.createdAt));
   });
-
   const blob = new Blob([rows.join(NEWLINE)], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
