@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnostic — Memorabilia Breaks</title>
+<style>
+  body{margin:0; background:#12141a; color:#eef1f7; line-height:1.55;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:760px; margin:0 auto; padding:26px 20px 60px}
+  h1{font-size:22px; margin:0 0 6px}
+  p.lead{color:#9aa3b4; font-size:14px; margin:0 0 20px}
+  .row{display:flex; gap:10px; align-items:baseline; padding:9px 12px;
+    border:1px solid #333949; border-radius:9px; margin-bottom:8px; background:#1b1e26}
+  .k{flex:0 0 240px; color:#9aa3b4; font-size:12px; text-transform:uppercase; letter-spacing:.05em}
+  .v{font-size:14px; font-family:ui-monospace,Menlo,Consolas,monospace; word-break:break-word}
+  .ok{color:#3ddc84}
+  .bad{color:#ff6b6b}
+  h2{font-size:15px; margin:26px 0 10px; color:#9aa3b4; text-transform:uppercase; letter-spacing:.06em}
+  #log{background:#0f1218; border:1px solid #333949; border-radius:9px; padding:12px;
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; min-height:60px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Diagnostic</h1>
+  <p class="lead">Checks what the live site is actually loading. Read down the list.</p>
+
+  <h2>Scripts and data</h2>
+  <div id="checks"></div>
+
+  <h2>What the page sees</h2>
+  <div id="log">running…</div>
+</div>
+
+<script>
+  const out = [];
+  const checks = document.getElementById("checks");
+
+  function line(label, value, good) {
+    const row = document.createElement("div");
+    row.className = "row";
+    const k = document.createElement("div");
+    k.className = "k";
+    k.textContent = label;
+    const v = document.createElement("div");
+    v.className = "v " + (good === true ? "ok" : good === false ? "bad" : "");
+    v.textContent = value;
+    row.appendChild(k);
+    row.appendChild(v);
+    checks.appendChild(row);
+    out.push(label + ": " + value);
+  }
+
+  window.addEventListener("error", function (e) {
+    line("JS error", (e.message || "unknown") + " @ " + (e.filename || "?") + ":" + (e.lineno || "?"), false);
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    line("Page URL", location.href);
+
+    line("teams.js loaded", typeof TEAMS !== "undefined" ? "yes — " + TEAMS.length + " teams" : "NO",
+         typeof TEAMS !== "undefined");
+    line("DIVISIONS loaded", typeof DIVISIONS !== "undefined" ? "yes — " + DIVISIONS.length + " divisions" : "NO",
+         typeof DIVISIONS !== "undefined");
+
+    line("app.js loaded", typeof setView === "function" ? "yes" : "NO — app.js did not run",
+         typeof setView === "function");
+
+    line("Pairs defined in app.js",
+         typeof PAIR_TARGETS !== "undefined" ? "yes — " + PAIR_TARGETS.length + " pairs" : "NO — old app.js still served",
+         typeof PAIR_TARGETS !== "undefined");
+
+    line("VIEW_INFO has pairs",
+         typeof VIEW_INFO !== "undefined" && VIEW_INFO.pairs ? "yes" : "NO — old app.js still served",
+         typeof VIEW_INFO !== "undefined" && !!VIEW_INFO.pairs);
+
+    const btns = document.querySelectorAll("[data-view-btn]");
+    line("Toggle buttons in HTML", btns.length + (btns.length === 3 ? " — teams, divisions, pairs" : " (expected 3)"),
+         btns.length === 3);
+
+    const board = document.getElementById("board");
+    line("Board element", board ? "found" : "MISSING", !!board);
+    line("Tiles currently drawn", board ? board.querySelectorAll(".tile").length : "n/a",
+         board && board.querySelectorAll(".tile").length > 0);
+
+    if (typeof setView === "function") {
+      try {
+        setView("pairs");
+        line("After switching to Pairs",
+             document.querySelectorAll("#board .tile").length + " tiles, board class \"" +
+             document.getElementById("board").className + "\"",
+             document.querySelectorAll("#board .tile").length === 16);
+        line("First pair tile",
+             (document.querySelector("#board .tile .name") || {}).textContent || "none");
+      } catch (err) {
+        line("setView('pairs') threw", err.message, false);
+      }
+    } else {
+      line("setView('pairs')", "cannot run — app.js is not loaded", false);
+    }
+
+    document.getElementById("log").textContent = out.join("\n");
+  });
+</script>
+
+<script src="teams.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
