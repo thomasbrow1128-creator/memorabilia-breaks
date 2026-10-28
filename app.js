@@ -1,14 +1,12 @@
-/* Memorabilia Breaks — one page, three boards (Teams / Divisions / Pairs)
+/* Memorabilia Breaks — one page, any number of boards.
 
-   This file is self-contained: it needs only teams.js above it.
-   Switching views never navigates — it swaps which board is drawn.
-
-   The Pairs view draws TWO boards stacked: the 16 pairs, with the 8
-   divisions underneath in the same small 4-across 2-down layout.
+   REQUIRES: teams.js, then boards.js, then this file.
+   The boards themselves live in boards.js — THIS FILE NEVER CHANGES
+   when you add a board. Add a board in boards.js and the tab, the
+   grid, the headings and the counter all follow automatically.
 
    One input per box: a customer username. One action: place it on that
-   team, division, or pair. Once a box has at least one username it greys
-   out and closes.
+   box. Once a box has at least one username it greys out and closes.
 
    Editing: every chip on a box is clickable — click one to rename it or
    delete just that name. Removing the last name on a box un-greys it.
@@ -23,91 +21,13 @@ const STORE_KEY = "memorabilia-breaks-usernames-v1";
 
 const $ = (id) => document.getElementById(id);
 
-let entries = [];          // { id, username, target, createdAt }
-let currentView = "teams"; // "teams" | "divisions" | "pairs"
+let entries = [];            // { id, username, target, createdAt }
+let currentTab = "teams";    // a board id from BOARDS
 
-/* ---------- the boards ---------- */
+/* ---------- element lookup, without CSS selectors ----------
+   Box names contain commas and spaces, so a CSS selector built from a
+   name would break. Walk the tiles and compare data attributes instead. */
 
-const TEAM_TARGETS = TEAMS.map(function (t) {
-  return { id: t.abbr, abbr: t.abbr, name: t.city + " " + t.name, colors: t.colors };
-});
-
-const DIVISION_TARGETS = DIVISIONS.map(function (d) {
-  return {
-    id: d.name,
-    abbr: d.name.replace(/[^A-Za-z]/g, "").toUpperCase(),
-    name: d.name,
-    colors: d.teams[0].colors
-  };
-});
-
-/* The 16 pairs exactly as listed on the board. */
-const PAIRS = [
-  ["Cowboys", "Jags"],
-  ["Chiefs", "Cardinals"],
-  ["Broncos", "Saints"],
-  ["Eagles", "Panthers"],
-  ["Vikings", "Titans"],
-  ["Packers", "Falcons"],
-  ["Seahawks", "Chargers"],
-  ["Bucs", "Commanders"],
-  ["Ravens", "Rams"],
-  ["Patriots", "Browns"],
-  ["49ers", "Bears"],
-  ["Lions", "Raiders"],
-  ["Bengals", "Colts"],
-  ["Bills", "Jets"],
-  ["Steelers", "Texans"],
-  ["Dolphins", "Giants"]
-];
-
-function colorsForNickname(nick) {
-  const t = TEAMS.find(function (x) {
-    return x.name.toLowerCase() === String(nick).toLowerCase();
-  });
-  return t ? t.colors : ["#2b303c", "#e8ecf3"];
-}
-
-const PAIR_TARGETS = PAIRS.map(function (p) {
-  const label = p[0] + ", " + p[1];
-  return {
-    id: label,
-    abbr: p[0].slice(0, 3).toUpperCase() + ", " + p[1].slice(0, 3).toUpperCase(),
-    name: label,
-    colors: colorsForNickname(p[0])
-  };
-});
-
-/* A view may draw one board or several stacked ones. */
-const VIEW_BOARDS = {
-  teams: [{ targets: TEAM_TARGETS, cls: "board-team", label: "Teams" }],
-  divisions: [{ targets: DIVISION_TARGETS, cls: "board-div", label: "Divisions" }],
-  pairs: [
-    { targets: PAIR_TARGETS, cls: "board-pair", label: "Pick your Pairs" },
-    { targets: DIVISION_TARGETS, cls: "board-div", label: "Divisions" }
-  ]
-};
-
-/* Every target on the current view, flattened — used for lookups and redraws. */
-function currentTargets() {
-  const boards = VIEW_BOARDS[currentView] || VIEW_BOARDS.teams;
-  return boards.reduce(function (acc, b) { return acc.concat(b.targets); }, []);
-}
-
-/* ---------- labels ---------- */
-
-function targetLabel(id) {
-  const t = TEAMS.find(function (x) { return x.abbr === id; });
-  if (t) return t.city + " " + t.name;
-  const d = DIVISIONS.find(function (x) { return x.name === id; });
-  if (d) return d.name;
-  const p = PAIR_TARGETS.find(function (x) { return x.id === id; });
-  if (p) return p.name;
-  return id;
-}
-
-/* Targets are stored as raw strings, so never build a CSS selector from
-   one. Match the element by walking the tiles and comparing data attributes. */
 function tileFor(targetId) {
   const tiles = document.querySelectorAll(".tile");
   for (let i = 0; i < tiles.length; i++) {
@@ -149,9 +69,26 @@ function usersOn(targetId) {
   return entries.filter(function (e) { return e.target === targetId; });
 }
 
+/* ---------- tabs ----------
+   Built from BOARDS, so a new board gets a tab automatically. */
+
+function buildTabs() {
+  const nav = $("tabs");
+  nav.innerHTML = "";
+
+  BOARDS.forEach(function (b) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.viewBtn = b.id;
+    btn.setAttribute("role", "tab");
+    btn.textContent = b.tab || b.label;
+    btn.addEventListener("click", function () { setTab(b.id); });
+    nav.appendChild(btn);
+  });
+}
+
 /* ---------- board construction ---------- */
 
-/* Build one tile for a target. Returns the element. */
 function buildTile(t) {
   const tile = document.createElement("div");
   tile.className = "tile";
@@ -217,7 +154,7 @@ function buildTile(t) {
   unlock.addEventListener("click", function (ev) {
     ev.stopPropagation();
     tile.classList.add("force-open");
-    refreshBoard();
+    refreshBoards();
     const i = tile.querySelector(".addbar input");
     if (i) i.focus();
   });
@@ -229,7 +166,7 @@ function buildTile(t) {
 
 function renderBoards() {
   const host = $("boards");
-  const boards = VIEW_BOARDS[currentView] || VIEW_BOARDS.teams;
+  const boards = boardsOnTab(currentTab);
 
   host.innerHTML = "";
 
@@ -241,24 +178,24 @@ function renderBoards() {
       h.textContent = b.label;
       head.appendChild(h);
       const n = document.createElement("span");
-      n.textContent = b.targets.length + " boxes";
+      n.textContent = b.boxes.length + (b.boxes.length === 1 ? " box" : " boxes");
       head.appendChild(n);
       host.appendChild(head);
     }
 
     const grid = document.createElement("div");
-    grid.className = "board " + b.cls;
-    grid.setAttribute(
-      "aria-label",
-      b.label === "Divisions" ? "NFL division board" : "NFL pair board"
-    );
-    b.targets.forEach(function (t) { grid.appendChild(buildTile(t)); });
+    grid.className = "board board-" + b.size;
+    grid.setAttribute("aria-label", (b.label || b.id) + " board");
+    b.boxes.forEach(function (box) {
+      const t = targetByName(box.name);
+      if (t) grid.appendChild(buildTile(t));
+    });
     host.appendChild(grid);
   });
 }
 
-function refreshBoard() {
-  currentTargets().forEach(function (t) {
+function refreshBoards() {
+  targetsOnTab(currentTab).forEach(function (t) {
     const roster = rosterFor(t.id);
     const tile = tileFor(t.id);
     if (!roster || !tile) return;
@@ -306,7 +243,7 @@ function openEditor(entryId) {
 
   closeEditor();
   tile.classList.add("force-open");
-  refreshBoard();
+  refreshBoards();
 
   const host = tile.querySelector(".roster");
   if (!host) return;
@@ -348,26 +285,26 @@ function openEditor(entryId) {
     entry.username = next;
     persist();
     closeEditor();
-    refreshBoard();
+    refreshBoards();
     renderEntries();
-    $("saved").textContent = "Renamed to @" + next + " on " + targetLabel(entry.target);
+    $("saved").textContent = "Renamed to @" + next + " on " + entry.target;
   }
 
   save.addEventListener("click", commit);
   input.addEventListener("keydown", function (ev) {
     if (ev.key === "Enter") { ev.preventDefault(); commit(); }
-    if (ev.key === "Escape") { ev.preventDefault(); closeEditor(); refreshBoard(); }
+    if (ev.key === "Escape") { ev.preventDefault(); closeEditor(); refreshBoards(); }
   });
   del.addEventListener("click", function () {
     const name = entry.username;
-    const where = targetLabel(entry.target);
+    const where = entry.target;
     closeEditor();
     removeUser(entryId);
     $("saved").textContent = "Removed @" + name + " from " + where;
   });
   cancel.addEventListener("click", function () {
     closeEditor();
-    refreshBoard();
+    refreshBoards();
   });
 
   host.appendChild(box);
@@ -382,42 +319,32 @@ function closeEditor() {
   });
 }
 
-/* ---------- view switching ---------- */
+/* ---------- tab switching ---------- */
 
-const VIEW_INFO = {
-  teams: {
-    title: "Teams",
-    sub: "Thirty-two teams. Type a username into a team's box to put them on it.",
-    placeholder: "Filter teams…"
-  },
-  divisions: {
-    title: "Divisions",
-    sub: "Eight divisions. Type a username into a division's box to put them on it.",
-    placeholder: "Filter divisions…"
-  },
-  pairs: {
-    title: "Pick your Pairs",
-    sub: "Sixteen pairs on top, the eight divisions underneath. Type a username into any box.",
-    placeholder: "Filter pairs and divisions…"
-  }
-};
-
-function setView(view) {
-  currentView = VIEW_INFO[view] ? view : "teams";
-  const info = VIEW_INFO[currentView];
+function setTab(tabId) {
+  currentTab = boardById(tabId) ? tabId : BOARDS[0].id;
+  const board = boardById(currentTab);
+  const stack = boardsOnTab(currentTab);
 
   document.querySelectorAll("[data-view-btn]").forEach(function (b) {
-    const on = b.dataset.viewBtn === currentView;
+    const on = b.dataset.viewBtn === currentTab;
     b.className = on ? "on" : "";
     b.setAttribute("aria-selected", on ? "true" : "false");
   });
 
-  $("boardTitle").textContent = info.title;
-  $("boardSub").textContent = info.sub;
-  $("filter").placeholder = info.placeholder;
+  $("boardTitle").textContent = board.label;
+  if (stack.length > 1) {
+    const others = stack.slice(1).map(function (b) { return b.label; }).join(" and ");
+    $("boardSub").textContent =
+      "Sixteen pairs on top, with " + others + " underneath. Type a username into any box.";
+  } else {
+    $("boardSub").textContent =
+      board.boxes.length + " boxes. Type a username into a box to put them on it.";
+  }
+  $("filter").placeholder = "Filter " + board.label.toLowerCase() + "…";
 
   renderBoards();
-  refreshBoard();
+  refreshBoards();
   applyFilter($("filter").value);
   $("saved").textContent = "";
 }
@@ -457,9 +384,9 @@ async function addUser(targetId, rawName) {
     const t = tileFor(targetId);
     if (t) t.classList.remove("force-open");
 
-    refreshBoard();
+    refreshBoards();
     renderEntries();
-    $("saved").textContent = "Added @" + username + " to " + targetLabel(targetId);
+    $("saved").textContent = "Added @" + username + " to " + targetId;
   } catch (err) {
     $("saved").textContent = "Could not save: " + err.message;
   }
@@ -468,7 +395,7 @@ async function addUser(targetId, rawName) {
 function removeUser(id) {
   entries = entries.filter(function (e) { return e.id !== id; });
   persist();
-  refreshBoard();
+  refreshBoards();
   renderEntries();
 }
 
@@ -494,8 +421,7 @@ function renderEntries() {
 
   const tbody = document.createElement("tbody");
   const sorted = entries.slice().sort(function (a, b) {
-    const A = targetLabel(a.target), B = targetLabel(b.target);
-    if (A !== B) return A.localeCompare(B);
+    if (a.target !== b.target) return a.target.localeCompare(b.target);
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
 
@@ -513,7 +439,7 @@ function renderEntries() {
     tr.appendChild(tdUser);
 
     const tdWhere = document.createElement("td");
-    tdWhere.textContent = targetLabel(e.target);
+    tdWhere.textContent = e.target;
     tr.appendChild(tdWhere);
 
     const when = new Date(e.createdAt);
@@ -569,9 +495,9 @@ function startRowEdit(tr, entry) {
     if (!next) { input.focus(); return; }
     entry.username = next;
     persist();
-    refreshBoard();
+    refreshBoards();
     renderEntries();
-    $("saved").textContent = "Renamed to @" + next + " on " + targetLabel(entry.target);
+    $("saved").textContent = "Renamed to @" + next + " on " + entry.target;
   }
 
   save.addEventListener("click", commit);
@@ -591,11 +517,20 @@ function textCell(text) {
   return td;
 }
 
-/* ---------- export ---------- */
+/* ---------- export ----------
+   Built with character codes throughout: this is the exact spot where a
+   stray backslash inside a quoted string once stopped the whole script. */
 
 function csvEscape(v) {
+  const QUOTE = String.fromCharCode(34);
+  const COMMA = String.fromCharCode(44);
+  const NEWLINE = String.fromCharCode(10);
   const s = String(v == null ? "" : v);
-  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+
+  if (s.indexOf(QUOTE) !== -1 || s.indexOf(COMMA) !== -1 || s.indexOf(NEWLINE) !== -1) {
+    return QUOTE + s.split(QUOTE).join(QUOTE + QUOTE) + QUOTE;
+  }
+  return s;
 }
 
 function downloadCsv() {
@@ -603,20 +538,19 @@ function downloadCsv() {
     $("saved").textContent = "Nothing to export yet.";
     return;
   }
+
+  const NEWLINE = String.fromCharCode(10);
   const rows = ["username,placed_on,added"];
   const sorted = entries.slice().sort(function (a, b) {
-    const A = targetLabel(a.target), B = targetLabel(b.target);
-    if (A !== B) return A.localeCompare(B);
+    if (a.target !== b.target) return a.target.localeCompare(b.target);
     return new Date(a.createdAt) - new Date(b.createdAt);
   });
+
   sorted.forEach(function (e) {
-    rows.push(
-      csvEscape(e.username) + "," +
-      csvEscape(targetLabel(e.target)) + "," +
-      csvEscape(e.createdAt)
-    );
+    rows.push(csvEscape(e.username) + "," + csvEscape(e.target) + "," + csvEscape(e.createdAt));
   });
-  const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+
+  const blob = new Blob([rows.join(NEWLINE)], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "memorabilia-breaks-usernames.csv";
@@ -636,7 +570,7 @@ function applyFilter(q) {
     el.style.display = match ? "" : "none";
     if (match) shown++;
   });
-  const total = currentTargets().length;
+  const total = targetsOnTab(currentTab).length;
   $("count").textContent = shown === total ? total + " shown" : shown + " of " + total + " shown";
 }
 
@@ -658,12 +592,20 @@ function hideUndo() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  loadEntries();
-  setView("teams");
+  const problems = typeof checkBoards === "function" ? checkBoards() : [];
+  if (problems.length) {
+    const bar = document.createElement("div");
+    bar.style.cssText =
+      "background:#3a1d1d;border:1px solid #ff6b6b;border-radius:9px;padding:12px 14px;" +
+      "margin-bottom:16px;font-size:13px;color:#ffd4d4";
+    bar.textContent = "Board setup problem (details in the browser console): " + problems.join(" | ");
+    const wrap = document.querySelector(".wrap");
+    if (wrap) wrap.insertBefore(bar, wrap.firstChild);
+  }
 
-  document.querySelectorAll("[data-view-btn]").forEach(function (b) {
-    b.addEventListener("click", function () { setView(b.dataset.viewBtn); });
-  });
+  buildTabs();
+  loadEntries();
+  setTab(BOARDS[0].id);
 
   $("filter").addEventListener("input", function (e) { applyFilter(e.target.value); });
   $("exportCsv").addEventListener("click", downloadCsv);
@@ -674,7 +616,7 @@ document.addEventListener("DOMContentLoaded", function () {
     undoSnapshot = entries.slice();
     entries = [];
     persist();
-    refreshBoard();
+    refreshBoards();
     renderEntries();
     showUndo("Hid " + undoSnapshot.length + " names.");
   });
@@ -684,7 +626,7 @@ document.addEventListener("DOMContentLoaded", function () {
     entries = undoSnapshot;
     undoSnapshot = null;
     persist();
-    refreshBoard();
+    refreshBoards();
     renderEntries();
     hideUndo();
     $("saved").textContent = "Restored.";
@@ -694,7 +636,7 @@ document.addEventListener("DOMContentLoaded", function () {
   document.addEventListener("click", function () {
     if (document.querySelector(".chipeditor")) {
       closeEditor();
-      refreshBoard();
+      refreshBoards();
     }
   });
 });
