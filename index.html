@@ -43,10 +43,20 @@
     border-radius:8px; padding:8px 13px; font-size:13px; cursor:pointer}
   button.ghost:hover{border-color:#5a6480}
 
-  .sectionhead{display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; margin:26px 0 10px}
+  /* per-board header row: name, count, and that board's own Reset */
+  .sectionhead{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:26px 0 10px}
   .sectionhead:first-child{margin-top:0}
   .sectionhead h3{margin:0; font-size:15px; letter-spacing:-.01em}
-  .sectionhead span{color:var(--muted); font-size:12px}
+  .sectionhead .sectioncount{color:var(--muted); font-size:12px}
+
+  .boardreset{
+    margin-left:auto; background:transparent; color:var(--muted);
+    border:1px solid var(--line); border-radius:7px; padding:5px 12px;
+    font:inherit; font-size:12px; font-weight:600; cursor:pointer;
+  }
+  .boardreset:hover{border-color:var(--danger); color:var(--danger)}
+  .boardreset.hasnames{color:var(--danger); border-color:rgba(255,107,107,.5)}
+  .boardreset:disabled{opacity:.4; cursor:not-allowed; border-color:var(--line); color:var(--muted)}
 
   /* Board sizes. A board's size in boards.js picks one of these. */
   .board{display:grid; gap:10px; margin-bottom:6px}
@@ -187,6 +197,7 @@
       <span class="count" id="count"></span>
     </div>
     <div class="left">
+      <button class="ghost" id="resetBoard" type="button">Reset board</button>
       <button class="ghost" id="exportCsv" type="button">Download CSV</button>
       <button class="ghost" id="clearAll" type="button">Hide all</button>
     </div>
@@ -202,17 +213,27 @@
   </div>
 
   <div class="panel">
-    <h2>How to fix a name</h2>
+    <h2>Resetting</h2>
     <div class="note">
-      <strong>On the board:</strong> every name sits in a greyed box as a small pill. Click the pill and a tiny
-      editor opens right there — change the spelling and hit <strong>Save</strong>, or hit <strong>Remove</strong> to
-      take that one person off. Nothing else on the board is touched.<br><br>
-      <strong>In the list below:</strong> click any name to rename it in place, or use <strong>Delete</strong> on that
-      row. Removing the last name from a box turns it back to full color so you can type a new one in.<br><br>
-      <strong>Hide all</strong> is the only button that touches everything — and it offers an <strong>Undo</strong>
-      straight afterwards if you hit it by mistake.<br><br>
+      <strong>Every board has its own Reset.</strong> It clears only the boxes on that board — nothing else.
+      On <strong>Teams</strong> that's the toolbar button. On <strong>Divisions</strong> the same. On
+      <strong>Pick your Pairs</strong> there are two boards on the tab, so each one carries its own
+      <strong>Reset Pick your Pairs</strong> and <strong>Reset Divisions</strong> button in its header —
+      clear the pairs and the divisions stay, or the other way round.<br><br>
+      A reset only asks once and always offers <strong>Undo</strong> afterwards. <strong>Hide all</strong> is the
+      only button that clears every board at once, and it's undoable too.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Fixing a name</h2>
+    <div class="note">
+      Click a name on the board — the little pill inside a greyed box — and a tiny editor opens right there.
+      Change the spelling and hit <strong>Save</strong>, or <strong>Remove</strong> to take that one person off.
+      In the list above, click any name to rename it, or use <strong>Delete</strong> on that row.<br><br>
+      Removing the last name from a box turns it back to full color so you can type a new one in.<br><br>
       <strong>Adding a board:</strong> open <code>boards.js</code> and add one entry to the list. The tab, the grid,
-      the heading and the counter all build themselves from it. Nothing else to change.
+      the heading, the counter and the Reset button all build themselves from it.
     </div>
   </div>
 
