@@ -1,5 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <rect width="64" height="64" rx="12" fill="#0b1a2b"/>
-  <rect x="6" y="6" width="52" height="52" rx="8" fill="none" stroke="#c9a227" stroke-width="3"/>
-  <text x="32" y="42" font-family="Georgia, serif" font-size="26" font-weight="bold" fill="#c9a227" text-anchor="middle">MB</text>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0%" stop-color="#4a9ae8"/>
+      <stop offset="100%" stop-color="#0b2a4a"/>
+    </linearGradient>
+    <linearGradient id="au" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0%" stop-color="#fff4cd"/>
+      <stop offset="60%" stop-color="#d9a92c"/>
+      <stop offset="100%" stop-color="#8f6407"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="13" fill="url(#g)"/>
+  <rect x="2.5" y="2.5" width="59" height="59" rx="11" fill="none" stroke="url(#au)" stroke-width="2.5"/>
+  <text x="32" y="44" font-family="Helvetica,Arial,sans-serif" font-size="30" font-weight="700"
+        font-style="italic" fill="url(#au)" text-anchor="middle">K</text>
 </svg>
