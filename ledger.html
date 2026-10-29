@@ -38,6 +38,87 @@
     color:#ffe9a8; font-size:12.5px; letter-spacing:.03em;
   }
   .trk span{color:#8ea9c4; font-size:12px}
+
+  /* ============================================================
+     ON A NARROW SCREEN the five-column table is wider than the
+     phone, so the row ran off the right edge and the page looked
+     empty. Under 760px each winner becomes its own card instead:
+     the name and item lead, then date, team and tracking sit
+     beneath as small labelled lines. Nothing hidden, nothing
+     scrolling sideways.
+     ============================================================ */
+  @media (max-width:760px){
+    .wrap{padding:20px 14px 60px}
+
+    .panel{padding:16px; border-radius:13px}
+    .panel h2{font-size:13px}
+
+    .toolbar{gap:8px 10px; margin-bottom:14px}
+    .toolbar .left{gap:7px 8px}
+    button.ghost{font-size:10.5px; padding:8px 12px; padding-left:30px}
+    button.ghost::before{width:15px; height:15px; line-height:15px; font-size:9.5px; left:8px}
+    #ledgerCsv,#ledgerRefresh{padding-left:30px}
+
+    .boardhead h2{font-size:17px}
+    .boardhead span{font-size:11.5px}
+
+    /* the table stops being a table */
+    table.winnersTable,
+    table.winnersTable tbody,
+    table.winnersTable tr,
+    table.winnersTable td{display:block; width:100%}
+
+    table.winnersTable{table-layout:auto}
+    table.winnersTable thead{display:none}
+
+    table.winnersTable tr{
+      margin:0 0 11px; padding:13px 15px;
+      border:1px solid rgba(201,162,39,.4); border-radius:12px;
+      background:linear-gradient(180deg, rgba(19,53,92,.7), rgba(5,16,31,.6));
+      box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.09);
+      white-space:normal;
+    }
+    table.winnersTable tr:last-child{margin-bottom:0}
+
+    table.winnersTable td{
+      border-bottom:0; padding:3px 0; white-space:normal;
+      text-align:left; overflow:visible; text-overflow:clip;
+      font-size:13px;
+    }
+
+    /* the name is the card's headline */
+    table.winnersTable td.who{
+      font-size:17px; line-height:1.25;
+      padding-bottom:6px; margin-bottom:5px;
+      border-bottom:1px solid rgba(201,162,39,.25);
+      overflow-wrap:anywhere;
+    }
+
+    /* the item sits right under the name */
+    table.winnersTable td.item{
+      font-size:14px; font-weight:700; color:#eaf3ff;
+      padding-bottom:7px; overflow-wrap:anywhere;
+    }
+
+    /* the small facts get a quiet label each */
+    table.winnersTable td.team,
+    table.winnersTable td.meta,
+    table.winnersTable td.trk{font-size:12px; color:#a9c3dc}
+
+    table.winnersTable td.team::before{content:"Team: "; color:#8ea9c4; font-weight:800}
+    table.winnersTable td.meta::before{content:"Won: "; color:#8ea9c4; font-weight:800}
+    table.winnersTable td.trk::before{content:"Tracking: "; color:#8ea9c4; font-weight:800}
+
+    table.winnersTable td.trk{padding-top:5px}
+    table.winnersTable td.trk b{font-size:12px; padding:3px 9px; overflow-wrap:anywhere}
+  }
+
+  /* very narrow: the two buttons share the row without pushing it wide */
+  @media (max-width:420px){
+    .toolbar{justify-content:flex-start}
+    .toolbar .left{flex-wrap:wrap; width:100%}
+    button.ghost{flex:1 1 auto; text-align:center}
+  }
 </style>
 </head>
 <body>
