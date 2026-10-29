@@ -1,9 +1,16 @@
-/* Memorabilia Breaks — one page, any number of boards.
+/* Memorabilia Breaks - one page, any number of boards.
 
-   REQUIRES: teams.js, then boards.js, then winners.js, then this file.
+   REQUIRES: teams.js, then boards.js, then sb-client.js, this file,
+   then winners.js.
 
-   ONE PERSON PER BOX. A box takes one username. While it is free the
-   field is open; once a name is saved the box greys out.
+   THE BOARD IS SHARED. Who is on which box lives in the database, not
+   in this browser, so a name typed on your phone appears on your laptop
+   and on every screen looking at the board - about a second later, with
+   nothing to reload.
+
+   ONE PERSON PER BOX. The database holds a unique index on the box
+   name, so two people tapping the same box at the same moment cannot
+   both win it. The second one is refused and told so.
 
    THE GREY IS ONLY VISUAL. A filled box stays fully usable: click it
    anywhere and the edit panel opens, so the name can be renamed or
@@ -13,27 +20,25 @@
    page: the part before the $ is the username, the part after is the
    item won, and the box itself shows only the buyer.
 
-   THE WINNERS LOG IS APPEND-ONLY FROM HERE. Nothing on any board can
-   remove a line from the winners page — not Reset board, not Hide all,
-   not removing a single name, not a rename. A line leaves that page
-   ONLY through its own Clear winners button, which lives in winners.js.
-
-   COMPACT TABS. Compact mode squashes a tab so every box fits one
-   screen without scrolling. It is only for boards whose cards are
-   already small. The Pairs board is NOT compact: its cards need their
-   own room, so it uses the normal .board-small card layout. Turning
-   compact on there flattened the cards into spreadsheet-like rows.
+   The winners log is append-only from here. Nothing on any board can
+   remove a line from it. Only its own Clear winners button does.
    --------------------------------------------------------------- */
 
 const BACKEND_ENDPOINT = "";
-const STORE_KEY = "memorabilia-breaks-usernames-v1";
 
+/* the old browser store, read once to carry names into the database */
+const OLD_STORE_KEY = "memorabilia-breaks-usernames-v1";
+
+/* Compact mode squashes a tab so every box fits one screen. Only for
+   boards whose cards are already small. Pairs is NOT compact: its cards
+   need their own room, so it uses the normal .board-small card layout. */
 const COMPACT_TABS = {};
 
 const $ = (id) => document.getElementById(id);
 
 let entries = [];
 let currentTab = "teams";
+let liveMath = false;
 
 function tileFor(targetId) {
   const tiles = document.querySelectorAll(".tile");
@@ -45,24 +50,6 @@ function tileFor(targetId) {
 
 function normalizeName(raw) {
   return (raw || "").trim().replace(/^@/, "");
-}
-
-function loadEntries() {
-  try {
-    entries = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
-    if (!Array.isArray(entries)) entries = [];
-  } catch (e) {
-    entries = [];
-  }
-}
-
-function persist() {
-  try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(entries));
-    return true;
-  } catch (e) {
-    return false;
-  }
 }
 
 function usersOn(targetId) {
@@ -85,6 +72,22 @@ function closeAllPanels(except) {
     if (p) p.hidden = true;
   });
 }
+
+/* ---------- reading the shared board ---------- */
+
+async function loadEntries() {
+  try {
+    entries = await sbListEntries();
+    liveMath = true;
+  } catch (e) {
+    liveMath = false;
+    /* keep whatever we already have rather than blanking the board */
+  }
+  refreshBoards();
+  renderEntries();
+}
+
+/* ---------- tabs ---------- */
 
 function buildTabs() {
   const nav = $("tabs");
@@ -138,6 +141,8 @@ function setTab(tabId) {
   applyFilter($("filter").value);
   $("saved").textContent = "";
 }
+
+/* ---------- the tiles ---------- */
 
 function buildTile(t) {
   const tile = document.createElement("div");
@@ -246,17 +251,23 @@ function buildTile(t) {
     tile.classList.remove("editing");
   }
 
-  function commitEdit() {
+  async function commitEdit() {
     const e = holder();
     if (!e) { closePanel(); return; }
     const next = normalizeName(editInput.value);
     if (!next) { editInput.focus(); return; }
 
-    e.username = next;
-    persist();
+    try {
+      const saved = await sbRenameEntry(e.id, next);
+      if (saved) e.username = saved.username;
+    } catch (err) {
+      $("saved").textContent = "Could not rename: " + err.message;
+      closePanel();
+      return;
+    }
 
-    /* A rename updates that box's winner line in place. It never DELETES
-       a line: from the boards, the log is append-only. */
+    /* a rename updates that box's winner line in place; it never
+       DELETES a line - from the boards, the log is append-only */
     if (typeof updateWinFor === "function") updateWinFor(e.target, next);
 
     closePanel();
@@ -274,14 +285,23 @@ function buildTile(t) {
     if (ev.key === "Enter") { ev.preventDefault(); commitEdit(); }
     if (ev.key === "Escape") { ev.preventDefault(); closePanel(); }
   });
-  editDel.addEventListener("click", function (ev) {
+  editDel.addEventListener("click", async function (ev) {
     ev.stopPropagation();
     const e = holder();
     if (!e) { closePanel(); return; }
     const name = e.username;
     const where = e.target;
     closePanel();
-    removeUser(e.id);
+    try {
+      await sbRemoveEntry(e.id);
+    } catch (err) {
+      $("saved").textContent = "Could not clear that box: " + err.message;
+      return;
+    }
+    entries = entries.filter(function (x) { return x.id !== e.id; });
+    refreshBoards();
+    renderEntries();
+    if (typeof renderWinners === "function") renderWinners();
     $("saved").textContent = "Removed @" + name + " from " + where +
       " - that box is free again. The winners log is unchanged.";
   });
@@ -435,36 +455,7 @@ function refreshBoards() {
   refreshBoardCounts();
 }
 
-function resetBoard(boardId) {
-  const board = boardById(boardId);
-  if (!board) return;
-
-  const names = {};
-  board.boxes.forEach(function (b) { names[b.name] = true; });
-
-  const doomed = entries.filter(function (e) { return names[e.target]; });
-  if (!doomed.length) {
-    $("saved").textContent = "The " + board.label + " board is already empty.";
-    return;
-  }
-
-  const line1 = "Remove all " + doomed.length + " " +
-    (doomed.length === 1 ? "name" : "names") + " from the " + board.label + " board?";
-  const line2 = "Only that board is cleared, and the winners log is kept. " +
-    "You can put the names back with Undo.";
-  if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
-
-  undoSnapshot = entries.slice();
-  entries = entries.filter(function (e) { return !names[e.target]; });
-  persist();
-
-  /* NOTE: nothing here touches the winners log. */
-  closeAllPanels(null);
-  refreshBoards();
-  renderEntries();
-  if (typeof renderWinners === "function") renderWinners();
-  showUndo("Cleared " + doomed.length + " from " + board.label + " - the winners log is unchanged.");
-}
+/* ---------- writing ---------- */
 
 async function addUser(targetId, rawName) {
   const username = normalizeName(rawName);
@@ -481,56 +472,77 @@ async function addUser(targetId, rawName) {
     return;
   }
 
-  const entry = {
-    id: "u" + Date.now() + Math.random().toString(36).slice(2, 7),
-    username: username,
-    target: targetId,
-    createdAt: new Date().toISOString()
-  };
+  $("saved").textContent = "Saving...";
 
-  $("saved").textContent = "";
-
+  let saved = null;
   try {
-    if (BACKEND_ENDPOINT) {
-      const res = await fetch(BACKEND_ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(entry)
-      });
-      if (!res.ok) throw new Error("Backend responded " + res.status);
-    }
-    entries.unshift(entry);
-    if (!BACKEND_ENDPOINT && !persist()) throw new Error("Could not write to local storage");
-
-    /* an entry naming an item with a "$" is logged on the winners page */
-    let logged = null;
-    if (typeof recordWin === "function") logged = await recordWin(targetId, username);
-
-    refreshBoards();
-    renderEntries();
-
-    if (logged) {
-      $("saved").textContent = "Added @" + logged.username + " to " + targetId +
-        " - win logged: " + logged.item;
-    } else {
-      $("saved").textContent = "Added @" + buyerOnly(username) + " to " + targetId;
-    }
+    saved = await sbAddEntry(username, targetId);
   } catch (err) {
-    $("saved").textContent = "Could not save: " + err.message;
+    $("saved").textContent = err.message;
+    return;
+  }
+  if (!saved) {
+    $("saved").textContent = "That name did not save. Try again.";
+    return;
+  }
+
+  entries.push(saved);
+
+  /* an entry naming an item with a "$" is logged on the winners page */
+  let logged = null;
+  if (typeof recordWin === "function") {
+    try { logged = await recordWin(targetId, username); }
+    catch (err) { logged = null; }
+  }
+
+  refreshBoards();
+  renderEntries();
+
+  if (logged) {
+    $("saved").textContent = "Added @" + logged.username + " to " + targetId +
+      " - win logged: " + logged.item;
+  } else {
+    $("saved").textContent = "Added @" + buyerOnly(username) + " to " + targetId;
   }
 }
 
-function removeUser(id) {
-  entries = entries.filter(function (e) { return e.id !== id; });
-  persist();
+async function resetBoard(boardId) {
+  const board = boardById(boardId);
+  if (!board) return;
 
-  /* NOTE: taking a name off a box does NOT remove its winner line.
-     Nothing on a board removes anything from the winners log. A line
-     leaves that page only via its own Clear winners button. */
-  refreshBoards();
-  renderEntries();
+  const names = board.boxes.map(function (b) { return b.name; });
+  const doomed = entries.filter(function (e) { return names.indexOf(e.target) !== -1; });
+
+  if (!doomed.length) {
+    $("saved").textContent = "The " + board.label + " board is already empty.";
+    return;
+  }
+
+  const line1 = "Remove all " + doomed.length + " " +
+    (doomed.length === 1 ? "name" : "names") + " from the " + board.label + " board?";
+  const line2 = "Only that board is cleared, and the winners log is kept.";
+  if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
+
+  undoSnapshot = doomed.slice();
+
+  try {
+    await sbClearTargets(names);
+  } catch (err) {
+    $("saved").textContent = "Could not clear that board: " + err.message;
+    return;
+  }
+
+  /* NOTE: nothing here touches the winners log. */
+  closeAllPanels(null);
+  await loadEntries();
   if (typeof renderWinners === "function") renderWinners();
+  showUndo("Cleared " + undone + " from " + board.label + " - the winners log is unchanged."
+    .replace("undone", doomed.length));
 }
+
+let undone = 0;
+
+/* ---------- the list of names ---------- */
 
 function renderEntries() {
   const host = $("entries");
@@ -540,7 +552,9 @@ function renderEntries() {
   if (!entries.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = "Nothing entered yet. Type a username into any box above.";
+    p.textContent = liveMath
+      ? "Nothing entered yet. Type a username into any box above."
+      : "Could not reach the board. Check the connection, then reload.";
     host.appendChild(p);
     return;
   }
@@ -553,7 +567,7 @@ function renderEntries() {
   const tbody = document.createElement("tbody");
   const sorted = entries.slice().sort(function (a, b) {
     if (a.target !== b.target) return a.target.localeCompare(b.target);
-    return new Date(b.createdAt) - new Date(a.createdAt);
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
   });
 
   sorted.forEach(function (e) {
@@ -569,11 +583,9 @@ function renderEntries() {
     tdUser.appendChild(nameBtn);
     tr.appendChild(tdUser);
 
-    const tdWhere = document.createElement("td");
-    tdWhere.textContent = e.target;
-    tr.appendChild(tdWhere);
+    tr.appendChild(textCell(e.target));
 
-    const when = new Date(e.createdAt);
+    const when = new Date(e.created_at);
     tr.appendChild(textCell(isNaN(when) ? "-" : when.toLocaleString()));
 
     const td = document.createElement("td");
@@ -582,7 +594,12 @@ function renderEntries() {
     del.className = "del";
     del.textContent = "Delete";
     del.title = "Remove only this name";
-    del.addEventListener("click", function () { removeUser(e.id); });
+    del.addEventListener("click", async function () {
+      try { await sbRemoveEntry(e.id); } catch (err) { return; }
+      entries = entries.filter(function (x) { return x.id !== e.id; });
+      refreshBoards();
+      renderEntries();
+    });
     td.appendChild(del);
     tr.appendChild(td);
 
@@ -621,11 +638,18 @@ function startRowEdit(tr, entry) {
   tdUser.appendChild(save);
   tdUser.appendChild(cancel);
 
-  function commit() {
+  async function commit() {
     const next = normalizeName(input.value);
     if (!next) { input.focus(); return; }
-    entry.username = next;
-    persist();
+
+    try {
+      const saved = await sbRenameEntry(entry.id, next);
+      if (saved) entry.username = saved.username;
+    } catch (err) {
+      $("saved").textContent = "Could not rename: " + err.message;
+      renderEntries();
+      return;
+    }
 
     /* same rule: update the line, never delete it */
     if (typeof updateWinFor === "function") updateWinFor(entry.target, next);
@@ -653,6 +677,8 @@ function textCell(text) {
   return td;
 }
 
+/* ---------- export and filter ---------- */
+
 function csvEscape(v) {
   const QUOTE = String.fromCharCode(34);
   const COMMA = String.fromCharCode(44);
@@ -675,7 +701,7 @@ function downloadCsv() {
   const rows = ["username,item_won,placed_on,added"];
   const sorted = entries.slice().sort(function (a, b) {
     if (a.target !== b.target) return a.target.localeCompare(b.target);
-    return new Date(a.createdAt) - new Date(b.createdAt);
+    return new Date(a.created_at || 0) - new Date(b.created_at || 0);
   });
 
   sorted.forEach(function (e) {
@@ -686,7 +712,7 @@ function downloadCsv() {
       csvEscape(parts.username) + "," +
       csvEscape(parts.item) + "," +
       csvEscape(e.target) + "," +
-      csvEscape(e.createdAt)
+      csvEscape(e.created_at)
     );
   });
 
@@ -727,6 +753,48 @@ function hideUndo() {
   undoSnapshot = null;
 }
 
+/* ---------- carrying names over from the old browser store ----------
+
+   The previous version kept the board in localStorage. Anything still
+   there is pushed up to the shared database once, then the local copy
+   is cleared so it never doubles up. Skips anything already in the
+   database, so it is safe to run more than once. */
+async function importLocalEntries() {
+  let pending = [];
+  try {
+    const raw = localStorage.getItem(OLD_STORE_KEY);
+    if (raw) {
+      const old = JSON.parse(raw);
+      if (Array.isArray(old)) pending = old;
+    }
+  } catch (e) {
+    return 0;
+  }
+
+  if (!pending.length) return 0;
+
+  let moved = 0;
+  for (let i = 0; i < pending.length; i++) {
+    const o = pending[i];
+    if (!o || !o.username || !o.target) continue;
+
+    const already = entries.some(function (e) { return e.target === o.target; });
+    if (already) continue;
+
+    try {
+      const saved = await sbAddEntry(o.username, o.target);
+      if (saved) { entries.push(saved); moved++; }
+    } catch (e) { /* a duplicate means somebody already has that box */ }
+  }
+
+  try { localStorage.removeItem(OLD_STORE_KEY); } catch (e) {}
+  refreshBoards();
+  renderEntries();
+  return moved;
+}
+
+/* ---------- start ---------- */
+
 document.addEventListener("DOMContentLoaded", function () {
   const problems = typeof checkBoards === "function" ? checkBoards() : [];
   if (problems.length) {
@@ -740,8 +808,23 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   buildTabs();
-  loadEntries();
   setTab(BOARDS[0].id);
+
+  /* read the shared board, then carry over anything from the old store */
+  loadEntries().then(function () {
+    return importLocalEntries();
+  }).then(function (moved) {
+    if (moved) {
+      $("saved").textContent = "Brought " + moved +
+        (moved === 1 ? " name" : " names") + " across from this browser.";
+    }
+  });
+
+  /* follow the board: a name typed on another device lands here */
+  sbWatchEntries(function () { loadEntries(); });
+
+  /* a safety net if a network blocks websockets */
+  setInterval(function () { loadEntries(); }, 30000);
 
   $("filter").addEventListener("input", function (e) { applyFilter(e.target.value); });
   $("exportCsv").addEventListener("click", downloadCsv);
@@ -750,32 +833,43 @@ document.addEventListener("DOMContentLoaded", function () {
     resetBoard(this.dataset.resetFor || currentTab);
   });
 
-  $("clearAll").addEventListener("click", function () {
+  $("clearAll").addEventListener("click", async function () {
     if (!entries.length) return;
     const line1 = "Hide all " + entries.length + " names from every board?";
-    const line2 = "The winners log is kept. You can put the names straight back with Undo.";
+    const line2 = "The winners log is kept.";
     if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
+
     undoSnapshot = entries.slice();
-    entries = [];
-    persist();
+    undone = undoSnapshot.length;
+
+    try {
+      await sbClearAllEntries();
+    } catch (err) {
+      $("saved").textContent = "Could not clear the boards: " + err.message;
+      return;
+    }
 
     /* NOTE: the winners log is deliberately NOT touched here either. */
     closeAllPanels(null);
-    refreshBoards();
-    renderEntries();
-    showUndo("Hid all " + undoSnapshot.length + " names - the winners log is unchanged.");
+    await loadEntries();
+    showUndo("Hid all " + undone + " names - the winners log is unchanged.");
   });
 
-  $("undobtn").addEventListener("click", function () {
+  $("undobtn").addEventListener("click", async function () {
     if (!undoSnapshot) return;
-    const restored = undoSnapshot.length;
-    entries = undoSnapshot;
+    const back = undoSnapshot;
     undoSnapshot = null;
-    persist();
-    refreshBoards();
-    renderEntries();
     hideUndo();
-    $("saved").textContent = "Restored " + restored + " names.";
+
+    let put = 0;
+    for (let i = 0; i < back.length; i++) {
+      try {
+        const saved = await sbAddEntry(back[i].username, back[i].target);
+        if (saved) put++;
+      } catch (e) { /* the box may already be taken again */ }
+    }
+    await loadEntries();
+    $("saved").textContent = "Restored " + put + " names.";
   });
   $("undoclose").addEventListener("click", hideUndo);
 });
