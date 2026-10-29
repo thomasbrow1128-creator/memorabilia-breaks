@@ -42,82 +42,90 @@
   /* ============================================================
      ON A NARROW SCREEN the five-column table is wider than the
      phone, so the row ran off the right edge and the page looked
-     empty. Under 760px each winner becomes its own card instead:
-     the name and item lead, then date, team and tracking sit
-     beneath as small labelled lines. Nothing hidden, nothing
-     scrolling sideways.
+     empty. Under 760px each winner becomes its own card instead.
+
+     Every rule here carries !important on purpose. casino.css is
+     loaded through @import above, and its bare `th,td` rules set
+     white-space:nowrap and overflow:hidden on every cell. Rather
+     than rely on cascade order to beat them, these declare their
+     intent outright - so no ordering, import placement or later
+     rule can put the row back off the screen.
      ============================================================ */
   @media (max-width:760px){
-    .wrap{padding:20px 14px 60px}
-
-    .panel{padding:16px; border-radius:13px}
-    .panel h2{font-size:13px}
-
-    .toolbar{gap:8px 10px; margin-bottom:14px}
-    .toolbar .left{gap:7px 8px}
-    button.ghost{font-size:10.5px; padding:8px 12px; padding-left:30px}
-    button.ghost::before{width:15px; height:15px; line-height:15px; font-size:9.5px; left:8px}
-    #ledgerCsv,#ledgerRefresh{padding-left:30px}
-
-    .boardhead h2{font-size:17px}
-    .boardhead span{font-size:11.5px}
+    .wrap{padding:20px 14px 60px !important}
+    .panel{padding:16px !important; border-radius:13px !important}
+    .panel h2{font-size:13px !important}
 
     /* the table stops being a table */
-    table.winnersTable,
-    table.winnersTable tbody,
-    table.winnersTable tr,
-    table.winnersTable td{display:block; width:100%}
-
-    table.winnersTable{table-layout:auto}
-    table.winnersTable thead{display:none}
+    table.winnersTable{display:block !important; table-layout:auto !important;
+      width:100% !important; border-collapse:separate !important}
+    table.winnersTable thead{display:none !important}
+    table.winnersTable tbody{display:block !important; width:100% !important}
 
     table.winnersTable tr{
-      margin:0 0 11px; padding:13px 15px;
-      border:1px solid rgba(201,162,39,.4); border-radius:12px;
-      background:linear-gradient(180deg, rgba(19,53,92,.7), rgba(5,16,31,.6));
-      box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.09);
-      white-space:normal;
+      display:block !important; width:100% !important; box-sizing:border-box !important;
+      margin:0 0 11px !important; padding:13px 15px !important;
+      border:1px solid rgba(201,162,39,.4) !important; border-radius:12px !important;
+      background:linear-gradient(180deg, rgba(19,53,92,.7), rgba(5,16,31,.6)) !important;
+      box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.09) !important;
+      white-space:normal !important;
     }
-    table.winnersTable tr:last-child{margin-bottom:0}
+    table.winnersTable tr:last-child{margin-bottom:0 !important}
 
     table.winnersTable td{
-      border-bottom:0; padding:3px 0; white-space:normal;
-      text-align:left; overflow:visible; text-overflow:clip;
-      font-size:13px;
+      display:block !important; width:100% !important; box-sizing:border-box !important;
+      border-bottom:0 !important; padding:3px 0 !important;
+      white-space:normal !important; overflow:visible !important;
+      text-overflow:clip !important; text-align:left !important;
+      font-size:13px !important; max-width:none !important;
     }
 
     /* the name is the card's headline */
     table.winnersTable td.who{
-      font-size:17px; line-height:1.25;
-      padding-bottom:6px; margin-bottom:5px;
-      border-bottom:1px solid rgba(201,162,39,.25);
-      overflow-wrap:anywhere;
+      font-size:17px !important; line-height:1.25 !important; font-weight:900 !important;
+      color:#ffd75e !important; padding-bottom:6px !important; margin-bottom:5px !important;
+      border-bottom:1px solid rgba(201,162,39,.25) !important;
+      overflow-wrap:anywhere !important; word-break:break-word !important;
+      text-shadow:0 0 16px rgba(255,206,80,.45), 0 2px 4px rgba(0,0,0,.9) !important;
     }
 
     /* the item sits right under the name */
     table.winnersTable td.item{
-      font-size:14px; font-weight:700; color:#eaf3ff;
-      padding-bottom:7px; overflow-wrap:anywhere;
+      font-size:14px !important; font-weight:700 !important; color:#eaf3ff !important;
+      padding-bottom:7px !important; overflow-wrap:anywhere !important;
+      word-break:break-word !important;
     }
 
     /* the small facts get a quiet label each */
     table.winnersTable td.team,
     table.winnersTable td.meta,
-    table.winnersTable td.trk{font-size:12px; color:#a9c3dc}
+    table.winnersTable td.trk{font-size:12px !important; color:#a9c3dc !important}
 
-    table.winnersTable td.team::before{content:"Team: "; color:#8ea9c4; font-weight:800}
-    table.winnersTable td.meta::before{content:"Won: "; color:#8ea9c4; font-weight:800}
-    table.winnersTable td.trk::before{content:"Tracking: "; color:#8ea9c4; font-weight:800}
+    table.winnersTable td.team::before{content:"Team: " !important; color:#8ea9c4 !important; font-weight:800 !important}
+    table.winnersTable td.meta::before{content:"Won: " !important; color:#8ea9c4 !important; font-weight:800 !important}
+    table.winnersTable td.trk::before{content:"Tracking: " !important; color:#8ea9c4 !important; font-weight:800 !important}
 
-    table.winnersTable td.trk{padding-top:5px}
-    table.winnersTable td.trk b{font-size:12px; padding:3px 9px; overflow-wrap:anywhere}
+    table.winnersTable td.trk{padding-top:5px !important}
+    table.winnersTable td.trk b{font-size:12px !important; padding:3px 9px !important;
+      overflow-wrap:anywhere !important; word-break:break-word !important}
+
+    /* the toolbar stops pushing the page wider than the screen */
+    .toolbar{gap:8px 10px !important; margin-bottom:14px !important}
+    .toolbar .left{gap:7px 8px !important; flex-wrap:wrap !important}
+    button.ghost{font-size:10.5px !important; padding:8px 12px !important;
+      padding-left:30px !important; flex:0 0 auto !important}
+    button.ghost::before{width:15px !important; height:15px !important;
+      line-height:15px !important; font-size:9.5px !important; left:8px !important}
+    #ledgerCsv,#ledgerRefresh{padding-left:30px !important}
+    .boardhead h2{font-size:17px !important}
+    .boardhead span{font-size:11.5px !important}
+    .live{font-size:10px !important}
   }
 
-  /* very narrow: the two buttons share the row without pushing it wide */
-  @media (max-width:420px){
-    .toolbar{justify-content:flex-start}
-    .toolbar .left{flex-wrap:wrap; width:100%}
-    button.ghost{flex:1 1 auto; text-align:center}
+  /* never scroll sideways on a phone */
+  @media (max-width:900px){
+    html,body{overflow-x:hidden !important}
+    .wrap{max-width:100% !important}
   }
 </style>
 </head>
