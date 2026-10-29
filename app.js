@@ -5,15 +5,17 @@
    when you add a board. Add a board in boards.js and the tab, the
    grid, the headings, the counter and the Reset button all follow.
 
-   Each tile is a chrome plate: an emblem on top (an image when the box
-   supplies one, otherwise the team initials), then a PURCHASER plate in
-   gold carrying the names on that box.
+   ONE PERSON PER BOX. A box takes one username. While it is free the
+   field is open; once a name is saved the box greys out.
 
-   One input per box: a customer username. One action: place it on that
-   box. Once a box has at least one username it dims and closes.
+   THE GREY IS ONLY VISUAL. A filled box stays fully usable: click it
+   anywhere — the icon, the PURCHASER bar, or the gold name — and the
+   edit panel opens, so the name can be renamed or removed. Removing it
+   clears the grey and frees the box for someone else. You never have to
+   clear a whole board to fix one name.
 
-   Editing: every name on a plate is clickable — click one to rename it
-   or delete just that name. Removing the last name un-dims the box.
+   The edit panel is built into the tile once, hidden, and shown on
+   demand. It is never rebuilt, so nothing can destroy it as it opens.
 
    Resetting: every board carries its own Reset, which clears only the
    boxes on that board. Every reset offers Undo.
@@ -44,11 +46,6 @@ function tileFor(targetId) {
     if (tiles[i].dataset.target === targetId) return tiles[i];
   }
   return null;
-}
-
-function rosterFor(targetId) {
-  const tile = tileFor(targetId);
-  return tile ? tile.querySelector(".roster") : null;
 }
 
 function normalizeName(raw) {
@@ -88,6 +85,16 @@ function countOnBoard(boardId) {
   return entries.filter(function (e) { return names[e.target]; }).length;
 }
 
+/* only one edit panel open at a time */
+function closeAllPanels(except) {
+  document.querySelectorAll(".tile").forEach(function (el) {
+    if (el === except) return;
+    el.classList.remove("editing");
+    const p = el.querySelector(".chipeditor");
+    if (p) p.hidden = true;
+  });
+}
+
 /* ---------- tabs ----------
    Built from BOARDS, so a new board gets a tab automatically. */
 
@@ -119,9 +126,7 @@ function buildTile(t) {
   badge.style.display = "none";
   tile.appendChild(badge);
 
-  /* --- the abbreviation block ---
-     Always the short code: no image is loaded, so the tile can never
-     show a broken picture. */
+  /* --- the emblem block --- */
   const eb = document.createElement("div");
   eb.className = "eb";
   eb.style.background = t.colors[0];
@@ -132,11 +137,6 @@ function buildTile(t) {
   eb.appendChild(initials);
   tile.appendChild(eb);
 
-  /* Clicking the abbreviation opens this box for typing. */
-  eb.addEventListener("click", function (ev) {
-    ev.stopPropagation();
-    openTile(t.id);
-  });
   eb.title = "Click to enter a username for " + t.name;
 
   /* --- the PURCHASER plate --- */
@@ -152,10 +152,7 @@ function buildTile(t) {
   buyer.appendChild(names);
   tile.appendChild(buyer);
 
-  /* --- the add-a-name row ---
-     One box holds one person. The field is on the box while it is
-     free; once a name is saved the field closes and the box is
-     locked, until that name is removed. */
+  /* --- the add-a-name row --- */
   const bar = document.createElement("form");
   bar.className = "addbar";
   const input = document.createElement("input");
@@ -177,38 +174,107 @@ function buildTile(t) {
   });
   tile.appendChild(bar);
 
-  /* --- the message shown while a box is taken --- */
-  const lock = document.createElement("div");
-  lock.className = "lockedbar";
-  const lockText = document.createElement("span");
-  lockText.className = "lockedtext";
-  lockText.textContent = "";
-  lock.appendChild(lockText);
-  tile.appendChild(lock);
+  /* --- the edit panel, built once and hidden ---
+     Kept in the tile from the start so opening it never depends on
+     rebuilding anything. The grey-out stays a purely visual state. */
+  const panel = document.createElement("div");
+  panel.className = "chipeditor";
+  panel.hidden = true;
 
-  return tile;
-}
+  const editInput = document.createElement("input");
+  editInput.type = "text";
+  editInput.setAttribute("aria-label", "Edit name on " + t.name);
+  editInput.autocomplete = "off";
+  editInput.spellcheck = false;
 
-/* Open one box: reveal its input, focus it, and leave every other box
-   closed. This is what makes the abbreviation itself clickable. */
-function openTile(targetId) {
-  const tile = tileFor(targetId);
-  if (!tile) return;
+  const editSave = document.createElement("button");
+  editSave.type = "button";
+  editSave.className = "cesave";
+  editSave.textContent = "Save";
 
-  /* close whichever box was open before */
-  closeEditor();
-  document.querySelectorAll(".tile.force-open").forEach(function (el) {
-    if (el !== tile) el.classList.remove("force-open");
+  const editDel = document.createElement("button");
+  editDel.type = "button";
+  editDel.className = "cedel";
+  editDel.textContent = "Remove";
+
+  const editCancel = document.createElement("button");
+  editCancel.type = "button";
+  editCancel.className = "cecancel";
+  editCancel.textContent = "Cancel";
+
+  panel.appendChild(editInput);
+  panel.appendChild(editSave);
+  panel.appendChild(editDel);
+  panel.appendChild(editCancel);
+  tile.appendChild(panel);
+
+  /* the name holding this box, if any */
+  function holder() {
+    return usersOn(t.id)[0] || null;
+  }
+
+  function openPanel() {
+    const e = holder();
+    if (!e) return;                 /* nothing to edit on an empty box */
+    closeAllPanels(tile);
+    editInput.value = e.username;
+    panel.hidden = false;
+    tile.classList.add("editing");
+    editInput.focus();
+    editInput.select();
+  }
+
+  function closePanel() {
+    panel.hidden = true;
+    tile.classList.remove("editing");
+  }
+
+  function commitEdit() {
+    const e = holder();
+    if (!e) { closePanel(); return; }
+    const next = normalizeName(editInput.value);
+    if (!next) { editInput.focus(); return; }
+    e.username = next;
+    persist();
+    closePanel();
+    refreshBoards();
+    renderEntries();
+    $("saved").textContent = "Renamed to @" + next + " on " + e.target;
+  }
+
+  editSave.addEventListener("click", function (ev) {
+    ev.stopPropagation();
+    commitEdit();
+  });
+  editInput.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); commitEdit(); }
+    if (ev.key === "Escape") { ev.preventDefault(); closePanel(); }
+  });
+  editDel.addEventListener("click", function (ev) {
+    ev.stopPropagation();
+    const e = holder();
+    if (!e) { closePanel(); return; }
+    const name = e.username;
+    const where = e.target;
+    closePanel();
+    removeUser(e.id);
+    $("saved").textContent = "Removed @" + name + " from " + where + " - that box is free again.";
+  });
+  editCancel.addEventListener("click", function (ev) {
+    ev.stopPropagation();
+    closePanel();
   });
 
-  tile.classList.add("force-open");
-  refreshBoards();
+  /* Clicking anywhere on a FILLED box opens the panel. The grey-out is
+     only a look: the box stays fully usable. The typing row is left
+     alone, so adding a name still works. */
+  tile.addEventListener("click", function (ev) {
+    if (!panel.hidden) return;                                  /* already open */
+    if (ev.target.closest && ev.target.closest(".addbar")) return;
+    if (usersOn(t.id).length) openPanel();
+  });
 
-  const input = tile.querySelector(".addbar input");
-  if (input) {
-    input.focus();
-    input.select();
-  }
+  return tile;
 }
 
 function buildBoardHeader(b) {
@@ -282,7 +348,7 @@ function refreshBoardCounts() {
   });
 }
 
-/* Fill the gold PURCHASER plate: one line per name, or "OPEN" when empty. */
+/* Fill the gold PURCHASER plate: the name holding the box, or OPEN. */
 function paintBuyerPlate(tile, list) {
   const host = tile.querySelector("[data-names]");
   if (!host) return;
@@ -297,15 +363,9 @@ function paintBuyerPlate(tile, list) {
   }
 
   list.forEach(function (e) {
-    const line = document.createElement("button");
-    line.type = "button";
-    line.className = "buyname buyname-btn";
+    const line = document.createElement("span");
+    line.className = "buyname";
     line.textContent = e.username;
-    line.title = "Edit or remove @" + e.username;
-    line.addEventListener("click", function (ev) {
-      ev.stopPropagation();
-      openEditor(e.id);
-    });
     host.appendChild(line);
   });
 }
@@ -324,9 +384,8 @@ function refreshBoards() {
     badge.textContent = list.length;
     badge.style.display = list.length ? "" : "none";
 
-    /* One box holds one person.
-       Taken  -> the box is greyed and its input closed.
-       Free   -> the box is bright and its input is open. */
+    /* FILLED -> greyed and its field closed, but STILL CLICKABLE.
+       The grey is a visual state, never a lock. */
     const taken = list.length > 0;
     tile.classList.toggle("taken", taken);
 
@@ -338,9 +397,17 @@ function refreshBoards() {
     }
     if (btn) btn.disabled = taken;
 
-    /* a taken box carries no wording - the grey is the signal */
+    /* a filled box carries no wording - the grey is the signal */
     const lockText = tile.querySelector(".lockedtext");
     if (lockText) lockText.textContent = "";
+
+    /* if the last name went away, close any panel left open and let the
+       grey clear, so the box reads as free again */
+    if (!taken) {
+      const p = tile.querySelector(".chipeditor");
+      if (p) p.hidden = true;
+      tile.classList.remove("editing");
+    }
   });
 
   refreshBoardCounts();
@@ -369,147 +436,27 @@ function resetBoard(boardId) {
   undoSnapshot = entries.slice();
   entries = entries.filter(function (e) { return !names[e.target]; });
   persist();
-  closeEditor();
+  closeAllPanels(null);
   refreshBoards();
   renderEntries();
   showUndo("Cleared " + doomed.length + " from " + board.label + ".");
 }
 
-/* ---------- inline editor ---------- */
-
-function openEditor(entryId) {
-  const entry = entries.find(function (e) { return e.id === entryId; });
-  if (!entry) return;
-
-  const tile = tileFor(entry.target);
-  if (!tile) return;
-
-  closeEditor();
-  tile.classList.add("force-open");
-  refreshBoards();
-
-  const host = tile.querySelector(".roster");
-  if (!host) return;
-
-  const box = document.createElement("div");
-  box.className = "chipeditor";
-  box.addEventListener("click", function (ev) { ev.stopPropagation(); });
-
-  const input = document.createElement("input");
-  input.type = "text";
-  input.value = entry.username;
-  input.setAttribute("aria-label", "Edit username");
-  input.autocomplete = "off";
-  input.spellcheck = false;
-
-  const save = document.createElement("button");
-  save.type = "button";
-  save.className = "cesave";
-  save.textContent = "Save";
-
-  const del = document.createElement("button");
-  del.type = "button";
-  del.className = "cedel";
-  del.textContent = "Remove";
-
-  const cancel = document.createElement("button");
-  cancel.type = "button";
-  cancel.className = "cecancel";
-  cancel.textContent = "Cancel";
-
-  box.appendChild(input);
-  box.appendChild(save);
-  box.appendChild(del);
-  box.appendChild(cancel);
-
-  function commit() {
-    const next = normalizeName(input.value);
-    if (!next) { input.focus(); return; }
-    entry.username = next;
-    persist();
-    closeEditor();
-    refreshBoards();
-    renderEntries();
-    $("saved").textContent = "Renamed to @" + next + " on " + entry.target;
-  }
-
-  save.addEventListener("click", commit);
-  input.addEventListener("keydown", function (ev) {
-    if (ev.key === "Enter") { ev.preventDefault(); commit(); }
-    if (ev.key === "Escape") { ev.preventDefault(); closeEditor(); refreshBoards(); }
-  });
-  del.addEventListener("click", function () {
-    const name = entry.username;
-    const where = entry.target;
-    closeEditor();
-    removeUser(entryId);
-    $("saved").textContent = "Removed @" + name + " from " + where;
-  });
-  cancel.addEventListener("click", function () {
-    closeEditor();
-    refreshBoards();
-  });
-
-  host.appendChild(box);
-  tile.classList.remove("filled");
-  input.focus();
-  input.select();
-}
-
-function closeEditor() {
-  document.querySelectorAll(".chipeditor").forEach(function (el) {
-    el.parentNode.removeChild(el);
-  });
-}
-
-/* ---------- tab switching ---------- */
-
-function setCompact(on) {
-  const wrap = document.querySelector(".wrap");
-  if (wrap) wrap.classList.toggle("compact", !!on);
-  const head = document.querySelector("header");
-  if (head) head.classList.toggle("compact", !!on);
-}
-
-function setTab(tabId) {
-  currentTab = boardById(tabId) ? tabId : BOARDS[0].id;
-  const board = boardById(currentTab);
-  const stack = boardsOnTab(currentTab);
-
-  setCompact(COMPACT_TABS[currentTab]);
-
-  document.querySelectorAll("[data-view-btn]").forEach(function (b) {
-    const on = b.dataset.viewBtn === currentTab;
-    b.className = on ? "on" : "";
-    b.setAttribute("aria-selected", on ? "true" : "false");
-  });
-
-  $("boardTitle").textContent = board.label;
-  if (stack.length > 1) {
-    const rest = stack.slice(1).map(function (b) { return b.label; }).join(" and ");
-    $("boardSub").textContent =
-      "Both boards on one screen \u2014 " + board.label + " on top, " + rest +
-      " underneath. Each has its own Reset.";
-  } else {
-    $("boardSub").textContent =
-      board.boxes.length + " boxes. Type a username into a box to put them on it.";
-  }
-  $("filter").placeholder = "Filter " + board.label.toLowerCase() + "\u2026";
-
-  renderBoards();
-  refreshBoards();
-  applyFilter($("filter").value);
-  $("saved").textContent = "";
-}
-
-/* ---------- add / remove ---------- */
+/* ---------- add and remove ---------- */
 
 async function addUser(targetId, rawName) {
   const username = normalizeName(rawName);
   const tile = tileFor(targetId);
   const input = tile ? tile.querySelector(".addbar input") : null;
+
   if (!username) {
     if (input) input.focus();
+    return;
+  }
+
+  /* one person per box */
+  if (usersOn(targetId).length) {
+    $("saved").textContent = targetId + " is already taken. Remove that name first.";
     return;
   }
 
@@ -533,9 +480,6 @@ async function addUser(targetId, rawName) {
     }
     entries.unshift(entry);
     if (!BACKEND_ENDPOINT && !persist()) throw new Error("Could not write to local storage");
-
-    const t = tileFor(targetId);
-    if (t) t.classList.remove("force-open");
 
     refreshBoards();
     renderEntries();
@@ -775,7 +719,7 @@ document.addEventListener("DOMContentLoaded", function () {
     undoSnapshot = entries.slice();
     entries = [];
     persist();
-    closeEditor();
+    closeAllPanels(null);
     refreshBoards();
     renderEntries();
     showUndo("Hid all " + undoSnapshot.length + " names.");
@@ -793,11 +737,4 @@ document.addEventListener("DOMContentLoaded", function () {
     $("saved").textContent = "Restored " + restored + " names.";
   });
   $("undoclose").addEventListener("click", hideUndo);
-
-  document.addEventListener("click", function () {
-    if (document.querySelector(".chipeditor")) {
-      closeEditor();
-      refreshBoards();
-    }
-  });
 });
