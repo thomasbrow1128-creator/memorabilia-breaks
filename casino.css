@@ -664,16 +664,13 @@ button.ghost:hover::before{
     inset 0 1px 0 rgba(255,255,255,.16);
 }
 
-/* the top block: the pair's two colours, left melting into right.
-   Each card's exact gradient is set below, one rule per pair, built
-   from the same colours the Teams board uses. */
+/* the top block: the pair's two colours, left melting into right */
 .board-small .tile .eb{
   position:relative; flex:3 1 auto; min-height:56px;
   width:auto; align-self:auto; border-right:0;
   display:grid; place-items:center; overflow:hidden;
   border-bottom:1px solid rgba(0,0,0,.55);
   box-shadow:inset 0 0 30px rgba(0,0,0,.4);
-  background:linear-gradient(100deg, #17406a 0%, #0a1d34 100%);
 }
 .board-small .tile .eb::before{
   content:""; position:absolute; inset:0; pointer-events:none;
@@ -736,28 +733,114 @@ button.ghost:hover::before{
 
 /* ============================================================
    THE PAIR FADE - club A's colour on the left melting into club B's
-   on the right, so a card reads as those two teams, in order.
-   The colours are the same ones the Teams board uses. The hook is the
-   tile's data-target, because a pair name contains a comma and a space
-   that a class name could not carry.
+   on the right.
+
+   IMPORTANT: app.js writes the colour onto the element INLINE
+       eb.style.background = t.colors[0];
+   and an inline style outranks every stylesheet rule. Without the
+   !important below, these gradients are drawn and then immediately
+   covered. Do not remove it.
    ============================================================ */
 
-.tile[data-target="Cowboys, Jags"] .eb{background:linear-gradient(100deg, #003594 0%, #003594 34%, #003739 50%, #006778 66%, #006778 100%)}
-.tile[data-target="Chiefs, Cardinals"] .eb{background:linear-gradient(100deg, #E31837 0%, #E31837 34%, #BD1A3B 50%, #97233F 66%, #97233F 100%)}
-.tile[data-target="Broncos, Saints"] .eb{background:linear-gradient(100deg, #FB4F14 0%, #FB4F14 34%, #E78651 50%, #D3BC8D 66%, #D3BC8D 100%)}
-.tile[data-target="Eagles, Panthers"] .eb{background:linear-gradient(100deg, #004C54 0%, #004C54 34%, #00688F 50%, #0085CA 66%, #0085CA 100%)}
-.tile[data-target="Vikings, Titans"] .eb{background:linear-gradient(100deg, #4F2683 0%, #4F2683 34%, #2E245F 50%, #0C2340 66%, #0C2340 100%)}
-.tile[data-target="Packers, Falcons"] .eb{background:linear-gradient(100deg, #203731 0%, #203731 34%, #642831 50%, #A71930 66%, #A71930 100%)}
-.tile[data-target="Seahawks, Chargers"] .eb{background:linear-gradient(100deg, #002244 0%, #002244 34%, #00518F 50%, #0080C6 66%, #0080C6 100%)}
-.tile[data-target="Bucs, Commanders"] .eb{background:linear-gradient(100deg, #D50A0A 0%, #D50A0A 34%, #982D0B 50%, #5A1414 66%, #5A1414 100%)}
-.tile[data-target="Ravens, Rams"] .eb{background:linear-gradient(100deg, #241773 0%, #241773 34%, #122684 50%, #003594 66%, #003594 100%)}
-.tile[data-target="Patriots, Browns"] .eb{background:linear-gradient(100deg, #002244 0%, #002244 34%, #191E22 50%, #311D00 66%, #311D00 100%)}
-.tile[data-target="49ers, Bears"] .eb{background:linear-gradient(100deg, #AA0000 0%, #AA0000 34%, #5B0B15 50%, #0B162A 66%, #0B162A 100%)}
-.tile[data-target="Lions, Raiders"] .eb{background:linear-gradient(100deg, #0076B6 0%, #0076B6 34%, #003B5B 50%, #000000 66%, #000000 100%)}
-.tile[data-target="Bengals, Colts"] .eb{background:linear-gradient(100deg, #FB4F14 0%, #FB4F14 34%, #7E3E3A 50%, #002C5F 66%, #002C5F 100%)}
-.tile[data-target="Bills, Jets"] .eb{background:linear-gradient(100deg, #00338D 0%, #00338D 34%, #0C464F 50%, #125740 66%, #125740 100%)}
-.tile[data-target="Steelers, Texans"] .eb{background:linear-gradient(100deg, #101820 0%, #101820 34%, #091C28 50%, #03202F 66%, #03202F 100%)}
-.tile[data-target="Dolphins, Giants"] .eb{background:linear-gradient(100deg, #008E97 0%, #008E97 34%, #044156 50%, #0B2263 66%, #0B2263 100%)}
+.tile[data-target="Cowboys, Jags"] .eb{
+  background:linear-gradient(100deg,
+    #003594 0%, #003594 34%,
+    #003739 50%,
+    #006778 66%, #006778 100%) !important;
+}
+.tile[data-target="Chiefs, Cardinals"] .eb{
+  background:linear-gradient(100deg,
+    #E31837 0%, #E31837 34%,
+    #BD1A3B 50%,
+    #97233F 66%, #97233F 100%) !important;
+}
+.tile[data-target="Broncos, Saints"] .eb{
+  background:linear-gradient(100deg,
+    #FB4F14 0%, #FB4F14 34%,
+    #E78651 50%,
+    #D3BC8D 66%, #D3BC8D 100%) !important;
+}
+.tile[data-target="Eagles, Panthers"] .eb{
+  background:linear-gradient(100deg,
+    #004C54 0%, #004C54 34%,
+    #00688F 50%,
+    #0085CA 66%, #0085CA 100%) !important;
+}
+.tile[data-target="Vikings, Titans"] .eb{
+  background:linear-gradient(100deg,
+    #4F2683 0%, #4F2683 34%,
+    #2E245F 50%,
+    #0C2340 66%, #0C2340 100%) !important;
+}
+.tile[data-target="Packers, Falcons"] .eb{
+  background:linear-gradient(100deg,
+    #203731 0%, #203731 34%,
+    #642831 50%,
+    #A71930 66%, #A71930 100%) !important;
+}
+.tile[data-target="Seahawks, Chargers"] .eb{
+  background:linear-gradient(100deg,
+    #002244 0%, #002244 34%,
+    #00518F 50%,
+    #0080C6 66%, #0080C6 100%) !important;
+}
+.tile[data-target="Bucs, Commanders"] .eb{
+  background:linear-gradient(100deg,
+    #D50A0A 0%, #D50A0A 34%,
+    #982D0B 50%,
+    #5A1414 66%, #5A1414 100%) !important;
+}
+.tile[data-target="Ravens, Rams"] .eb{
+  background:linear-gradient(100deg,
+    #241773 0%, #241773 34%,
+    #122684 50%,
+    #003594 66%, #003594 100%) !important;
+}
+.tile[data-target="Patriots, Browns"] .eb{
+  background:linear-gradient(100deg,
+    #002244 0%, #002244 34%,
+    #191E22 50%,
+    #311D00 66%, #311D00 100%) !important;
+}
+.tile[data-target="49ers, Bears"] .eb{
+  background:linear-gradient(100deg,
+    #AA0000 0%, #AA0000 34%,
+    #5B0B15 50%,
+    #0B162A 66%, #0B162A 100%) !important;
+}
+.tile[data-target="Lions, Raiders"] .eb{
+  background:linear-gradient(100deg,
+    #0076B6 0%, #0076B6 34%,
+    #003B5B 50%,
+    #000000 66%, #000000 100%) !important;
+}
+.tile[data-target="Bengals, Colts"] .eb{
+  background:linear-gradient(100deg,
+    #FB4F14 0%, #FB4F14 34%,
+    #7E3E3A 50%,
+    #002C5F 66%, #002C5F 100%) !important;
+}
+.tile[data-target="Bills, Jets"] .eb{
+  background:linear-gradient(100deg,
+    #00338D 0%, #00338D 34%,
+    #0C464F 50%,
+    #125740 66%, #125740 100%) !important;
+}
+.tile[data-target="Steelers, Texans"] .eb{
+  background:linear-gradient(100deg,
+    #101820 0%, #101820 34%,
+    #091C28 50%,
+    #03202F 66%, #03202F 100%) !important;
+}
+.tile[data-target="Dolphins, Giants"] .eb{
+  background:linear-gradient(100deg,
+    #008E97 0%, #008E97 34%,
+    #044156 50%,
+    #0B2265 66%, #0B2265 100%) !important;
+}
+
+/* a taken pair card greys out entirely, fade included */
+.board-small .tile.taken .eb{filter:grayscale(1) brightness(.6)}
 
 /* ============================================================
    COMPACT MODE - tight type for the pairs tab. This block must NOT
