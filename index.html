@@ -58,6 +58,18 @@
   </div>
 
   <div class="panel">
+    <h2>Editing a name</h2>
+    <div class="note">
+      <strong>Click the greyed box itself</strong> — clicking anywhere on a filled box opens the edit panel:
+      the faded icon, the PURCHASER bar, or the gold name. Then change the spelling and press <strong>Save</strong>,
+      or press <strong>Remove</strong> to free that box for someone else. <strong>Cancel</strong> or <strong>Escape</strong>
+      closes it without changing anything. You never have to clear a board to fix one name.<br><br>
+      A name can also be renamed from the list above — click it there, or use <strong>Delete</strong> on that row
+      to remove just that one person.
+    </div>
+  </div>
+
+  <div class="panel">
     <h2>Resetting</h2>
     <div class="note">
       <strong>Every board has its own Reset.</strong> It clears only the boxes on that board — nothing else.
@@ -66,18 +78,6 @@
       <strong>Reset Pick your Pairs</strong> button in its header.<br><br>
       A reset only asks once and always offers <strong>Undo</strong> afterwards. <strong>Hide all</strong> is the
       only button that clears every board at once, and it's undoable too.
-    </div>
-  </div>
-
-  <div class="panel">
-    <h2>Fixing a name</h2>
-    <div class="note">
-      Click a name on the board — the little plaque inside a closed box — and a small editor opens right there.
-      Change the spelling and hit <strong>Save</strong>, or <strong>Remove</strong> to take that one person off.
-      In the list above, click any name to rename it, or use <strong>Delete</strong> on that row.<br><br>
-      A taken box carries no wording at all: it simply goes grey, with the customer's name still lit up in gold.<br><br>
-      <strong>Adding a board:</strong> open <code>boards.js</code> and add one entry to the list. The tab, the grid,
-      the heading, the counter and the Reset button all build themselves from it.
     </div>
   </div>
 
@@ -101,5 +101,69 @@
 <script src="teams.js"></script>
 <script src="boards.js"></script>
 <script src="app.js"></script>
+<script>
+/* ---------------------------------------------------------------
+   PATCH: edit a name without clearing the board.
+
+   Two faults in app.js stopped this working:
+
+     1. app.js installs a page-wide click handler that deletes any open
+        .chipeditor. The name on a filled box does try to stop the click,
+        but openEditor() runs refreshBoards() FIRST — and that rebuilds
+        the name element. So the opening click travels through DOM that
+        no longer carries the listener, reaches the document, and the
+        panel is deleted in the same instant it is created.
+
+     2. Only the small gold name was clickable. Clicking the faded icon
+        or the PURCHASER bar — most of the box — did nothing.
+
+   This patch fixes both. It runs after app.js, so the functions it
+   calls already exist. app.js on disk is left untouched.
+   --------------------------------------------------------------- */
+(function () {
+  /* the entry id holding a given tile, if any */
+  function entryIdFor(tile) {
+    if (!tile || !tile.dataset || !tile.dataset.target) return null;
+    if (typeof entries === "undefined" || !entries) return null;
+    var target = tile.dataset.target;
+    for (var i = 0; i < entries.length; i++) {
+      if (entries[i].target === target) return entries[i].id;
+    }
+    return null;
+  }
+
+  /* 1) a click that began on a tile, or inside the panel, must not reach
+        app.js's close-everything handler. Capture phase runs first,
+        so this beats the bubble-phase listener app.js installed. */
+  document.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (t.closest(".tile") || t.closest(".chipeditor")) ev.stopPropagation();
+  }, true);
+
+  /* 2) clicking anywhere on a FILLED box opens the edit panel.
+        The typing row is skipped, so entering a new name is unaffected. */
+  document.addEventListener("click", function (ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (t.closest(".chipeditor")) return;   /* inside the panel itself */
+    if (t.closest(".addbar")) return;       /* the username field row */
+
+    var tile = t.closest(".tile");
+    if (!tile) return;
+    if (!tile.classList.contains("taken")) return;  /* only a filled box */
+
+    var id = entryIdFor(tile);
+    if (id && typeof openEditor === "function") openEditor(id);
+  });
+
+  /* 3) Escape closes the panel */
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Escape") return;
+    var open = document.querySelector(".chipeditor");
+    if (open && open.parentNode) open.parentNode.removeChild(open);
+  });
+})();
+</script>
 </body>
 </html>
