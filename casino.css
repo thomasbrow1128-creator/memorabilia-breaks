@@ -640,7 +640,7 @@ button.ghost:hover::before{
 
 /* the whole tab is capped to the viewport, so 4 rows always fit */
 .wrap.pairs-fit{
-  height:calc(100vh - 104px);
+  height:calc(100vh - 96px);
   display:flex; flex-direction:column;
   overflow:hidden;
   padding:6px 16px 8px;
@@ -667,9 +667,11 @@ button.ghost:hover::before{
 
 /* the top block: the two clubs. The row's own colour is the first club;
    a diagonal wash of shadow separates it from the second, so the pair
-   reads as two teams rather than one flat colour. */
+   reads as two teams rather than one flat colour.
+   This panel takes the lion's share of the card height, so the pair
+   codes have room to be read across the room. */
 .board-small .tile .eb{
-  position:relative; flex:1 1 auto; min-height:0;
+  position:relative; flex:3 1 auto; min-height:56px;
   width:auto; align-self:auto; border-right:0;
   display:grid; place-items:center; overflow:hidden;
   border-bottom:1px solid rgba(0,0,0,.55);
@@ -686,20 +688,20 @@ button.ghost:hover::before{
   background:linear-gradient(180deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.04) 30%, transparent 52%);
 }
 
-/* both codes, big and centered */
+/* both codes, sized up now the panel is taller */
 .board-small .tile .eb .initials{
   position:relative; z-index:3;
-  font-size:clamp(14px,1.6vw,20px);
-  font-weight:900; letter-spacing:.05em; line-height:1.2;
+  font-size:clamp(16px,1.9vw,24px);
+  font-weight:900; letter-spacing:.08em; line-height:1.25;
   color:#fff; text-align:center; padding:0 8px;
   text-shadow:0 2px 8px rgba(0,0,0,.95), 0 0 20px rgba(255,255,255,.35);
   overflow-wrap:anywhere; word-break:break-word;
 }
 
-/* the gold name bar */
+/* the gold name bar - kept tight so the panel keeps the height */
 .board-small .tile .buyer{
   flex:0 0 auto; text-align:center;
-  padding:3px 6px 4px;
+  padding:2px 6px 3px;
   background:linear-gradient(180deg, rgba(0,0,0,.34), rgba(0,0,0,.16));
   border-top:1px solid rgba(255,255,255,.07);
 }
@@ -714,7 +716,7 @@ button.ghost:hover::before{
 
 /* the slim field row at the foot */
 .board-small .tile .addbar{
-  flex:0 0 auto; padding:4px; gap:4px;
+  flex:0 0 auto; padding:3px 4px; gap:4px;
   background:rgba(0,0,0,.42);
   border-top:1px solid rgba(160,205,240,.16);
 }
@@ -729,7 +731,7 @@ button.ghost:hover::before{
 /* the badge, small and out of the way */
 .board-small .tile .badge{top:2px; right:2px; font-size:6.5px; padding:0 3px; min-width:11px}
 
-/* the divisions board keeps its rows and gets the same plate colour */
+/* the divisions board gets the same plate colour so the family matches */
 .board-medium .tile{
   background:linear-gradient(180deg, #1d4269 0%, #12304f 44%, #0a1e34 78%, #061324 100%);
   border-radius:10px;
