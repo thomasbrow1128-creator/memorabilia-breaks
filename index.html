@@ -68,7 +68,8 @@
       <strong>Winners</strong> page automatically with the date and time. The box itself shows only the
       buyer's name, so the boards stay readable.<br><br>
       A name with no <strong>$</strong> is just an entry: it holds the box but logs no win, because no
-      item was named. Taking a name off a box removes its logged win too.
+      item was named. The winners log is append-only from the boards — only the
+      <strong>Clear winners</strong> button removes anything from it.
     </div>
   </div>
 
@@ -112,13 +113,40 @@
   </div>
 
   <div class="panel">
+    <h2>Tracking numbers <span class="count" id="trackingCount"></span></h2>
+    <p class="sub">Enter a tracking number by hand for each customer shipping an item.
+      Nothing here is filled in automatically. The ship date defaults to today.</p>
+
+    <form id="trackingForm" class="toolbar" autocomplete="off">
+      <div class="left">
+        <input id="trkName" type="text" placeholder="customer username" aria-label="Customer username">
+        <input id="trkCarrier" type="text" placeholder="carrier (optional)" aria-label="Carrier">
+        <input id="trkNumber" type="text" placeholder="tracking number" aria-label="Tracking number">
+        <input id="trkDate" type="date" aria-label="Date shipped">
+      </div>
+      <div class="left">
+        <button class="ghost" type="submit" id="trkAdd">Add tracking</button>
+      </div>
+    </form>
+
+    <div id="tracking"></div>
+
+    <div class="left" style="margin-top:14px">
+      <button class="ghost" id="trackingCsv" type="button">Download tracking</button>
+      <button class="ghost" id="trackingClear" type="button">Clear tracking</button>
+    </div>
+  </div>
+
+  <div class="panel">
     <h2>How this page fills up</h2>
     <div class="note">
-      Nothing is entered here by hand. Every time a name is placed on a board as
-      <strong>buyer$item</strong>, a line appears above with the date, the time, the username and the item.<br><br>
-      Click a <strong>username</strong> or an <strong>item</strong> in the table to correct a spelling,
-      or use <strong>Delete</strong> to remove just that one logged win. Clearing this page never changes the
-      boards, and clearing the boards never wipes this history.
+      <strong>Items won</strong> is filled automatically: every time a name is placed on a board as
+      <strong>buyer$item</strong>, a line appears with the date, the time, the username and the item.<br><br>
+      Nothing on the boards can remove a line from it — not Reset board, not Hide all, not removing or
+      renaming a name. Only <strong>Clear winners</strong> empties it.<br><br>
+      <strong>Tracking numbers</strong> are typed in by hand, one per customer, and are kept completely
+      separate. Clearing the winners list never touches tracking, and clearing tracking never touches the
+      winners list. Both offer Undo.
     </div>
   </div>
 
@@ -137,7 +165,7 @@
 </div>
 
 <!-- ORDER MATTERS: teams.js defines TEAMS, boards.js builds BOARDS from it,
-     app.js draws the boards, winners.js logs the items won. -->
+     winners.js logs the items won and their tracking, app.js draws it all. -->
 <script src="teams.js"></script>
 <script src="boards.js"></script>
 <script src="winners.js"></script>
@@ -161,7 +189,9 @@
     if (bBtn) bBtn.setAttribute("aria-selected", onWinners ? "false" : "true");
     if (wBtn) wBtn.setAttribute("aria-selected", onWinners ? "true" : "false");
 
+    /* repaint whichever list is now on screen */
     if (typeof renderWinners === "function") renderWinners();
+    if (typeof renderTracking === "function") renderTracking();
   }
 
   window.showPage = show;
@@ -172,9 +202,7 @@
   if (w) w.addEventListener("click", function () { show("winners"); });
 })();
 
-/* Start the winners log and the boards. app.js drives the boards; this
-   makes sure the winners page is ready whether or not a board has been
-   drawn yet. */
+/* Start the winners log, the tracking sheet and the boards. */
 (function () {
   function boot() {
     if (typeof initWinners === "function") initWinners();
