@@ -13,10 +13,10 @@
    page: the part before the $ is the username, the part after is the
    item won, and the box itself shows only the buyer.
 
-   CLEARING A BOARD NEVER CLEARS THE WINNERS PAGE. Reset board and
-   Hide all empty the boxes and leave the winners log exactly as it is,
-   because that log is a record of what was won. Nothing in this file
-   removes a winner line when a board is cleared.
+   THE WINNERS LOG IS APPEND-ONLY FROM HERE. Nothing on any board can
+   remove a line from the winners page — not Reset board, not Hide all,
+   not removing a single name, not a rename. A line leaves that page
+   ONLY through its own Clear winners button, which lives in winners.js.
    --------------------------------------------------------------- */
 
 const BACKEND_ENDPOINT = "";
@@ -249,10 +249,9 @@ function buildTile(t) {
     e.username = next;
     persist();
 
-    /* a rename corrects that ONE entry, so its winner line is rewritten
-       to match. Clearing a whole board never does this. */
-    if (typeof dropWinFor === "function") dropWinFor(e.target);
-    if (typeof recordWin === "function") recordWin(e.target, next);
+    /* A rename updates that box's winner line in place. It never DELETES
+       a line: from the boards, the log is append-only. */
+    if (typeof updateWinFor === "function") updateWinFor(e.target, next);
 
     closePanel();
     refreshBoards();
@@ -277,7 +276,8 @@ function buildTile(t) {
     const where = e.target;
     closePanel();
     removeUser(e.id);
-    $("saved").textContent = "Removed @" + name + " from " + where + " - that box is free again.";
+    $("saved").textContent = "Removed @" + name + " from " + where +
+      " - that box is free again. The winners log is unchanged.";
   });
   editCancel.addEventListener("click", function (ev) {
     ev.stopPropagation();
@@ -452,8 +452,7 @@ function resetBoard(boardId) {
   entries = entries.filter(function (e) { return !names[e.target]; });
   persist();
 
-  /* NOTE: nothing here touches the winners log. Clearing a board only
-     empties the boxes; every logged win stays on the winners page. */
+  /* NOTE: nothing here touches the winners log. */
   closeAllPanels(null);
   refreshBoards();
   renderEntries();
@@ -516,15 +515,12 @@ async function addUser(targetId, rawName) {
 }
 
 function removeUser(id) {
-  const gone = entries.filter(function (e) { return e.id === id; })[0];
   entries = entries.filter(function (e) { return e.id !== id; });
   persist();
 
-  /* removing ONE name by hand is a correction to that entry, so its
-     logged win goes with it. Clearing a whole board is different and
-     never does this — see resetBoard above. */
-  if (gone && typeof dropWinFor === "function") dropWinFor(gone.target);
-
+  /* NOTE: taking a name off a box does NOT remove its winner line.
+     Nothing on a board removes anything from the winners log. A line
+     leaves that page only via its own Clear winners button. */
   refreshBoards();
   renderEntries();
   if (typeof renderWinners === "function") renderWinners();
@@ -625,8 +621,8 @@ function startRowEdit(tr, entry) {
     entry.username = next;
     persist();
 
-    if (typeof dropWinFor === "function") dropWinFor(entry.target);
-    if (typeof recordWin === "function") recordWin(entry.target, next);
+    /* same rule: update the line, never delete it */
+    if (typeof updateWinFor === "function") updateWinFor(entry.target, next);
 
     refreshBoards();
     renderEntries();
