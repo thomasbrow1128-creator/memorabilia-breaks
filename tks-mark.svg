@@ -1,54 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="185 140 320 390" width="320" height="390">
   <defs>
-    <linearGradient id="gold" x1="0" y1="0" x2="0.5" y2="1">
-      <stop offset="0%" stop-color="#ffe9a8"/>
-      <stop offset="34%" stop-color="#d9a92c"/>
-      <stop offset="68%" stop-color="#a3760a"/>
-      <stop offset="100%" stop-color="#f0cf62"/>
+    <linearGradient id="gold" x1="0.1" y1="0" x2="0.7" y2="1">
+      <stop offset="0%" stop-color="#fff4cd"/>
+      <stop offset="26%" stop-color="#e8c05a"/>
+      <stop offset="54%" stop-color="#b8860f"/>
+      <stop offset="74%" stop-color="#f2d883"/>
+      <stop offset="100%" stop-color="#8f6407"/>
     </linearGradient>
-    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
-      <stop offset="52%" stop-color="#2f7fd0" stop-opacity=".28"/>
-      <stop offset="100%" stop-color="#2f7fd0" stop-opacity="0"/>
-    </radialGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="52%" stop-color="#e4ecf5"/>
+      <stop offset="100%" stop-color="#b9c6d4"/>
+    </linearGradient>
   </defs>
 
-  <!-- the circle field -->
-  <circle cx="320" cy="320" r="300" fill="#050b14"/>
-  <circle cx="320" cy="320" r="300" fill="url(#halo)"/>
-  <circle cx="320" cy="320" r="296" fill="none" stroke="#c9a227" stroke-opacity=".38" stroke-width="3"/>
-  <circle cx="320" cy="320" r="282" fill="none" stroke="#7fc4ff" stroke-opacity=".18" stroke-width="1"/>
-
-  <!-- blue rim light behind the white letters -->
-  <g transform="translate(-7 -7)" fill="#2b6fd0" opacity=".85">
-    <path d="M150.4 150 L352.4 150 L348.7 208 L284.7 208 L228.5 472 L156.5 472 L212.7 208 L146.4 208 Z"/>
-    <path d="M372 296 L478 296 L474.7 340 L406.7 340 L404.3 368 L472.3 368 L462.3 472 L356.3 472 L359.6 428 L427.6 428 L430 402 L362 402 Z"/>
-  </g>
-  <g transform="translate(7 -7)" fill="#2b6fd0" opacity=".85">
-    <path d="M150.4 150 L352.4 150 L348.7 208 L284.7 208 L228.5 472 L156.5 472 L212.7 208 L146.4 208 Z"/>
-    <path d="M372 296 L478 296 L474.7 340 L406.7 340 L404.3 368 L472.3 368 L462.3 472 L356.3 472 L359.6 428 L427.6 428 L430 402 L362 402 Z"/>
-  </g>
-  <g transform="translate(-7 7)" fill="#2b6fd0" opacity=".85">
-    <path d="M150.4 150 L352.4 150 L348.7 208 L284.7 208 L228.5 472 L156.5 472 L212.7 208 L146.4 208 Z"/>
-    <path d="M372 296 L478 296 L474.7 340 L406.7 340 L404.3 368 L472.3 368 L462.3 472 L356.3 472 L359.6 428 L427.6 428 L430 402 L362 402 Z"/>
-  </g>
-  <g transform="translate(7 7)" fill="#2b6fd0" opacity=".85">
-    <path d="M150.4 150 L352.4 150 L348.7 208 L284.7 208 L228.5 472 L156.5 472 L212.7 208 L146.4 208 Z"/>
-    <path d="M372 296 L478 296 L474.7 340 L406.7 340 L404.3 368 L472.3 368 L462.3 472 L356.3 472 L359.6 428 L427.6 428 L430 402 L362 402 Z"/>
+  <!-- the blue rim light sitting behind the white letters -->
+  <g fill="#2f7fd8" opacity="0.9">
+    <g transform="translate(-6.5 -6.5)"><path d="M234.9 150 L420.9 150 L406.1 208.1 L340.1 208.1 L246.9 472 L174.9 472 L268.1 208.1 L230.9 208.1 Z"/><path d="M380.6 251.9 L474.8 251.9 L470.3 366.3 L414.8 366.3 L412.3 388.4 L457.9 388.4 L452.2 503 L358 503 L364.6 444 L419.7 444 L421.4 400 L376.5 400 Z"/></g>
+    <g transform="translate(6.5 -6.5)"><path d="M234.9 150 L420.9 150 L406.1 208.1 L340.1 208.1 L246.9 472 L174.9 472 L268.1 208.1 L230.9 208.1 Z"/><path d="M380.6 251.9 L474.8 251.9 L470.3 366.3 L414.8 366.3 L412.3 388.4 L457.9 388.4 L452.2 503 L358 503 L364.6 444 L419.7 444 L421.4 400 L376.5 400 Z"/></g>
+    <g transform="translate(-6.5 6.5)"><path d="M234.9 150 L420.9 150 L406.1 208.1 L340.1 208.1 L246.9 472 L174.9 472 L268.1 208.1 L230.9 208.1 Z"/><path d="M380.6 251.9 L474.8 251.9 L470.3 366.3 L414.8 366.3 L412.3 388.4 L457.9 388.4 L452.2 503 L358 503 L364.6 444 L419.7 444 L421.4 400 L376.5 400 Z"/></g>
+    <g transform="translate(6.5 6.5)"><path d="M234.9 150 L420.9 150 L406.1 208.1 L340.1 208.1 L246.9 472 L174.9 472 L268.1 208.1 L230.9 208.1 Z"/><path d="M380.6 251.9 L474.8 251.9 L470.3 366.3 L414.8 366.3 L412.3 388.4 L457.9 388.4 L452.2 503 L358 503 L364.6 444 L419.7 444 L421.4 400 L376.5 400 Z"/></g>
   </g>
 
-  <!-- the letters themselves -->
-  <g fill="#ffffff">
-    <path d="M150.4 150 L352.4 150 L348.7 208 L284.7 208 L228.5 472 L156.5 472 L212.7 208 L146.4 208 Z"/>
-    <path d="M372 296 L478 296 L474.7 340 L406.7 340 L404.3 368 L472.3 368 L462.3 472 L356.3 472 L359.6 428 L427.6 428 L430 402 L362 402 Z"/>
-  </g>
-  <path d="M262 208 L320 208 L320 326 L392 208 L452 208 L370 344 L456 472 L394 472 L320 362 L320 472 L262 472 Z"
-        fill="url(#gold)" stroke="#8a5d00" stroke-width="1.5"/>
+  <!-- T and S in steel -->
+  <path d="M234.9 150 L420.9 150 L406.1 208.1 L340.1 208.1 L246.9 472 L174.9 472 L268.1 208.1 L230.9 208.1 Z" fill="url(#steel)"/>
+  <path d="M380.6 251.9 L474.8 251.9 L470.3 366.3 L414.8 366.3 L412.3 388.4 L457.9 388.4 L452.2 503 L358 503 L364.6 444 L419.7 444 L421.4 400 L376.5 400 Z" fill="url(#steel)"/>
 
-  <!-- the wordmark -->
-  <g fill="#d9a92c" font-family="Helvetica,Arial,sans-serif" font-size="46" font-weight="700"
-     letter-spacing="12" text-anchor="middle">
-    <text x="320" y="566">BREAKZ</text>
+  <!-- K in gold, over the top, with a fine dark edge -->
+  <path d="M320.3 208.1 L376.3 208.1 L371.4 326.1 L420.9 208.1 L486.9 208.1 L404.1 336.6 L476.1 472 L408.1 472 L371.7 373.5 L367.6 472 L311.6 472 Z"
+        fill="url(#gold)" stroke="#5f4004" stroke-width="1.6"/>
+
+  <!-- the wordmark, spaced to match the mark -->
+  <g fill="#dca92c" font-family="Helvetica,Arial,sans-serif" font-size="40" font-weight="700"
+     letter-spacing="10" text-anchor="middle">
+    <text x="345" y="502">BREAKZ</text>
   </g>
-  <rect x="150" y="548" width="60" height="3" fill="#c9a227" opacity=".8"/>
-  <rect x="430" y="548" width="60" height="3" fill="#c9a227" opacity=".8"/>
+  <rect x="228" y="487" width="52" height="3" fill="#c9a227"/>
+  <rect x="410" y="487" width="52" height="3" fill="#c9a227"/>
 </svg>
