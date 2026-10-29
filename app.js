@@ -12,6 +12,11 @@
    WINNERS. A name entered as  buyer$item  logs a win on the winners
    page: the part before the $ is the username, the part after is the
    item won, and the box itself shows only the buyer.
+
+   CLEARING A BOARD NEVER CLEARS THE WINNERS PAGE. Reset board and
+   Hide all empty the boxes and leave the winners log exactly as it is,
+   because that log is a record of what was won. Nothing in this file
+   removes a winner line when a board is cleared.
    --------------------------------------------------------------- */
 
 const BACKEND_ENDPOINT = "";
@@ -241,25 +246,19 @@ function buildTile(t) {
     const next = normalizeName(editInput.value);
     if (!next) { editInput.focus(); return; }
 
-    const wasItem = typeof splitEntry === "function" ? splitEntry(e.username).item : "";
     e.username = next;
     persist();
 
-    /* the name changed: keep its winner line in step */
+    /* a rename corrects that ONE entry, so its winner line is rewritten
+       to match. Clearing a whole board never does this. */
     if (typeof dropWinFor === "function") dropWinFor(e.target);
-    if (typeof recordWin === "function") {
-      if (splitEntry(next).item) {
-        recordWin(e.target, next);
-      } else if (wasItem) {
-        recordWin(e.target, e.username);
-      }
-    }
+    if (typeof recordWin === "function") recordWin(e.target, next);
 
     closePanel();
     refreshBoards();
     renderEntries();
     if (typeof renderWinners === "function") renderWinners();
-    $("saved").textContent = "Renamed to @" + next + " on " + e.target;
+    $("saved").textContent = "Renamed to @" + buyerOnly(next) + " on " + e.target;
   }
 
   editSave.addEventListener("click", function (ev) {
@@ -445,23 +444,21 @@ function resetBoard(boardId) {
 
   const line1 = "Remove all " + doomed.length + " " +
     (doomed.length === 1 ? "name" : "names") + " from the " + board.label + " board?";
-  const line2 = "Only that board is cleared. You can put them back with Undo.";
+  const line2 = "Only that board is cleared, and the winners log is kept. " +
+    "You can put the names back with Undo.";
   if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
 
   undoSnapshot = entries.slice();
   entries = entries.filter(function (e) { return !names[e.target]; });
   persist();
 
-  /* every box on that board is now empty, so its winner lines go too */
-  if (typeof dropWinFor === "function") {
-    Object.keys(names).forEach(function (n) { dropWinFor(n); });
-  }
-
+  /* NOTE: nothing here touches the winners log. Clearing a board only
+     empties the boxes; every logged win stays on the winners page. */
   closeAllPanels(null);
   refreshBoards();
   renderEntries();
   if (typeof renderWinners === "function") renderWinners();
-  showUndo("Cleared " + doomed.length + " from " + board.label + ".");
+  showUndo("Cleared " + doomed.length + " from " + board.label + " - the winners log is unchanged.");
 }
 
 async function addUser(targetId, rawName) {
@@ -523,7 +520,9 @@ function removeUser(id) {
   entries = entries.filter(function (e) { return e.id !== id; });
   persist();
 
-  /* the box no longer holds a name, so its logged win goes too */
+  /* removing ONE name by hand is a correction to that entry, so its
+     logged win goes with it. Clearing a whole board is different and
+     never does this — see resetBoard above. */
   if (gone && typeof dropWinFor === "function") dropWinFor(gone.target);
 
   refreshBoards();
@@ -752,18 +751,17 @@ document.addEventListener("DOMContentLoaded", function () {
   $("clearAll").addEventListener("click", function () {
     if (!entries.length) return;
     const line1 = "Hide all " + entries.length + " names from every board?";
-    const line2 = "You can put them straight back with Undo.";
+    const line2 = "The winners log is kept. You can put the names straight back with Undo.";
     if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
     undoSnapshot = entries.slice();
     entries = [];
     persist();
 
-    /* every board is empty now; the winners log is NOT cleared, because
-       it is a history of what was won, not of what sits on a board. */
+    /* NOTE: the winners log is deliberately NOT touched here either. */
     closeAllPanels(null);
     refreshBoards();
     renderEntries();
-    showUndo("Hid all " + undoSnapshot.length + " names.");
+    showUndo("Hid all " + undoSnapshot.length + " names - the winners log is unchanged.");
   });
 
   $("undobtn").addEventListener("click", function () {
