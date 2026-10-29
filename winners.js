@@ -1,60 +1,42 @@
 /* ============================================================
    MEMORABILIA BREAKS - WINNERS
 
-   A log of every item won, captured automatically from the boards, with
-   a tracking number typed in on each line.
+   The win log. Every item won, captured automatically from the boards,
+   with a tracking number typed in on each line.
 
-   HOW THE WIN LOG WORKS. When a name is entered into a board box in the
-   form
+   WHERE THE DATA LIVES. In a shared Supabase database, not in this
+   browser. That is what makes it live: enter a win on your phone and it
+   is on your laptop, and on the customer ledger, about a second later.
 
-       buyer$item
+   THE SIGN-IN. Writing needs a session, and getting one needs a
+   password. This page asks for it in the box at the top of the winners
+   screen and keeps it for the tab only - never written to a file, to
+   localStorage, or anywhere else. Close the tab and it is gone. Reading
+   needs no password at all, which is how customers see their own items.
 
-   everything BEFORE the "$" becomes the winner's username, and
-   everything AFTER it becomes the item won. Both are recorded here with
-   the date and time, and the box itself shows only the buyer's name.
+   HOW THE WIN LOG WORKS. A name entered as  buyer$item  logs a win: the
+   part before the $ is the username, the part after is the item won, and
+   the box itself shows only the buyer's name.
 
-   A plain name with no "$" is just an entry: it still holds the box,
-   but nothing is written to the winners log, because no item is named.
+   A plain name with no "$" is just an entry: it holds the box, but
+   nothing is logged, because no item is named.
 
    THE LOG IS APPEND-ONLY FROM THE BOARDS. Nothing done on a board can
-   remove a line from this page:
-     - Reset board            -> log untouched
-     - Hide all               -> log untouched
-     - removing one name      -> log untouched
-     - renaming a name        -> the line is UPDATED in place
-   The ONLY way a line leaves is the Clear winners button on this page.
+   remove a line - not Reset board, not Hide all, not removing a name,
+   not a rename (a rename UPDATES the line in place). A line leaves only
+   through its own Delete button, or Clear winners.
 
-   TRACKING NUMBERS. Each winner line carries its own small tracking
-   field, right beside the win. Type a number there and it is saved on
-   that line. A tracking number is part of the win's own row, not a
-   separate list.
+   AN OLD LOCAL LOG IS CARRIED ACROSS. The first time you sign in, any
+   wins still sitting in this browser from the previous version are
+   pushed up to the shared database, once, so nothing is lost.
    ============================================================ */
 
-const WINNERS_KEY = "memorabilia-breaks-winners-v1";
-
-let winners = [];
-let undoWinnersSnapshot = null;
+let wins = [];
+let undoWinsSnapshot = null;
 let winnersUndoTimer = null;
+let sbReady = false;
 
-/* ---------- storage ---------- */
-
-function loadWinners() {
-  try {
-    winners = JSON.parse(localStorage.getItem(WINNERS_KEY) || "[]");
-    if (!Array.isArray(winners)) winners = [];
-  } catch (e) {
-    winners = [];
-  }
-}
-
-function saveWinners() {
-  try {
-    localStorage.setItem(WINNERS_KEY, JSON.stringify(winners));
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
+const W = (id) => document.getElementById(id);
 
 /* Split an entry into its two parts.
 
@@ -74,82 +56,167 @@ function splitEntry(raw) {
   };
 }
 
-/* ---------- the win log ---------- */
+/* the local log from the previous version - only read, for the import */
+const OLD_WINNERS_KEY = "memorabilia-breaks-winners-v1";
+
+/* ---------- reading ---------- */
+
+async function loadWins() {
+  try {
+    wins = await sbListWins();
+    sbReady = true;
+  } catch (e) {
+    sbReady = false;
+    wins = [];
+  }
+  renderWinners();
+}
+
+/* ---------- writing ---------- */
 
 /* Record a win. Called when a name is entered that names an item. */
-function recordWin(target, rawEntry) {
+async function recordWin(target, rawEntry) {
   const parts = splitEntry(rawEntry);
 
   /* nothing to log unless an item was actually named */
   if (!parts.item) return null;
 
-  const when = new Date();
-  const win = {
-    id: "w" + Date.now() + Math.random().toString(36).slice(2, 7),
+  if (!sbSignedIn()) {
+    throw new Error("Sign in at the top of this page before entering wins.");
+  }
+
+  const saved = await sbAddWin({
     username: parts.username || "(no name)",
     item: parts.item,
-    target: target,
-    tracking: "",
-    at: when.toISOString()
-  };
+    team: target,
+    tracking: ""
+  });
 
-  winners.unshift(win);
-  saveWinners();
-  renderWinners();
-  return win;
+  if (saved) {
+    wins.unshift(saved);
+    renderWinners();
+  }
+  return saved;
 }
 
-/* Update the winner line for a box after a rename, IN PLACE.
+/* Update the win line for a box after a rename, IN PLACE.
 
-   A rename must never delete a line — the log is append-only from the
-   boards. So this rewrites the username and item on the existing line
-   and leaves its id, date, time and tracking number untouched. */
-function updateWinFor(target, rawEntry) {
+   A rename must never delete a line - the log is append-only from the
+   boards. This rewrites username and item on the existing row and leaves
+   its id, date, time and tracking number untouched. */
+async function updateWinFor(target, rawEntry) {
   const parts = splitEntry(rawEntry);
-  const hit = winners.filter(function (x) { return x.target === target; })[0];
+  const hit = wins.filter(function (x) { return x.team === target; })[0];
 
   if (!hit) {
     if (parts.item) return recordWin(target, rawEntry);
     return null;
   }
 
-  hit.username = parts.username || "(no name)";
-  hit.item = parts.item;
-  saveWinners();
-  renderWinners();
+  if (!sbSignedIn()) return hit;
+
+  try {
+    const saved = await sbUpdateWin(hit.id, {
+      username: parts.username || "(no name)",
+      item: parts.item
+    });
+    if (saved) {
+      hit.username = saved.username;
+      hit.item = saved.item;
+      renderWinners();
+    }
+  } catch (e) {
+    /* the rename stays on the board; the log line keeps its old text */
+  }
   return hit;
 }
 
-/* Remove the log entry for a box, if there is one.
+/* ---------- the sign-in bar ---------- */
 
-   NOTE: nothing on a board calls this any more. The log is append-only
-   from the boards, so this exists only for internal use. */
-function dropWinFor(target) {
-  const before = winners.length;
-  winners = winners.filter(function (w) { return w.target !== target; });
-  if (winners.length !== before) saveWinners();
+function paintSignIn() {
+  const who = W("signInWho");
+  const form = W("signInForm");
+  if (!form) return;
+
+  if (sbSignedIn()) {
+    const u = sbUser();
+    form.style.display = "none";
+    if (who) {
+      who.style.display = "";
+      who.textContent = u && u.email ? "Signed in as " + u.email : "Signed in";
+    }
+  } else {
+    form.style.display = "";
+    if (who) who.style.display = "none";
+  }
+}
+
+function wireSignIn() {
+  const form = W("signInForm");
+  if (!form) return;
+
+  form.addEventListener("submit", async function (ev) {
+    ev.preventDefault();
+    const email = (W("signInEmail").value || "").trim();
+    const pass = W("signInPass").value || "";
+    const msg = W("signInMsg");
+    const btn = W("signInGo");
+
+    if (!email || !pass) {
+      if (msg) msg.textContent = "Enter the email and password.";
+      return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (msg) msg.textContent = "Signing in...";
+
+    try {
+      await sbSignIn(email, pass);
+      /* the password is used once and dropped - never stored */
+      W("signInPass").value = "";
+      if (msg) msg.textContent = "";
+      paintSignIn();
+      await loadWins();
+      const moved = await importLocalWins();
+      if (moved && msg) {
+        msg.textContent = "Brought " + moved + (moved === 1 ? " old win" : " old wins") +
+          " across from this browser.";
+      }
+    } catch (e) {
+      if (msg) msg.textContent = "Could not sign in: " + e.message;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+
+  const out = W("signInOut");
+  if (out) out.addEventListener("click", function () {
+    sbSignOut();
+    paintSignIn();
+  });
 }
 
 /* ---------- the page ---------- */
 
 function renderWinners() {
-  const host = document.getElementById("winners");
+  const host = W("winners");
   if (!host) return;
 
-  const count = document.getElementById("winnerCount");
+  const count = W("winnerCount");
   if (count) {
-    count.textContent = winners.length
-      ? "(" + winners.length + (winners.length === 1 ? " win" : " wins") + ")"
+    count.textContent = wins.length
+      ? "(" + wins.length + (wins.length === 1 ? " win" : " wins") + ")"
       : "";
   }
 
   host.innerHTML = "";
 
-  if (!winners.length) {
+  if (!wins.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = "No winners yet. Enter a name on any board as  buyer$item  "
-      + "and it is logged here automatically.";
+    p.textContent = sbReady
+      ? "No winners yet. Enter a name on any board as  buyer$item  and it is logged here automatically."
+      : "Could not reach the ledger. Check the connection, then press Refresh.";
     host.appendChild(p);
     return;
   }
@@ -163,8 +230,8 @@ function renderWinners() {
 
   const tbody = document.createElement("tbody");
 
-  winners.forEach(function (w) {
-    const when = new Date(w.at);
+  wins.forEach(function (w) {
+    const when = new Date(w.won_at);
     const good = !isNaN(when);
 
     const tr = document.createElement("tr");
@@ -179,7 +246,7 @@ function renderWinners() {
     nameBtn.className = "nameedit";
     nameBtn.textContent = "@" + w.username;
     nameBtn.title = "Click to change the username";
-    nameBtn.addEventListener("click", function () { editWinner(tr, w, "username"); });
+    nameBtn.addEventListener("click", function () { editWin(tr, w, "username"); });
     tdUser.appendChild(nameBtn);
     tr.appendChild(tdUser);
 
@@ -190,15 +257,15 @@ function renderWinners() {
     itemBtn.className = "nameedit";
     itemBtn.textContent = w.item;
     itemBtn.title = "Click to change the item";
-    itemBtn.addEventListener("click", function () { editWinner(tr, w, "item"); });
+    itemBtn.addEventListener("click", function () { editWin(tr, w, "item"); });
     tdItem.appendChild(itemBtn);
     tr.appendChild(tdItem);
 
-    tr.appendChild(textCell(w.target));
+    tr.appendChild(textCell(w.team));
 
     /* ---- TRACKING, on the line itself ----
-       A small always-visible input. Type a number and it saves on that
-       win the moment you leave the field or press Enter. */
+       Saves on blur or Enter, straight to the shared database, so the
+       customer sees it on their ledger at the same moment. */
     const tdTrk = document.createElement("td");
     tdTrk.className = "trackcell";
 
@@ -211,12 +278,18 @@ function renderWinners() {
     trkInput.autocomplete = "off";
     trkInput.spellcheck = false;
 
-    function saveTracking() {
+    async function saveTracking() {
       const next = trkInput.value.trim();
-      if (next === (w.tracking || "")) return;   /* nothing changed */
-      w.tracking = next;
-      saveWinners();
-      flash(trkInput);
+      if (next === (w.tracking || "")) return;
+      if (!sbSignedIn()) { trkInput.value = w.tracking || ""; return; }
+      try {
+        const saved = await sbUpdateWin(w.id, { tracking: next });
+        if (saved) { w.tracking = saved.tracking; flash(trkInput); }
+      } catch (e) {
+        trkInput.value = w.tracking || "";
+        const note = W("saved");
+        if (note) note.textContent = "Could not save that tracking number.";
+      }
     }
 
     trkInput.addEventListener("blur", saveTracking);
@@ -232,17 +305,23 @@ function renderWinners() {
     tdTrk.appendChild(trkInput);
     tr.appendChild(tdTrk);
 
-    /* delete */
+    /* delete just this line */
     const td = document.createElement("td");
     const del = document.createElement("button");
     del.type = "button";
     del.className = "del";
     del.textContent = "Delete";
     del.title = "Remove only this logged win";
-    del.addEventListener("click", function () {
-      winners = winners.filter(function (x) { return x.id !== w.id; });
-      saveWinners();
-      renderWinners();
+    del.addEventListener("click", async function () {
+      if (!sbSignedIn()) return;
+      try {
+        await sbDeleteWin(w.id);
+        wins = wins.filter(function (x) { return x.id !== w.id; });
+        renderWinners();
+      } catch (e) {
+        const note = W("saved");
+        if (note) note.textContent = "Could not delete that line.";
+      }
     });
     td.appendChild(del);
     tr.appendChild(td);
@@ -262,7 +341,7 @@ function flash(el) {
 }
 
 /* rename one field of a logged win, in place */
-function editWinner(tr, win, field) {
+function editWin(tr, win, field) {
   if (tr.dataset.editing === "1") return;
   tr.dataset.editing = "1";
 
@@ -292,11 +371,16 @@ function editWinner(tr, win, field) {
   td.appendChild(save);
   td.appendChild(cancel);
 
-  function commit() {
+  async function commit() {
     const next = input.value.trim();
     if (!next) { input.focus(); return; }
-    win[field] = next;
-    saveWinners();
+    if (!sbSignedIn()) { renderWinners(); return; }
+    const patch = {};
+    patch[field] = next;
+    try {
+      const saved = await sbUpdateWin(win.id, patch);
+      if (saved) win[field] = saved[field];
+    } catch (e) { /* leaves the old text in place */ }
     renderWinners();
   }
 
@@ -314,29 +398,29 @@ function editWinner(tr, win, field) {
 /* ---------- export ---------- */
 
 function downloadWinnersCsv() {
-  const saved = document.getElementById("saved");
-  if (!winners.length) {
-    if (saved) saved.textContent = "Nothing to export yet.";
+  const note = W("saved");
+  if (!wins.length) {
+    if (note) note.textContent = "Nothing to export yet.";
     return;
   }
 
-  const NEWLINE = String.fromCharCode(10);
+  const N = String.fromCharCode(10);
   const rows = ["date,time,username,item_won,team,tracking_number"];
 
-  winners.slice().reverse().forEach(function (w) {
-    const when = new Date(w.at);
+  wins.slice().reverse().forEach(function (w) {
+    const when = new Date(w.won_at);
     const good = !isNaN(when);
     rows.push([
       csvEscape(good ? when.toLocaleDateString() : ""),
       csvEscape(good ? when.toLocaleTimeString() : ""),
       csvEscape(w.username),
       csvEscape(w.item),
-      csvEscape(w.target),
+      csvEscape(w.team),
       csvEscape(w.tracking || "")
     ].join(","));
   });
 
-  const blob = new Blob([rows.join(NEWLINE)], { type: "text/csv;charset=utf-8" });
+  const blob = new Blob([rows.join(N)], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "memorabilia-breaks-winners.csv";
@@ -346,25 +430,33 @@ function downloadWinnersCsv() {
   URL.revokeObjectURL(a.href);
 }
 
-/* clear the whole winners log, with undo.
+/* ---------- clear the whole log, with undo ---------- */
 
-   THIS IS THE ONLY THING THAT EMPTIES THE WINNERS LIST. */
-function clearWinners() {
-  if (!winners.length) return;
-  const line1 = "Remove all " + winners.length + " logged wins?";
-  const line2 = "This clears the winners list only. The boards are not touched.";
+async function clearWinners() {
+  if (!wins.length || !sbSignedIn()) return;
+  const line1 = "Remove all " + wins.length + " logged wins?";
+  const line2 = "This clears the shared ledger too - customers will no longer see these items.";
   if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
 
-  undoWinnersSnapshot = winners.slice();
-  winners = [];
-  saveWinners();
-  renderWinners();
-  showWinnersUndo("Cleared " + undoWinnersSnapshot.length + " logged wins.");
+  undoWinsSnapshot = wins.slice();
+
+  try {
+    for (let i = 0; i < undoWinsSnapshot.length; i++) {
+      await sbDeleteWin(undoWinsSnapshot[i].id);
+    }
+    wins = [];
+    renderWinners();
+    showWinnersUndo("Cleared " + undoWinsSnapshot.length + " logged wins.");
+  } catch (e) {
+    const note = W("saved");
+    if (note) note.textContent = "Could not clear every line. Press Refresh to see what remains.";
+    await loadWins();
+  }
 }
 
 function showWinnersUndo(message) {
-  const bar = document.getElementById("winnerUndoBar");
-  const txt = document.getElementById("winnerUndoText");
+  const bar = W("winnerUndoBar");
+  const txt = W("winnerUndoText");
   if (!bar || !txt) return;
   txt.textContent = message;
   bar.classList.add("show");
@@ -372,30 +464,102 @@ function showWinnersUndo(message) {
   winnersUndoTimer = setTimeout(function () { bar.classList.remove("show"); }, 14000);
 }
 
-function initWinners() {
-  loadWinners();
-  renderWinners();
+/* ---------- bringing across anything already in this browser ----------
 
-  const csv = document.getElementById("winnerCsv");
+   The previous version kept wins in localStorage. Anything still there
+   is pushed up to the shared database once, then the local copy is
+   cleared so it never doubles up. Runs only when signed in. */
+async function importLocalWins() {
+  if (!sbSignedIn()) return 0;
+
+  let pending = [];
+  try {
+    const raw = localStorage.getItem(OLD_WINNERS_KEY);
+    if (raw) {
+      const old = JSON.parse(raw);
+      if (Array.isArray(old)) pending = old;
+    }
+  } catch (e) {
+    return 0;
+  }
+
+  if (!pending.length) return 0;
+
+  let moved = 0;
+  for (let i = 0; i < pending.length; i++) {
+    const o = pending[i];
+    if (!o || !o.item) continue;
+
+    /* skip anything already in the shared ledger */
+    const dupe = wins.some(function (w) {
+      return w.username === o.username && w.item === o.item && w.team === o.target;
+    });
+    if (dupe) continue;
+
+    try {
+      const saved = await sbAddWin({
+        username: o.username || "(no name)",
+        item: o.item,
+        team: o.target || "-",
+        tracking: o.tracking || ""
+      });
+      if (saved) { wins.unshift(saved); moved++; }
+    } catch (e) { /* one bad row never stops the rest */ }
+  }
+
+  try { localStorage.removeItem(OLD_WINNERS_KEY); } catch (e) {}
+  renderWinners();
+  return moved;
+}
+
+/* ---------- start ---------- */
+
+function initWinners() {
+  wireSignIn();
+  paintSignIn();
+
+  const csv = W("winnerCsv");
   if (csv) csv.addEventListener("click", downloadWinnersCsv);
 
-  const clear = document.getElementById("winnerClear");
+  const clear = W("winnerClear");
   if (clear) clear.addEventListener("click", clearWinners);
 
-  const undo = document.getElementById("winnerUndoBtn");
-  if (undo) undo.addEventListener("click", function () {
-    if (!undoWinnersSnapshot) return;
-    winners = undoWinnersSnapshot;
-    undoWinnersSnapshot = null;
-    saveWinners();
+  const refresh = W("winnerRefresh");
+  if (refresh) refresh.addEventListener("click", async function () {
+    await loadWins();
+    const note = W("saved");
+    if (note) note.textContent = "Ledger refreshed.";
+  });
+
+  const undo = W("winnerUndoBtn");
+  if (undo) undo.addEventListener("click", async function () {
+    if (!undoWinsSnapshot || !sbSignedIn()) return;
+    const bar = W("winnerUndoBar");
+    if (bar) bar.classList.remove("show");
+    const back = undoWinsSnapshot;
+    undoWinsSnapshot = null;
+    for (let i = 0; i < back.length; i++) {
+      const o = back[i];
+      try {
+        const saved = await sbAddWin({
+          username: o.username, item: o.item, team: o.team, tracking: o.tracking || ""
+        });
+        if (saved) wins.unshift(saved);
+      } catch (e) { /* keep going */ }
+    }
     renderWinners();
-    const bar = document.getElementById("winnerUndoBar");
+  });
+
+  const close = W("winnerUndoClose");
+  if (close) close.addEventListener("click", function () {
+    const bar = W("winnerUndoBar");
     if (bar) bar.classList.remove("show");
   });
 
-  const close = document.getElementById("winnerUndoClose");
-  if (close) close.addEventListener("click", function () {
-    const bar = document.getElementById("winnerUndoBar");
-    if (bar) bar.classList.remove("show");
+  loadWins().then(function () {
+    if (sbSignedIn()) importLocalWins();
   });
+
+  /* Follow the table. A win entered on another device lands here too. */
+  sbWatchWins(function () { loadWins(); });
 }
