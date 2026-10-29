@@ -110,13 +110,13 @@ function setTab(tabId) {
   if (stack.length > 1) {
     const rest = stack.slice(1).map(function (b) { return b.label; }).join(" and ");
     $("boardSub").textContent =
-      "Both boards on this screen \u2014 " + board.label + " on top, " + rest +
+      "Both boards on this screen - " + board.label + " on top, " + rest +
       " underneath. Each has its own Reset.";
   } else {
     $("boardSub").textContent =
       board.boxes.length + " boxes. Type a username into a box to put them on it.";
   }
-  $("filter").placeholder = "Filter " + board.label.toLowerCase() + "\u2026";
+  $("filter").placeholder = "Filter " + board.label.toLowerCase();
 
   renderBoards();
   refreshBoards();
@@ -337,7 +337,7 @@ function refreshBoardCounts() {
     if (!board) return;
     const n = countOnBoard(id);
     el.textContent = board.boxes.length + (board.boxes.length === 1 ? " box" : " boxes") +
-      (n ? " \u00b7 " + n + (n === 1 ? " name" : " names") : "");
+      (n ? " - " + n + (n === 1 ? " name" : " names") : "");
   });
 
   document.querySelectorAll("[data-reset-for]").forEach(function (el) {
@@ -521,7 +521,7 @@ function renderEntries() {
     tr.appendChild(tdWhere);
 
     const when = new Date(e.createdAt);
-    tr.appendChild(textCell(isNaN(when) ? "\u2014" : when.toLocaleString()));
+    tr.appendChild(textCell(isNaN(when) ? "-" : when.toLocaleString()));
 
     const td = document.createElement("td");
     const del = document.createElement("button");
