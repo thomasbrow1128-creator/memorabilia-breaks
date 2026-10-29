@@ -1,1 +1,139 @@
-@@LEDGER@@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TKS Breakz — Order Ledger</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  @import url("casino.css");
+
+  /* ---- the customer page ----------------------------------------
+     Only the pieces this page needs. Nothing here can write to the
+     database: the ledger signs in as nobody and reads only. */
+
+  .ledger-search{
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+    margin:0 0 20px;
+  }
+  .ledger-search input{
+    flex:1 1 260px; min-width:0; max-width:420px; font-family:inherit;
+    background:linear-gradient(180deg, rgba(2,12,24,.85), rgba(4,18,34,.7));
+    border:1px solid rgba(201,162,39,.55); color:#eaf3ff;
+    border-radius:11px; padding:13px 18px; font-size:15px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,.6);
+  }
+  .ledger-search input::placeholder{color:#7f98b0}
+  .ledger-search input:focus{
+    outline:none; border-color:#ffd76a;
+    box-shadow:0 0 0 3px rgba(255,215,106,.22), inset 0 2px 8px rgba(0,0,0,.6);
+  }
+  .ledger-search button{
+    font-family:inherit; font-size:13px; font-weight:900;
+    letter-spacing:.08em; text-transform:uppercase; cursor:pointer;
+    padding:13px 26px; border-radius:11px;
+    color:#221803; border:1px solid #ffeeae;
+    background:linear-gradient(180deg, #fff8dc, #f2d264 42%, #b6880f 100%);
+    box-shadow:0 4px 16px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.85);
+  }
+  .ledger-search button:hover{filter:brightness(1.08); transform:translateY(-1px)}
+
+  .you{
+    display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline;
+    margin:0 0 16px; padding:12px 16px; border-radius:11px;
+    background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(0,20,38,.4));
+    border-left:4px solid var(--rail);
+    font-size:13px; color:#dbe8f2;
+  }
+  .you b{color:#ffd75e; font-weight:900}
+  .you a{margin-left:auto; color:#a9c3dc; font-size:12px; cursor:pointer}
+
+  .searched{
+    font-size:12px; font-weight:800; letter-spacing:.1em;
+    text-transform:uppercase; color:#ffd75e; margin:0 0 12px;
+  }
+
+  .live{
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:11px; font-weight:800; letter-spacing:.12em;
+    text-transform:uppercase; color:#7fe0a0;
+  }
+  .live::before{
+    content:""; width:8px; height:8px; border-radius:50%;
+    background:#7fe0a0; box-shadow:0 0 10px rgba(127,224,160,.9);
+    animation:pulse 2s ease-in-out infinite;
+  }
+  .live.off{color:#8ea9c4}
+  .live.off::before{background:#8ea9c4; box-shadow:none; animation:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .trk b{
+    display:inline-block; padding:4px 11px; border-radius:7px;
+    background:rgba(4,20,34,.85); border:1px solid rgba(201,162,39,.5);
+    color:#ffe9a8; font-size:12.5px; letter-spacing:.03em;
+  }
+  .trk span{color:#8ea9c4; font-size:12px}
+</style>
+</head>
+<body>
+
+<header class="compact">
+  <a class="brand" href="./" aria-label="TKS Breakz home">
+    <img src="logo.png" alt="TKS Breakz">
+  </a>
+  <h1>Order Ledger</h1>
+  <p>Look up your items and tracking numbers</p>
+</header>
+
+<div class="wrap">
+
+  <div class="boardhead">
+    <h2>Order Ledger</h2>
+    <span id="ledgerCount"></span>
+  </div>
+
+  <div class="toolbar">
+    <div class="left">
+      <span class="live" id="liveBadge">Live</span>
+    </div>
+    <div class="left">
+      <button class="ghost" id="ledgerRefresh" type="button">Refresh</button>
+      <button class="ghost" id="ledgerCsv" type="button">Download my items</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Find your items</h2>
+    <p class="sub">
+      Type the username you used when you entered the break. Everything you won
+      shows below, and updates by itself the moment it is recorded.
+    </p>
+
+    <form class="ledger-search" id="searchForm" autocomplete="off">
+      <input id="who" type="search" placeholder="your username" aria-label="Your username" autocomplete="off" spellcheck="false">
+      <button type="submit">Look up</button>
+    </form>
+
+    <div id="youBox" style="display:none"></div>
+    <p class="searched" id="searchedFor" style="display:none"></p>
+    <div id="ledger"></div>
+  </div>
+
+  <div class="panel">
+    <h2>How this page works</h2>
+    <div class="note">
+      This is the customer ledger. It holds <strong>only what you won</strong> — the item,
+      the team box it came from, the date, and a tracking number once your order ships.<br><br>
+      Nothing on this page can be changed from here. It is read-only: you can look your
+      orders up, and you cannot alter anyone's record, including your own.<br><br>
+      The list refreshes on its own. Leave the page open and a new win appears within a
+      second or two of being entered — no need to reload.
+    </div>
+  </div>
+
+</div>
+
+<script src="sb-client.js"></script>
+<script src="ledger-page.js"></script>
+</body>
+</html>
