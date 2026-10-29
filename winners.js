@@ -157,7 +157,7 @@ function renderWinners() {
   table.className = "winnersTable";
   const thead = document.createElement("thead");
   thead.innerHTML = "<tr><th>Date</th><th>Time</th><th>Username</th>"
-    + "<th>Item won</th><th>Box</th><th>Tracking number</th><th></th></tr>";
+    + "<th>Item won</th><th>Team</th><th>Tracking number</th><th></th></tr>";
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
@@ -320,7 +320,7 @@ function downloadWinnersCsv() {
   }
 
   const NEWLINE = String.fromCharCode(10);
-  const rows = ["date,time,username,item_won,box,tracking_number"];
+  const rows = ["date,time,username,item_won,team,tracking_number"];
 
   winners.slice().reverse().forEach(function (w) {
     const when = new Date(w.at);
