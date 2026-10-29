@@ -6,6 +6,11 @@
    order ships. It updates by itself - a win entered on the board
    reaches this page in about a second.
 
+   WIDE SCREEN: a five-column table.
+   NARROW SCREEN: each winner becomes its own card instead, because five
+   columns cannot fit a phone. The classes below are what the mobile
+   stylesheet in ledger.html hooks onto, so each value has a name.
+
    THIS PAGE CANNOT WRITE. It never signs in, so every request it makes
    carries only the publishable key, and the database's own rules refuse
    a write from that key. Read-only is enforced by the database, not by
@@ -29,8 +34,9 @@ function setLive(on) {
   b.classList.toggle("off", !on);
 }
 
-function td(text) {
+function td(text, cls) {
   const el = document.createElement("td");
+  if (cls) el.className = cls;
   el.textContent = text;
   return el;
 }
@@ -59,15 +65,12 @@ function render() {
   allWins.forEach(function (w) {
     const tr = document.createElement("tr");
 
-    tr.appendChild(td(when(w.won_at)));
-
-    const tdWho = document.createElement("td");
-    tdWho.className = "who";
-    tdWho.textContent = "@" + w.username;
-    tr.appendChild(tdWho);
-
-    tr.appendChild(td(w.item));
-    tr.appendChild(td(w.team));
+    /* on a phone this row shows the winner and item first, then the
+       date, team and tracking beneath as labelled lines */
+    tr.appendChild(td(when(w.won_at), "meta"));
+    tr.appendChild(td("@" + w.username, "who"));
+    tr.appendChild(td(w.item, "item"));
+    tr.appendChild(td(w.team, "team"));
 
     const tdTrk = document.createElement("td");
     tdTrk.className = "trk";
