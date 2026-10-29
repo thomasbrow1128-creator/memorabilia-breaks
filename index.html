@@ -22,8 +22,6 @@
 
 <div class="wrap">
 
-  <!-- A visible report of anything that went wrong loading the board files.
-       Hidden unless there is something to say. -->
   <div id="bootReport" style="display:none;background:#3a1d1d;border:1px solid #ff6b6b;border-radius:9px;padding:14px 16px;margin-bottom:16px;color:#ffd4d4;font-family:monospace;font-size:12.5px;white-space:pre-wrap"></div>
 
   <div class="boardhead">
@@ -82,53 +80,38 @@
 </div>
 
 <!-- ORDER MATTERS: teams.js defines TEAMS, boards.js builds BOARDS from it,
-     app.js draws the boards. Each is loaded in turn so a failure is
-     REPORTED on the page instead of leaving a blank board area. -->
+     app.js draws the boards from BOARDS. These load in order, as plain
+     tags, so app.js sees the normal page-load events. -->
+<script src="teams.js"></script>
+<script src="boards.js"></script>
+<script src="app.js"></script>
+
 <script>
-window.__boot = [];
-function __note(msg) { window.__boot.push(msg); }
-
-window.addEventListener("error", function (e) {
-  __note("ERROR in " + (e.filename || "?") + " line " + (e.lineno || "?") + ": " + (e.message || "?"));
-});
-
-function __load(src) {
-  return new Promise(function (resolve) {
-    var s = document.createElement("script");
-    s.src = src;
-    s.onload = function () {
-      __note("loaded " + src);
-      resolve();
-    };
-    s.onerror = function () {
-      __note("FAILED to load " + src);
-      resolve();
-    };
-    document.body.appendChild(s);
+/* A safety net only. If the boards did not draw for any reason, this says so
+   on the page instead of leaving a blank space with no explanation. It does
+   not change how the page loads. */
+(function () {
+  window.addEventListener("error", function (e) {
+    var box = document.getElementById("bootReport");
+    if (!box) return;
+    box.style.display = "block";
+    box.textContent += "Error: " + (e.message || "?") + "\n  at " + (e.filename || "?") +
+      " line " + (e.lineno || "?") + "\n";
   });
-}
 
-__load("teams.js")
-  .then(function () {
-    __note("TEAMS defined: " + (typeof TEAMS !== "undefined" ? TEAMS.length : "NO"));
-    return __load("boards.js");
-  })
-  .then(function () {
-    __note("BOARDS defined: " + (typeof BOARDS !== "undefined" ? BOARDS.length : "NO"));
-    return __load("app.js");
-  })
-  .then(function () {
-    var tiles = document.querySelectorAll(".tile").length;
-    __note("tiles drawn: " + tiles);
-    var bad = tiles === 0 || window.__boot.some(function (l) {
-      return l.indexOf("ERROR") === 0 || l.indexOf("FAILED") === 0;
-    });
-    if (bad) {
-      var box = document.getElementById("bootReport");
-      box.style.display = "block";
-      box.textContent = "Board load report:\n" + window.__boot.join("\n");
-    }
+  window.addEventListener("load", function () {
+    if (document.querySelectorAll(".tile").length > 0) return;
+    var box = document.getElementById("bootReport");
+    if (!box) return;
+    box.style.display = "block";
+    box.textContent =
+      "No tiles were drawn.\n" +
+      "TEAMS: " + (typeof TEAMS !== "undefined" ? TEAMS.length : "undefined") + "\n" +
+      "BOARDS: " + (typeof BOARDS !== "undefined" ? BOARDS.length : "undefined") + "\n" +
+      "setTab defined: " + (typeof setTab === "function") + "\n" +
+      "renderBoards defined: " + (typeof renderBoards === "function") + "\n";
   });
+})();
 </script>
 </body>
 </html>
