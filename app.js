@@ -1,6 +1,6 @@
 /* Memorabilia Breaks — one page, any number of boards.
 
-   REQUIRES: teams.js, then boards.js, then this file.
+   REQUIRES: teams.js, then boards.js, then winners.js, then this file.
 
    ONE PERSON PER BOX. A box takes one username. While it is free the
    field is open; once a name is saved the box greys out.
@@ -8,6 +8,10 @@
    THE GREY IS ONLY VISUAL. A filled box stays fully usable: click it
    anywhere and the edit panel opens, so the name can be renamed or
    removed. Removing it clears the grey and frees the box.
+
+   WINNERS. A name entered as  buyer$item  logs a win on the winners
+   page: the part before the $ is the username, the part after is the
+   item won, and the box itself shows only the buyer.
    --------------------------------------------------------------- */
 
 const BACKEND_ENDPOINT = "";
@@ -163,7 +167,7 @@ function buildTile(t) {
   bar.className = "addbar";
   const input = document.createElement("input");
   input.type = "text";
-  input.placeholder = "username";
+  input.placeholder = "username or name$item";
   input.setAttribute("aria-label", "Customer username for " + t.name);
   input.autocomplete = "off";
   input.spellcheck = false;
@@ -236,11 +240,25 @@ function buildTile(t) {
     if (!e) { closePanel(); return; }
     const next = normalizeName(editInput.value);
     if (!next) { editInput.focus(); return; }
+
+    const wasItem = typeof splitEntry === "function" ? splitEntry(e.username).item : "";
     e.username = next;
     persist();
+
+    /* the name changed: keep its winner line in step */
+    if (typeof dropWinFor === "function") dropWinFor(e.target);
+    if (typeof recordWin === "function") {
+      if (splitEntry(next).item) {
+        recordWin(e.target, next);
+      } else if (wasItem) {
+        recordWin(e.target, e.username);
+      }
+    }
+
     closePanel();
     refreshBoards();
     renderEntries();
+    if (typeof renderWinners === "function") renderWinners();
     $("saved").textContent = "Renamed to @" + next + " on " + e.target;
   }
 
@@ -347,6 +365,17 @@ function refreshBoardCounts() {
   });
 }
 
+/* Fill the gold PURCHASER plate with the buyer's name only. An item
+   entered after a "$" is logged on the winners page, not shown here. */
+function buyerOnly(raw) {
+  if (typeof splitEntry === "function") {
+    const parts = splitEntry(raw);
+    return parts.username || raw;
+  }
+  const at = String(raw || "").indexOf("$");
+  return at === -1 ? raw : String(raw).slice(0, at).trim();
+}
+
 function paintBuyerPlate(tile, list) {
   const host = tile.querySelector("[data-names]");
   if (!host) return;
@@ -363,7 +392,7 @@ function paintBuyerPlate(tile, list) {
   list.forEach(function (e) {
     const line = document.createElement("span");
     line.className = "buyname";
-    line.textContent = e.username;
+    line.textContent = buyerOnly(e.username);
     host.appendChild(line);
   });
 }
@@ -387,7 +416,7 @@ function refreshBoards() {
     const btn = tile.querySelector(".addbar button");
     if (input) {
       input.disabled = taken;
-      input.placeholder = taken ? "taken" : "username";
+      input.placeholder = taken ? "taken" : "username or name$item";
     }
     if (btn) btn.disabled = taken;
 
@@ -422,9 +451,16 @@ function resetBoard(boardId) {
   undoSnapshot = entries.slice();
   entries = entries.filter(function (e) { return !names[e.target]; });
   persist();
+
+  /* every box on that board is now empty, so its winner lines go too */
+  if (typeof dropWinFor === "function") {
+    Object.keys(names).forEach(function (n) { dropWinFor(n); });
+  }
+
   closeAllPanels(null);
   refreshBoards();
   renderEntries();
+  if (typeof renderWinners === "function") renderWinners();
   showUndo("Cleared " + doomed.length + " from " + board.label + ".");
 }
 
@@ -464,19 +500,35 @@ async function addUser(targetId, rawName) {
     entries.unshift(entry);
     if (!BACKEND_ENDPOINT && !persist()) throw new Error("Could not write to local storage");
 
+    /* an entry naming an item with a "$" is logged on the winners page */
+    let logged = null;
+    if (typeof recordWin === "function") logged = recordWin(targetId, username);
+
     refreshBoards();
     renderEntries();
-    $("saved").textContent = "Added @" + username + " to " + targetId;
+
+    if (logged) {
+      $("saved").textContent = "Added @" + logged.username + " to " + targetId +
+        " - win logged: " + logged.item;
+    } else {
+      $("saved").textContent = "Added @" + buyerOnly(username) + " to " + targetId;
+    }
   } catch (err) {
     $("saved").textContent = "Could not save: " + err.message;
   }
 }
 
 function removeUser(id) {
+  const gone = entries.filter(function (e) { return e.id === id; })[0];
   entries = entries.filter(function (e) { return e.id !== id; });
   persist();
+
+  /* the box no longer holds a name, so its logged win goes too */
+  if (gone && typeof dropWinFor === "function") dropWinFor(gone.target);
+
   refreshBoards();
   renderEntries();
+  if (typeof renderWinners === "function") renderWinners();
 }
 
 function renderEntries() {
@@ -510,7 +562,7 @@ function renderEntries() {
     const nameBtn = document.createElement("button");
     nameBtn.type = "button";
     nameBtn.className = "nameedit";
-    nameBtn.textContent = "@" + e.username;
+    nameBtn.textContent = "@" + buyerOnly(e.username);
     nameBtn.title = "Click to rename";
     nameBtn.addEventListener("click", function () { startRowEdit(tr, e); });
     tdUser.appendChild(nameBtn);
@@ -573,9 +625,14 @@ function startRowEdit(tr, entry) {
     if (!next) { input.focus(); return; }
     entry.username = next;
     persist();
+
+    if (typeof dropWinFor === "function") dropWinFor(entry.target);
+    if (typeof recordWin === "function") recordWin(entry.target, next);
+
     refreshBoards();
     renderEntries();
-    $("saved").textContent = "Renamed to @" + next + " on " + entry.target;
+    if (typeof renderWinners === "function") renderWinners();
+    $("saved").textContent = "Renamed to @" + buyerOnly(next) + " on " + entry.target;
   }
 
   save.addEventListener("click", commit);
@@ -614,14 +671,22 @@ function downloadCsv() {
   }
 
   const NEWLINE = String.fromCharCode(10);
-  const rows = ["username,placed_on,added"];
+  const rows = ["username,item_won,placed_on,added"];
   const sorted = entries.slice().sort(function (a, b) {
     if (a.target !== b.target) return a.target.localeCompare(b.target);
     return new Date(a.createdAt) - new Date(b.createdAt);
   });
 
   sorted.forEach(function (e) {
-    rows.push(csvEscape(e.username) + "," + csvEscape(e.target) + "," + csvEscape(e.createdAt));
+    const parts = typeof splitEntry === "function"
+      ? splitEntry(e.username)
+      : { username: e.username, item: "" };
+    rows.push(
+      csvEscape(parts.username) + "," +
+      csvEscape(parts.item) + "," +
+      csvEscape(e.target) + "," +
+      csvEscape(e.createdAt)
+    );
   });
 
   const blob = new Blob([rows.join(NEWLINE)], { type: "text/csv;charset=utf-8" });
@@ -692,6 +757,9 @@ document.addEventListener("DOMContentLoaded", function () {
     undoSnapshot = entries.slice();
     entries = [];
     persist();
+
+    /* every board is empty now; the winners log is NOT cleared, because
+       it is a history of what was won, not of what sits on a board. */
     closeAllPanels(null);
     refreshBoards();
     renderEntries();
