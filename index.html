@@ -99,6 +99,7 @@
     <div class="left">
       <span class="sub" style="color:#a9c3dc;font-size:12.5px">
         Every item won, logged automatically when a box is filled as buyer$item.
+        Type a tracking number straight onto the winner's line.
       </span>
     </div>
     <div class="left">
@@ -113,40 +114,14 @@
   </div>
 
   <div class="panel">
-    <h2>Tracking numbers <span class="count" id="trackingCount"></span></h2>
-    <p class="sub">Enter a tracking number by hand for each customer shipping an item.
-      Nothing here is filled in automatically. The ship date defaults to today.</p>
-
-    <form id="trackingForm" class="toolbar" autocomplete="off">
-      <div class="left">
-        <input id="trkName" type="text" placeholder="customer username" aria-label="Customer username">
-        <input id="trkCarrier" type="text" placeholder="carrier (optional)" aria-label="Carrier">
-        <input id="trkNumber" type="text" placeholder="tracking number" aria-label="Tracking number">
-        <input id="trkDate" type="date" aria-label="Date shipped">
-      </div>
-      <div class="left">
-        <button class="ghost" type="submit" id="trkAdd">Add tracking</button>
-      </div>
-    </form>
-
-    <div id="tracking"></div>
-
-    <div class="left" style="margin-top:14px">
-      <button class="ghost" id="trackingCsv" type="button">Download tracking</button>
-      <button class="ghost" id="trackingClear" type="button">Clear tracking</button>
-    </div>
-  </div>
-
-  <div class="panel">
     <h2>How this page fills up</h2>
     <div class="note">
       <strong>Items won</strong> is filled automatically: every time a name is placed on a board as
       <strong>buyer$item</strong>, a line appears with the date, the time, the username and the item.<br><br>
-      Nothing on the boards can remove a line from it — not Reset board, not Hide all, not removing or
-      renaming a name. Only <strong>Clear winners</strong> empties it.<br><br>
-      <strong>Tracking numbers</strong> are typed in by hand, one per customer, and are kept completely
-      separate. Clearing the winners list never touches tracking, and clearing tracking never touches the
-      winners list. Both offer Undo.
+      <strong>Tracking numbers</strong> are typed into the small box on each winner's own line — no
+      separate list. Type the number and it saves as soon as you click away or press Enter.<br><br>
+      Nothing on the boards can remove a line from this list — not Reset board, not Hide all, not removing
+      or renaming a name. Only <strong>Clear winners</strong> empties it.
     </div>
   </div>
 
@@ -189,9 +164,8 @@
     if (bBtn) bBtn.setAttribute("aria-selected", onWinners ? "false" : "true");
     if (wBtn) wBtn.setAttribute("aria-selected", onWinners ? "true" : "false");
 
-    /* repaint whichever list is now on screen */
+    /* repaint the winners list, which is now on screen */
     if (typeof renderWinners === "function") renderWinners();
-    if (typeof renderTracking === "function") renderTracking();
   }
 
   window.showPage = show;
@@ -202,7 +176,7 @@
   if (w) w.addEventListener("click", function () { show("winners"); });
 })();
 
-/* Start the winners log, the tracking sheet and the boards. */
+/* Start the winners log and the boards. */
 (function () {
   function boot() {
     if (typeof initWinners === "function") initWinners();
