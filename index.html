@@ -7,6 +7,56 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   @import url("casino.css");
+
+  /* ---- the sign-in bar on the winners page --------------------
+     Writing to the shared ledger needs a session. The password is
+     typed here and used once; it is never stored in a file. */
+  .signin{
+    display:flex; flex-wrap:wrap; gap:9px; align-items:center;
+    padding:13px 16px; margin:0 0 18px;
+    background:linear-gradient(180deg, rgba(8,28,52,.85), rgba(3,12,24,.7));
+    border:1px solid rgba(201,162,39,.45); border-radius:12px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .signin label{
+    font-size:10.5px; font-weight:900; letter-spacing:.12em;
+    text-transform:uppercase; color:#f0d67a;
+  }
+  .signin input{
+    font-family:inherit; font-size:13px;
+    background:linear-gradient(180deg, rgba(2,12,24,.85), rgba(4,18,34,.7));
+    border:1px solid rgba(201,162,39,.5); color:#eaf3ff;
+    border-radius:9px; padding:9px 13px; min-width:0;
+  }
+  .signin input[type=email]{flex:1 1 220px; max-width:300px}
+  .signin input[type=password]{flex:1 1 160px; max-width:220px}
+  .signin input:focus{
+    outline:none; border-color:#ffd76a;
+    box-shadow:0 0 0 3px rgba(255,215,106,.2);
+  }
+  .signin button{
+    font-family:inherit; font-size:11px; font-weight:900;
+    letter-spacing:.09em; text-transform:uppercase; cursor:pointer;
+    padding:9px 18px; border-radius:9px;
+    color:#221803; border:1px solid #ffeeae;
+    background:linear-gradient(180deg, #fff8dc, #f2d264 42%, #b6880f 100%);
+    box-shadow:0 3px 10px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.85);
+  }
+  .signin button:hover{filter:brightness(1.08)}
+  .signin button:disabled{opacity:.5; cursor:not-allowed}
+  #signInWho{
+    font-size:12.5px; font-weight:800; color:#7fe0a0;
+    display:flex; align-items:center; gap:12px;
+  }
+  #signInOut{
+    font-size:10.5px; font-weight:800; letter-spacing:.08em;
+    text-transform:uppercase; color:#a9c3dc; cursor:pointer;
+    background:transparent; border:1px solid rgba(150,205,240,.5);
+    border-radius:8px; padding:6px 13px;
+  }
+  #signInOut:hover{border-color:#fff; color:#fff}
+  #signInMsg{font-size:12px; color:#ffd3d5; width:100%}
+  .note.warn{border-left-color:#ff9b9e; color:#ffd3d5}
 </style>
 </head>
 <body>
@@ -95,6 +145,17 @@
     <span id="winnerCount"></span>
   </div>
 
+  <!-- Sign in to write. Customers never see this page, and the customer
+       ledger never needs a password at all. -->
+  <form class="signin" id="signInForm" autocomplete="off">
+    <label for="signInEmail">Sign in to record wins</label>
+    <input id="signInEmail" type="email" placeholder="your email" aria-label="Email" autocomplete="username">
+    <input id="signInPass" type="password" placeholder="password" aria-label="Password" autocomplete="current-password">
+    <button type="submit" id="signInGo">Sign in</button>
+    <p id="signInMsg"></p>
+  </form>
+  <div class="signin" id="signInWho" style="display:none"></div>
+
   <div class="toolbar">
     <div class="left">
       <span class="sub" style="color:#a9c3dc;font-size:12.5px">
@@ -103,6 +164,7 @@
       </span>
     </div>
     <div class="left">
+      <button class="ghost" id="winnerRefresh" type="button">Refresh</button>
       <button class="ghost" id="winnerCsv" type="button">Download winners</button>
       <button class="ghost" id="winnerClear" type="button">Clear winners</button>
     </div>
@@ -125,6 +187,20 @@
     </div>
   </div>
 
+  <div class="panel">
+    <h2>The customer ledger</h2>
+    <div class="note warn">
+      This page is the shared ledger. Everything written here also appears, live, on the customer page:
+      <strong>ledger.html</strong> — send customers that address and nothing else.<br><br>
+      Customers type their username there and see their own items and tracking numbers. That page is
+      read-only by the database's own rules: it holds no sign-in and cannot write, change or delete a
+      single row, whoever is using it.<br><br>
+      Because the ledger is open to anyone with the link, <strong>do not put anything private on a winner's
+      line</strong>. The username, the item and the tracking number are all visible to whoever looks their
+      own name up — and to anyone who guesses another name.
+    </div>
+  </div>
+
 </div>
 
 <div id="undobar">
@@ -140,9 +216,11 @@
 </div>
 
 <!-- ORDER MATTERS: teams.js defines TEAMS, boards.js builds BOARDS from it,
-     winners.js logs the items won and their tracking, app.js draws it all. -->
+     sb-client.js holds the shared connection, winners.js logs the wins,
+     app.js draws it all. -->
 <script src="teams.js"></script>
 <script src="boards.js"></script>
+<script src="sb-client.js"></script>
 <script src="winners.js"></script>
 <script src="app.js"></script>
 
@@ -166,6 +244,7 @@
 
     /* repaint the winners list, which is now on screen */
     if (typeof renderWinners === "function") renderWinners();
+    if (typeof paintSignIn === "function") paintSignIn();
   }
 
   window.showPage = show;
@@ -176,7 +255,7 @@
   if (w) w.addEventListener("click", function () { show("winners"); });
 })();
 
-/* Start the winners log and the boards. */
+/* Start the shared ledger and the boards. */
 (function () {
   function boot() {
     if (typeof initWinners === "function") initWinners();
@@ -208,7 +287,8 @@
       "TEAMS: " + (typeof TEAMS !== "undefined" ? TEAMS.length : "undefined") + "\n" +
       "BOARDS: " + (typeof BOARDS !== "undefined" ? BOARDS.length : "undefined") + "\n" +
       "setTab defined: " + (typeof setTab === "function") + "\n" +
-      "renderBoards defined: " + (typeof renderBoards === "function") + "\n";
+      "renderBoards defined: " + (typeof renderBoards === "function") + "\n" +
+      "sb-client loaded: " + (typeof sbListWins === "function") + "\n";
   });
 })();
 </script>
