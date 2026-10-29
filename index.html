@@ -5,15 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TKS Breakz — Username Boards</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<!-- ============================================================
+     THE LOOK IS CHOSEN BY THE SINGLE @import LINE BELOW.
+       New game-board look : casino.css
+       Plainer older look  : classic.css
+     Swap the filename to change the theme. No entries are lost:
+     names are stored in your browser, not in the stylesheet.
+     ============================================================ -->
 <style>
-  @import url("casino.css");
+  @import url("casino.css");   /* change to classic.css to roll back */
 </style>
 </head>
 <body>
 
 <header>
   <a class="brand" href="./" aria-label="TKS Breakz home">
-    <img src="logo.jpeg" alt="TKS Breakz">
+    <img src="tks-mark.svg" alt="TKS Breakz">
   </a>
   <h1>Breakz</h1>
   <p>Type a customer's username into a box and press + to place them on that box.</p>
@@ -72,6 +79,16 @@
       A taken box carries no wording at all: it simply goes grey, with the customer's name still lit up in gold.<br><br>
       <strong>Adding a board:</strong> open <code>boards.js</code> and add one entry to the list. The tab, the grid,
       the heading, the counter and the Reset button all build themselves from it.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Changing the look back</h2>
+    <div class="note">
+      The whole appearance is set by one line in <code>index.html</code> — the <code>@import</code> inside the
+      <code>&lt;style&gt;</code> block in the head. It currently reads <code>casino.css</code>, which is the
+      game-board look. Change that filename to <code>classic.css</code> and the page returns to the plainer
+      theme, with every name still in place. Change it back to <code>casino.css</code> at any time.
     </div>
   </div>
 
