@@ -1,9 +1,10 @@
 /* ============================================================
    MEMORABILIA BREAKS - the customer ledger page.
 
-   A customer types their username and sees the items they won, plus a
-   tracking number once the order ships. It updates by itself: a win
-   entered on the board reaches this page in about a second.
+   Shows every winner, newest first: the date, the winner's name, the
+   item won, the team box it came from, and a tracking number once the
+   order ships. It updates by itself - a win entered on the board
+   reaches this page in about a second.
 
    THIS PAGE CANNOT WRITE. It never signs in, so every request it makes
    carries only the publishable key, and the database's own rules refuse
@@ -12,14 +13,8 @@
    ============================================================ */
 
 let allWins = [];
-let who = "";
 
 const L = (id) => document.getElementById(id);
-
-function esc(s) {
-  return String(s == null ? "" : s)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 function when(iso) {
   const d = new Date(iso);
@@ -40,56 +35,14 @@ function td(text) {
   return el;
 }
 
-/* the customer's own rows, newest first */
-function mine() {
-  const needle = who.trim().toLowerCase().replace(/^@/, "");
-  if (!needle) return [];
-  return allWins.filter(function (w) {
-    return String(w.username || "").toLowerCase().replace(/^@/, "") === needle;
-  });
-}
-
 function render() {
   const host = L("ledger");
-  const youBox = L("youBox");
-  const label = L("searchedFor");
   host.innerHTML = "";
 
-  const n = who.trim();
-
-  if (!n) {
-    youBox.style.display = "none";
-    label.style.display = "none";
+  if (!allWins.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = "Enter your username above to see your items.";
-    host.appendChild(p);
-    return;
-  }
-
-  const rows = mine();
-
-  youBox.style.display = "";
-  youBox.className = "you";
-  youBox.innerHTML = "Showing orders for <b>@" + esc(n) + "</b>" +
-    '<a id="clearWho">Not you? Clear</a>';
-  L("clearWho").addEventListener("click", function () {
-    L("who").value = "";
-    who = "";
-    try { sessionStorage.removeItem("mb-ledger-who"); } catch (e) {}
-    render();
-  });
-
-  label.style.display = "";
-  label.textContent = rows.length
-    ? rows.length + (rows.length === 1 ? " item" : " items") + " found"
-    : "no items found";
-
-  if (!rows.length) {
-    const p = document.createElement("p");
-    p.className = "empty";
-    p.textContent = "Nothing found for @" + n + ". Check the spelling, or ask the " +
-      "breaker if you used a different name.";
+    p.textContent = "No winners recorded yet. Check back once the break has started.";
     host.appendChild(p);
     return;
   }
@@ -97,15 +50,22 @@ function render() {
   const table = document.createElement("table");
   table.className = "winnersTable";
   const thead = document.createElement("thead");
-  thead.innerHTML = "<tr><th>Date</th><th>Item won</th><th>Team</th>" +
-    "<th>Tracking number</th></tr>";
+  thead.innerHTML = "<tr><th>Date</th><th>Winner</th><th>Item won</th>"
+    + "<th>Team</th><th>Tracking number</th></tr>";
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
 
-  rows.forEach(function (w) {
+  allWins.forEach(function (w) {
     const tr = document.createElement("tr");
+
     tr.appendChild(td(when(w.won_at)));
+
+    const tdWho = document.createElement("td");
+    tdWho.className = "who";
+    tdWho.textContent = "@" + w.username;
+    tr.appendChild(tdWho);
+
     tr.appendChild(td(w.item));
     tr.appendChild(td(w.team));
 
@@ -133,7 +93,7 @@ function count() {
   const c = L("ledgerCount");
   if (!c) return;
   c.textContent = allWins.length
-    ? "(" + allWins.length + (allWins.length === 1 ? " item" : " items") + " on record)"
+    ? "(" + allWins.length + (allWins.length === 1 ? " winner" : " winners") + ")"
     : "";
 }
 
@@ -165,20 +125,20 @@ function csvEscape(v) {
   return s;
 }
 
-function downloadMine() {
-  const rows = who.trim() ? mine() : allWins;
-  if (!rows.length) return;
+function downloadAll() {
+  if (!allWins.length) return;
   const N = String.fromCharCode(10);
-  const out = ["date,item_won,team,tracking_number"];
-  rows.forEach(function (w) {
+  const out = ["date,winner,item_won,team,tracking_number"];
+  allWins.forEach(function (w) {
     out.push([
-      csvEscape(w.won_at), csvEscape(w.item), csvEscape(w.team), csvEscape(w.tracking || "")
+      csvEscape(w.won_at), csvEscape(w.username), csvEscape(w.item),
+      csvEscape(w.team), csvEscape(w.tracking || "")
     ].join(","));
   });
   const blob = new Blob([out.join(N)], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "my-break-items" + (who.trim() ? "-" + who.trim() : "") + ".csv";
+  a.download = "break-winners.csv";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -187,27 +147,8 @@ function downloadMine() {
 
 /* ---------- page ---------- */
 
-L("searchForm").addEventListener("submit", function (ev) {
-  ev.preventDefault();
-  who = L("who").value.trim();
-  try { sessionStorage.setItem("mb-ledger-who", who); } catch (e) {}
-  render();
-});
-
-L("who").addEventListener("input", function () {
-  who = L("who").value.trim();
-  render();
-});
-
 L("ledgerRefresh").addEventListener("click", function () { load(true); });
-L("ledgerCsv").addEventListener("click", downloadMine);
-
-/* Remember the looked-up name for this tab only, so a refresh does not
-   lose it. Nothing is shared between customers. */
-try {
-  const kept = sessionStorage.getItem("mb-ledger-who");
-  if (kept) { L("who").value = kept; who = kept; }
-} catch (e) { /* fine without it */ }
+L("ledgerCsv").addEventListener("click", downloadAll);
 
 load(true);
 
