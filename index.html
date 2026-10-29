@@ -5,9 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TKS Breakz — Boards and Winners</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<style>
-  @import url("casino.css");
+<script>
+/* ============================================================
+   THE STYLESHEETS, LOADED IN ORDER
 
+   casino.css is the whole theme. It used to be pulled in with
+   @import inside the <style> block below, which is fine but slow:
+   the browser only finds the import after it has parsed this block.
+   A plain <link> starts the download straight away.
+
+   divisions.css comes second. It restyles the Divisions board into
+   cards and does nothing else - every rule in it is scoped to
+   .board-medium, so it cannot affect the Teams or Pairs boards.
+
+   The little style block further down keeps only what is specific
+   to THIS page: the sign-in bar and the warning note.
+   ============================================================ */
+(function () {
+  var files = ["casino.css", "divisions.css"];
+  for (var i = 0; i < files.length; i++) {
+    var link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = files[i];
+    document.head.appendChild(link);
+  }
+})();
+</script>
+<style>
   /* ---- the sign-in bar on the winners page --------------------
      Writing to the shared ledger needs a session. The password is
      typed here and used once; it is never stored in a file. */
@@ -288,7 +312,9 @@
       "BOARDS: " + (typeof BOARDS !== "undefined" ? BOARDS.length : "undefined") + "\n" +
       "setTab defined: " + (typeof setTab === "function") + "\n" +
       "renderBoards defined: " + (typeof renderBoards === "function") + "\n" +
-      "sb-client loaded: " + (typeof sbListWins === "function") + "\n";
+      "sb-client loaded: " + (typeof sbListWins === "function") + "\n" +
+      "casino.css loaded: " + (typeof getComputedStyle === "function" &&
+        document.body && getComputedStyle(document.body).backgroundColor !== "") + "\n";
   });
 })();
 </script>
