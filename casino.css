@@ -55,14 +55,15 @@ header .brand{
 }
 header .brand img{
   display:block; width:100%; height:auto;
-  /* the logo is a transparent PNG, so it needs no blend workaround at
-     all: it simply sits on the backdrop with a soft glow behind it */
-  filter:drop-shadow(0 0 22px rgba(90,170,255,.38));
+  /* the logo carries its own dark surround; screen blending drops that
+     away so the mark sits ON the backdrop instead of in a dark box */
+  mix-blend-mode:screen;
+  filter:contrast(1.1) saturate(1.08) drop-shadow(0 0 22px rgba(90,170,255,.4));
   transition:transform .3s ease, filter .3s ease;
 }
 header .brand:hover img{
   transform:translateY(-2px) scale(1.02);
-  filter:drop-shadow(0 0 38px rgba(120,190,255,.55));
+  filter:contrast(1.1) saturate(1.08) drop-shadow(0 0 38px rgba(120,190,255,.6));
 }
 /* the halo behind it */
 header .brand::before{
@@ -71,8 +72,7 @@ header .brand::before{
   pointer-events:none;
   z-index:-1;
 }
-/* a soft pool of dark under the mark so it feels seated on the page,
-   wide and feathered so no rectangle or ring ever shows */
+/* a soft pool of dark under the mark so it feels seated on the page */
 header .brand::after{
   content:""; position:absolute; inset:-14% -10% -6%;
   pointer-events:none; z-index:-1;
@@ -105,15 +105,16 @@ header.compact h1{font-size:8px; letter-spacing:.32em}
 header.compact h1::after{height:2px; margin-top:5px; width:min(300px,58%)}
 header.compact p{display:none}
 
-/* ---------- the backdrop: the mark ghosted into the field ---------- */
+/* ---------- the backdrop: the SAME mark ghosted into the field ---------- */
 body::before{
   content:""; position:fixed; inset:0; z-index:-2; pointer-events:none;
-  background-image:url("tks-mark.svg");
+  background-image:url("logo.png");
   background-repeat:no-repeat;
   background-position:center 8%;
-  background-size:min(78vw,760px) auto;
-  opacity:.14;
-  filter:blur(2.5px) saturate(1.15);
+  background-size:min(70vw,680px) auto;
+  opacity:.20;
+  mix-blend-mode:screen;
+  filter:blur(3px) saturate(1.2) brightness(1.08);
 }
 body::after{
   content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
@@ -627,8 +628,6 @@ button.ghost:hover::before{
 
 /* ============================================================
    THE PAIRS BOARD - 16 cards, 4 x 4, one screen, no scrolling
-   Each card shows its two clubs as a split emblem panel with both
-   codes large enough to read at a glance.
    ============================================================ */
 
 /* the board owns its columns so nothing later can collapse it */
@@ -666,9 +665,8 @@ button.ghost:hover::before{
 }
 
 /* the top block: the pair's two colours, left melting into right.
-   Each card's exact gradient is set further down, one rule per pair,
-   built from the same colours the Teams board uses. This base rule is
-   the fallback if a pair ever has no colours. */
+   Each card's exact gradient is set below, one rule per pair, built
+   from the same colours the Teams board uses. */
 .board-small .tile .eb{
   position:relative; flex:3 1 auto; min-height:56px;
   width:auto; align-self:auto; border-right:0;
@@ -759,7 +757,7 @@ button.ghost:hover::before{
 .tile[data-target="Bengals, Colts"] .eb{background:linear-gradient(100deg, #FB4F14 0%, #FB4F14 34%, #7E3E3A 50%, #002C5F 66%, #002C5F 100%)}
 .tile[data-target="Bills, Jets"] .eb{background:linear-gradient(100deg, #00338D 0%, #00338D 34%, #0C464F 50%, #125740 66%, #125740 100%)}
 .tile[data-target="Steelers, Texans"] .eb{background:linear-gradient(100deg, #101820 0%, #101820 34%, #091C28 50%, #03202F 66%, #03202F 100%)}
-.tile[data-target="Dolphins, Giants"] .eb{background:linear-gradient(100deg, #008E97 0%, #008E97 34%, #044156 50%, #0B2265 66%, #0B2265 100%)}
+.tile[data-target="Dolphins, Giants"] .eb{background:linear-gradient(100deg, #008E97 0%, #008E97 34%, #044156 50%, #0B2263 66%, #0B2263 100%)}
 
 /* ============================================================
    COMPACT MODE - tight type for the pairs tab. This block must NOT
