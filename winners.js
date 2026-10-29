@@ -1,9 +1,11 @@
 /* ============================================================
    MEMORABILIA BREAKS - WINNERS
 
-   A log of every item won, captured automatically from the boards.
+   A log of every item won, captured automatically from the boards,
+   plus a tracking-number sheet for shipping those items out.
 
-   HOW IT WORKS. When a name is entered into a board box in the form
+   HOW THE WIN LOG WORKS. When a name is entered into a board box in
+   the form
 
        buyer$item
 
@@ -22,15 +24,21 @@
      - renaming a name        -> the line is UPDATED in place
    The ONLY way a line leaves is the Clear winners button on this page.
 
-   Stored in this browser under its own key, so clearing the boards never
-   wipes the winners history.
+   TRACKING NUMBERS are entered by hand, one per customer, with the
+   carrier and the date shipped. They are stored separately from the win
+   log, so clearing one never clears the other.
    ============================================================ */
 
 const WINNERS_KEY = "memorabilia-breaks-winners-v1";
+const TRACKING_KEY = "memorabilia-breaks-tracking-v1";
 
 let winners = [];
+let tracking = [];
 let undoWinnersSnapshot = null;
+let undoTrackingSnapshot = null;
 let winnersUndoTimer = null;
+
+/* ---------- storage ---------- */
 
 function loadWinners() {
   try {
@@ -44,6 +52,24 @@ function loadWinners() {
 function saveWinners() {
   try {
     localStorage.setItem(WINNERS_KEY, JSON.stringify(winners));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function loadTracking() {
+  try {
+    tracking = JSON.parse(localStorage.getItem(TRACKING_KEY) || "[]");
+    if (!Array.isArray(tracking)) tracking = [];
+  } catch (e) {
+    tracking = [];
+  }
+}
+
+function saveTracking() {
+  try {
+    localStorage.setItem(TRACKING_KEY, JSON.stringify(tracking));
     return true;
   } catch (e) {
     return false;
@@ -67,6 +93,8 @@ function splitEntry(raw) {
     item: text.slice(at + 1).trim()
   };
 }
+
+/* ---------- the win log ---------- */
 
 /* Record a win. Called when a name is entered that names an item. */
 function recordWin(target, rawEntry) {
@@ -118,15 +146,12 @@ function updateWinFor(target, rawEntry) {
 /* Remove the log entry for a box, if there is one.
 
    NOTE: nothing on a board calls this any more. The log is append-only
-   from the boards, so this exists only for internal use and keeps the
-   file honest about what CAN remove a line. */
+   from the boards, so this exists only for internal use. */
 function dropWinFor(target) {
   const before = winners.length;
   winners = winners.filter(function (w) { return w.target !== target; });
   if (winners.length !== before) saveWinners();
 }
-
-/* ---------- the page ---------- */
 
 function renderWinners() {
   const host = document.getElementById("winners");
@@ -260,6 +285,172 @@ function editWinner(tr, win, field) {
   input.select();
 }
 
+/* ---------- TRACKING NUMBERS ----------
+
+   Entered by hand, one per customer. Each line records who it is for,
+   the carrier, the tracking number and the date it shipped.
+
+   Kept entirely separate from the win log, so clearing one never
+   touches the other. */
+
+function addTracking(username, carrier, number, shipped) {
+  const name = String(username || "").trim().replace(/^@/, "");
+  const num = String(number || "").trim();
+
+  /* a tracking line is pointless without a number */
+  if (!num) return null;
+
+  const line = {
+    id: "t" + Date.now() + Math.random().toString(36).slice(2, 7),
+    username: name || "(no name)",
+    carrier: String(carrier || "").trim(),
+    number: num,
+    shipped: shipped || new Date().toISOString().slice(0, 10),
+    at: new Date().toISOString()
+  };
+
+  tracking.unshift(line);
+  saveTracking();
+  renderTracking();
+  return line;
+}
+
+function renderTracking() {
+  const host = document.getElementById("tracking");
+  if (!host) return;
+
+  const count = document.getElementById("trackingCount");
+  if (count) {
+    count.textContent = tracking.length
+      ? "(" + tracking.length + (tracking.length === 1 ? " shipment" : " shipments") + ")"
+      : "";
+  }
+
+  host.innerHTML = "";
+
+  if (!tracking.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "No tracking numbers yet. Use the boxes above to add one.";
+    host.appendChild(p);
+    return;
+  }
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  thead.innerHTML = "<tr><th>Shipped</th><th>Username</th><th>Carrier</th>"
+    + "<th>Tracking number</th><th></th></tr>";
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  tracking.forEach(function (t) {
+    const tr = document.createElement("tr");
+
+    const shipped = new Date(t.shipped + "T00:00:00");
+    tr.appendChild(textCell(isNaN(shipped) ? t.shipped : shipped.toLocaleDateString()));
+
+    const tdUser = document.createElement("td");
+    const nameBtn = document.createElement("button");
+    nameBtn.type = "button";
+    nameBtn.className = "nameedit";
+    nameBtn.textContent = "@" + t.username;
+    nameBtn.title = "Click to change the username";
+    nameBtn.addEventListener("click", function () { editTracking(tr, t, "username"); });
+    tdUser.appendChild(nameBtn);
+    tr.appendChild(tdUser);
+
+    const tdCarrier = document.createElement("td");
+    const carBtn = document.createElement("button");
+    carBtn.type = "button";
+    carBtn.className = "nameedit";
+    carBtn.textContent = t.carrier || "-";
+    carBtn.title = "Click to change the carrier";
+    carBtn.addEventListener("click", function () { editTracking(tr, t, "carrier"); });
+    tdCarrier.appendChild(carBtn);
+    tr.appendChild(tdCarrier);
+
+    const tdNum = document.createElement("td");
+    const numBtn = document.createElement("button");
+    numBtn.type = "button";
+    numBtn.className = "nameedit trackingnum";
+    numBtn.textContent = t.number;
+    numBtn.title = "Click to change the tracking number";
+    numBtn.addEventListener("click", function () { editTracking(tr, t, "number"); });
+    tdNum.appendChild(numBtn);
+    tr.appendChild(tdNum);
+
+    const td = document.createElement("td");
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "del";
+    del.textContent = "Delete";
+    del.title = "Remove only this tracking line";
+    del.addEventListener("click", function () {
+      tracking = tracking.filter(function (x) { return x.id !== t.id; });
+      saveTracking();
+      renderTracking();
+    });
+    td.appendChild(del);
+    tr.appendChild(td);
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  host.appendChild(table);
+}
+
+/* edit one field of a tracking line, in place */
+function editTracking(tr, line, field) {
+  if (tr.dataset.editing === "1") return;
+  tr.dataset.editing = "1";
+
+  const cols = { shipped: 0, username: 1, carrier: 2, number: 3 };
+  const td = tr.children[cols[field]];
+  td.innerHTML = "";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = line[field];
+  input.className = "roweditinput";
+  input.setAttribute("aria-label", "Edit " + field);
+  input.autocomplete = "off";
+  input.spellcheck = false;
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "cesave";
+  save.textContent = "Save";
+
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "cecancel";
+  cancel.textContent = "Cancel";
+
+  td.appendChild(input);
+  td.appendChild(save);
+  td.appendChild(cancel);
+
+  function commit() {
+    const next = input.value.trim();
+    if (!next) { input.focus(); return; }
+    line[field] = next;
+    saveTracking();
+    renderTracking();
+  }
+
+  save.addEventListener("click", commit);
+  input.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+    if (ev.key === "Escape") { ev.preventDefault(); renderTracking(); }
+  });
+  cancel.addEventListener("click", function () { renderTracking(); });
+
+  input.focus();
+  input.select();
+}
+
 /* ---------- export ---------- */
 
 function downloadWinnersCsv() {
@@ -294,13 +485,44 @@ function downloadWinnersCsv() {
   URL.revokeObjectURL(a.href);
 }
 
+function downloadTrackingCsv() {
+  const saved = document.getElementById("saved");
+  if (!tracking.length) {
+    if (saved) saved.textContent = "No tracking numbers to export yet.";
+    return;
+  }
+
+  const NEWLINE = String.fromCharCode(10);
+  const rows = ["shipped,username,carrier,tracking_number"];
+
+  tracking.slice().reverse().forEach(function (t) {
+    rows.push([
+      csvEscape(t.shipped),
+      csvEscape(t.username),
+      csvEscape(t.carrier),
+      csvEscape(t.number)
+    ].join(","));
+  });
+
+  const blob = new Blob([rows.join(NEWLINE)], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "memorabilia-breaks-tracking.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
 /* clear the whole winners log, with undo.
 
-   THIS IS THE ONLY THING THAT EMPTIES THE WINNERS PAGE. */
+   THIS IS THE ONLY THING THAT EMPTIES THE WINNERS LIST.
+   It does not touch the tracking list. */
 function clearWinners() {
   if (!winners.length) return;
   const line1 = "Remove all " + winners.length + " logged wins?";
-  const line2 = "This clears the winners page only. The boards are not touched.";
+  const line2 = "This clears the winners list only. The tracking numbers and the "
+    + "boards are not touched.";
   if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
 
   undoWinnersSnapshot = winners.slice();
@@ -308,6 +530,21 @@ function clearWinners() {
   saveWinners();
   renderWinners();
   showWinnersUndo("Cleared " + undoWinnersSnapshot.length + " logged wins.");
+}
+
+/* clear every tracking line, with its own undo */
+function clearTracking() {
+  if (!tracking.length) return;
+  const line1 = "Remove all " + tracking.length + " tracking numbers?";
+  const line2 = "This clears the tracking list only. The winners list and the "
+    + "boards are not touched.";
+  if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
+
+  undoTrackingSnapshot = tracking.slice();
+  tracking = [];
+  saveTracking();
+  renderTracking();
+  showWinnersUndo("Cleared " + undoTrackingSnapshot.length + " tracking numbers.");
 }
 
 function showWinnersUndo(message) {
@@ -320,9 +557,55 @@ function showWinnersUndo(message) {
   winnersUndoTimer = setTimeout(function () { bar.classList.remove("show"); }, 14000);
 }
 
+/* ---------- the tracking entry form ---------- */
+
+function initTrackingForm() {
+  const form = document.getElementById("trackingForm");
+  if (!form) return;
+
+  const nameInput = document.getElementById("trkName");
+  const carrierInput = document.getElementById("trkCarrier");
+  const numberInput = document.getElementById("trkNumber");
+  const dateInput = document.getElementById("trkDate");
+
+  /* today, as a sensible default */
+  if (dateInput && !dateInput.value) {
+    dateInput.value = new Date().toISOString().slice(0, 10);
+  }
+
+  form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+
+    const line = addTracking(
+      nameInput ? nameInput.value : "",
+      carrierInput ? carrierInput.value : "",
+      numberInput ? numberInput.value : "",
+      dateInput ? dateInput.value : ""
+    );
+
+    const saved = document.getElementById("saved");
+    if (!line) {
+      if (saved) saved.textContent = "A tracking number is required.";
+      if (numberInput) numberInput.focus();
+      return;
+    }
+
+    if (saved) {
+      saved.textContent = "Tracking added for @" + line.username + " - " + line.number;
+    }
+
+    if (nameInput) nameInput.value = "";
+    if (numberInput) numberInput.value = "";
+    if (nameInput) nameInput.focus();
+  });
+}
+
 function initWinners() {
   loadWinners();
+  loadTracking();
   renderWinners();
+  renderTracking();
+  initTrackingForm();
 
   const csv = document.getElementById("winnerCsv");
   if (csv) csv.addEventListener("click", downloadWinnersCsv);
@@ -330,13 +613,27 @@ function initWinners() {
   const clear = document.getElementById("winnerClear");
   if (clear) clear.addEventListener("click", clearWinners);
 
+  const trkCsv = document.getElementById("trackingCsv");
+  if (trkCsv) trkCsv.addEventListener("click", downloadTrackingCsv);
+
+  const trkClear = document.getElementById("trackingClear");
+  if (trkClear) trkClear.addEventListener("click", clearTracking);
+
   const undo = document.getElementById("winnerUndoBtn");
   if (undo) undo.addEventListener("click", function () {
-    if (!undoWinnersSnapshot) return;
-    winners = undoWinnersSnapshot;
-    undoWinnersSnapshot = null;
-    saveWinners();
-    renderWinners();
+    /* the undo bar serves whichever list was last cleared */
+    if (undoWinnersSnapshot) {
+      winners = undoWinnersSnapshot;
+      undoWinnersSnapshot = null;
+      saveWinners();
+      renderWinners();
+    }
+    if (undoTrackingSnapshot) {
+      tracking = undoTrackingSnapshot;
+      undoTrackingSnapshot = null;
+      saveTracking();
+      renderTracking();
+    }
     const bar = document.getElementById("winnerUndoBar");
     if (bar) bar.classList.remove("show");
   });
