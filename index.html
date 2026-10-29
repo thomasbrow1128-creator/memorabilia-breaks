@@ -64,8 +64,8 @@
       the faded icon, the PURCHASER bar, or the gold name. Then change the spelling and press <strong>Save</strong>,
       or press <strong>Remove</strong> to free that box for someone else. <strong>Cancel</strong> or <strong>Escape</strong>
       closes it without changing anything. You never have to clear a board to fix one name.<br><br>
-      A name can also be renamed from the list above — click it there, or use <strong>Delete</strong> on that row
-      to remove just that one person.
+      The grey is only a visual state — it never locks the box. As soon as the last name is removed the box
+      returns to full colour with an open field.
     </div>
   </div>
 
@@ -98,72 +98,11 @@
   <button id="undoclose" type="button" aria-label="Dismiss">&times;</button>
 </div>
 
+<!-- ORDER MATTERS. teams.js defines TEAMS, boards.js builds BOARDS from it,
+     and app.js draws the boards from BOARDS. Loaded out of order, the first
+     of the three to run throws on an undefined name and no board appears. -->
 <script src="teams.js"></script>
 <script src="boards.js"></script>
 <script src="app.js"></script>
-<script>
-/* ---------------------------------------------------------------
-   PATCH: click a filled box to edit its name.
-
-   Two faults in app.js stopped this working:
-
-     1. app.js installs a page-wide click handler that deletes any open
-        edit panel, and the opening click still reaches it — so the panel
-        died the instant it appeared.
-
-     2. Only the small gold name was clickable; the rest of a filled box
-        did nothing.
-
-   SCOPE NOTE: app.js declares  let entries = []  and a separate script
-   block cannot read another block's `let`. So this must NOT reach into
-   the page's variables. Instead it clicks the real name button that
-   already sits inside the tile — a genuine element with a genuine
-   listener, which works whatever the scope rules are.
-
-   app.js on disk is left untouched.
-   --------------------------------------------------------------- */
-(function () {
-  /* 1) a click that began on a tile, or inside the panel, must not reach
-        app.js's close-everything handler. Capture phase runs first,
-        which beats the bubble-phase listener app.js installed. */
-  document.addEventListener("click", function (ev) {
-    var t = ev.target;
-    if (!t || !t.closest) return;
-    if (t.closest(".tile") || t.closest(".chipeditor")) ev.stopPropagation();
-  }, true);
-
-  /* 2) and the same for the press, so the panel does not close before
-        the click even lands */
-  document.addEventListener("mousedown", function (ev) {
-    var t = ev.target;
-    if (!t || !t.closest) return;
-    if (t.closest(".chipeditor")) ev.stopPropagation();
-  }, true);
-
-  /* 3) clicking anywhere on a FILLED box opens the editor, by clicking
-        the name button that lives inside that tile. The typing row is
-        skipped, so entering a new name is unaffected. */
-  document.addEventListener("click", function (ev) {
-    var t = ev.target;
-    if (!t || !t.closest) return;
-    if (t.closest(".chipeditor")) return;   /* already in the panel */
-    if (t.closest(".addbar")) return;       /* the username field row */
-
-    var tile = t.closest(".tile");
-    if (!tile) return;
-    if (!tile.classList.contains("taken")) return;  /* only a filled box */
-
-    var nameBtn = tile.querySelector(".buyer .buyname-btn");
-    if (nameBtn) nameBtn.click();
-  });
-
-  /* 4) Escape closes the panel */
-  document.addEventListener("keydown", function (ev) {
-    if (ev.key !== "Escape") return;
-    var open = document.querySelector(".chipeditor");
-    if (open && open.parentNode) open.parentNode.removeChild(open);
-  });
-})();
-</script>
 </body>
 </html>
