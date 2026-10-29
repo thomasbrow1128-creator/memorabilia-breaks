@@ -335,15 +335,68 @@ button.ghost:disabled{opacity:.4; cursor:not-allowed; transform:none}
 }
 
 /* ============================================================
-   THE INLINE EDITOR HOLDER
-   The script creates the rename panel inside .roster:
-       const host = tile.querySelector(".roster");
-   This element MUST be visible, or the panel is built inside a
-   hidden box and can never be seen.
+   THE INLINE EDIT PANEL - sits inside the tile, never an overlay.
+   Hidden by default; shown only when the tile actually carries
+   .editing, which the script sets only for a box that holds a name.
    ============================================================ */
 
-.tile .roster{
-  display:block; flex:1 1 100%; order:8; width:100%;
+.chipeditor{
+  display:none;
+  flex:1 1 100%; order:8; width:100%;
+  align-items:center; flex-wrap:wrap; gap:6px;
+  padding:7px; border-radius:9px;
+  background:linear-gradient(180deg, #0f2a48, #061426);
+  border:1px solid rgba(201,162,39,.9);
+  box-shadow:0 0 18px rgba(201,162,39,.25), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.tile.editing .chipeditor{ display:flex; }
+
+.chipeditor::before{
+  content:"Edit or remove this name";
+  flex:1 1 100%;
+  font-size:9.5px; font-weight:900; letter-spacing:.14em;
+  text-transform:uppercase; color:#f0d67a;
+  padding-bottom:6px; margin-bottom:1px;
+  border-bottom:1px solid rgba(201,162,39,.3);
+}
+.chipeditor input{
+  flex:1 1 100%; min-width:0; font-family:inherit;
+  background:#f7fbff; border:1px solid rgba(150,205,240,.85); color:#08192b;
+  border-radius:6px; padding:7px 9px; font-size:13px;
+}
+.chipeditor input:focus{ outline:none; box-shadow:0 0 0 2px rgba(255,255,255,.28); }
+
+.cesave{
+  flex:1 1 auto; text-align:center;
+  background:linear-gradient(180deg, #fff0be, #d9ab2a 46%, #a3760a);
+  color:#241a02; border:1px solid rgba(255,248,215,.9); border-radius:7px;
+  padding:6px 12px; font-size:10px; font-weight:900; letter-spacing:.07em;
+  text-transform:uppercase; cursor:pointer; font-family:inherit; white-space:nowrap;
+}
+.cedel{
+  flex:1 1 auto; text-align:center;
+  background:linear-gradient(180deg, #e34a50, #8c1c21); color:#fff4ef;
+  border:1px solid rgba(255,190,180,.6); border-radius:7px;
+  padding:6px 12px; font-size:10px; font-weight:900; letter-spacing:.07em;
+  text-transform:uppercase; cursor:pointer; font-family:inherit; white-space:nowrap;
+}
+.cecancel{
+  flex:1 1 auto; text-align:center;
+  background:transparent; border:1px solid rgba(150,205,240,.6); color:#cfe1f0;
+  border-radius:7px; padding:6px 12px; font-size:10px; font-weight:800;
+  letter-spacing:.07em; text-transform:uppercase; cursor:pointer; font-family:inherit;
+  white-space:nowrap;
+}
+.cesave:hover, .cedel:hover{filter:brightness(1.12)}
+.cecancel:hover{border-color:#fff; color:#fff}
+
+.board-small .chipeditor,
+.board-medium .chipeditor{ padding:6px; gap:5px; }
+.board-small .chipeditor input,
+.board-medium .chipeditor input{ font-size:12px; padding:6px 8px; }
+.board-small .cesave, .board-small .cedel, .board-small .cecancel,
+.board-medium .cesave, .board-medium .cedel, .board-medium .cecancel{
+  padding:5px 8px; font-size:9px;
 }
 
 /* ============================================================
@@ -405,102 +458,10 @@ button.ghost:disabled{opacity:.4; cursor:not-allowed; transform:none}
 .board-large .tile .addbar button{padding:0 9px; font-size:14px}
 
 /* ============================================================
-   THE RENAME PANEL - a floating card, not an inline row.
-
-   The script appends this inside the tile, but the tile has
-   overflow:hidden and the pair cards are fixed-height grid rows, so an
-   inline panel can be clipped away to nothing. Rendering it fixed
-   lifts it out of that box: it cannot be clipped, and no board's
-   layout can swallow it.
+   THE RENAME PANEL - inline, inside the tile, never an overlay
    ============================================================ */
 
-.chipeditor{
-  position:fixed;
-  left:50%; top:50%;
-  transform:translate(-50%,-50%);
-  z-index:200;
-
-  display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-  width:min(420px, calc(100vw - 32px));
-  padding:16px 16px 14px;
-
-  border-radius:14px;
-  background:linear-gradient(180deg, #14304f, #06131f);
-  border:1px solid rgba(201,162,39,.95);
-  box-shadow:
-    0 24px 60px rgba(0,0,0,.8),
-    0 0 40px rgba(201,162,39,.35),
-    inset 0 1px 0 rgba(255,255,255,.16);
-}
-
-/* a title bar so it is obvious what the panel is for */
-.chipeditor::before{
-  content:"Edit or remove this name";
-  flex:1 1 100%;
-  font-size:10.5px; font-weight:900; letter-spacing:.16em;
-  text-transform:uppercase; color:#f0d67a;
-  padding-bottom:9px; margin-bottom:2px;
-  border-bottom:1px solid rgba(201,162,39,.35);
-  text-shadow:0 0 14px rgba(201,162,39,.5);
-}
-
-.chipeditor input{
-  flex:1 1 100%; min-width:0; font-family:inherit;
-  background:#f7fbff; border:1px solid rgba(150,205,240,.85); color:#08192b;
-  border-radius:8px; padding:10px 12px; font-size:15px;
-}
-.chipeditor input:focus{
-  outline:none;
-  box-shadow:0 0 0 3px rgba(255,255,255,.3), inset 0 2px 6px rgba(0,25,50,.2);
-}
-
-.cesave{
-  flex:1 1 auto; text-align:center;
-  background:linear-gradient(180deg, #fff0be, #d9ab2a 46%, #a3760a);
-  color:#241a02; border:1px solid rgba(255,248,215,.9); border-radius:8px;
-  padding:9px 18px; font-size:12px; font-weight:900; letter-spacing:.08em;
-  text-transform:uppercase; cursor:pointer; font-family:inherit; white-space:nowrap;
-  box-shadow:0 3px 10px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.8);
-}
-.cedel{
-  flex:1 1 auto; text-align:center;
-  background:linear-gradient(180deg, #e34a50, #8c1c21); color:#fff4ef;
-  border:1px solid rgba(255,190,180,.6); border-radius:8px;
-  padding:9px 18px; font-size:12px; font-weight:900; letter-spacing:.08em;
-  text-transform:uppercase; cursor:pointer; font-family:inherit; white-space:nowrap;
-  box-shadow:0 3px 10px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.3);
-}
-.cecancel{
-  flex:1 1 auto; text-align:center;
-  background:transparent; border:1px solid rgba(150,205,240,.6); color:#cfe1f0;
-  border-radius:8px; padding:9px 18px; font-size:12px; font-weight:800;
-  letter-spacing:.08em; text-transform:uppercase; cursor:pointer; font-family:inherit;
-  white-space:nowrap;
-}
-.cesave:hover, .cedel:hover{filter:brightness(1.12)}
-.cecancel:hover{border-color:#fff; color:#fff}
-
-/* a soft dim behind the panel so it reads as the focus */
-.chipeditor::after{
-  content:""; position:fixed; inset:0; z-index:-1;
-  background:rgba(2,8,16,.6);
-  pointer-events:none;
-}
-
-/* the name on a taken plate is the control that opens it */
-.tile .buyer .buyname-btn{
-  background:transparent; border:0; font:inherit; cursor:pointer;
-  padding:0; width:100%; display:block;
-}
-.tile .buyer .buyname-btn:hover,
-.tile .buyer .buyname-btn:focus-visible{
-  color:#fff6cf; outline:none;
-  text-decoration:underline; text-underline-offset:2px;
-}
-
-@media(max-width:520px){
-  .chipeditor{ width:calc(100vw - 24px); padding:14px; }
-}
+.tile .roster{ display:block; flex:1 1 100%; order:8; width:100%; }
 
 /* ============================================================
    PANELS, TABLE, UNDO BAR
@@ -596,32 +557,26 @@ th{color:#cfe4f6; font-weight:900; font-size:10.5px; text-transform:uppercase; l
 
 /* ============================================================
    A TAKEN BOX - the buyer's name stays lit, everything else dies.
+   No wording anywhere; the grey is the whole message.
    ============================================================ */
 
-.tile.taken{
-  background:linear-gradient(180deg, #2a3140 0%, #1b2028 55%, #12161d 100%);
-  border-color:rgba(140,152,166,.28);
-  box-shadow:0 0 0 1px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05);
-}
-.tile.taken:hover{transform:none; border-color:rgba(150,160,172,.4);
-  box-shadow:0 0 0 1px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05)}
+.tile.taken{ border-color:rgba(140,152,166,.28); }
 .tile.taken .eb{filter:grayscale(1) brightness(.6)}
-.tile.taken .eb::after{background:linear-gradient(180deg, rgba(255,255,255,.10), transparent 50%)}
-.tile.taken .eb .initials{color:rgba(255,255,255,.5); text-shadow:none}
 .tile.taken .badge{filter:grayscale(1); opacity:.32}
-.tile.taken .buyer{background:rgba(0,0,0,.2)}
 .tile.taken .buyer .buylbl{color:rgba(150,166,182,.42)}
-
-/* the only live thing on a dead plate */
-.tile.taken .buyer .buyname,
-.tile.taken .buyer .buyname-btn{
-  color:#ffd75e;
-  text-shadow:0 0 18px rgba(255,205,70,.55), 0 2px 5px rgba(0,0,0,.98);
-}
-
-.tile.taken .addbar{background:rgba(0,0,0,.55); border-top-color:rgba(150,200,235,.05)}
+.tile.taken .buyer .buyname{ color:#ffd75e; text-shadow:0 0 18px rgba(255,205,70,.55), 0 2px 5px rgba(0,0,0,.98); }
+.tile.taken .addbar{background:rgba(0,0,0,.55)}
 .tile.taken .addbar input{filter:grayscale(1); opacity:.26}
 .tile.taken .addbar button{filter:grayscale(1); opacity:.2}
+
+/* a filled card keeps a lit name while everything around it dulls */
+.board-small .tile.taken,
+.board-medium .tile.taken{
+  background:linear-gradient(180deg, #2a3140 0%, #1b2028 55%, #12161d 100%);
+  border-color:rgba(140,152,166,.28);
+}
+.board-small .tile.taken .eb,
+.board-medium .tile.taken .eb{filter:grayscale(1) brightness(.6)}
 
 /* ============================================================
    THE MARK ON THE BUTTONS
@@ -691,7 +646,7 @@ button.ghost:hover::before{
 }
 
 /* ============================================================
-   THE PAIRS BOARD - 16 cards, 4 x 4, one screen, no scrolling
+   THE PAIRS BOARD - 16 cards, 4 across, one screen
    ============================================================ */
 
 .board.board-small{grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px}
@@ -790,9 +745,6 @@ button.ghost:hover::before{
   border-radius:10px;
   min-height:56px;
 }
-
-/* a wide emblem strip so "AFC NORTH" fits on ONE line instead of
-   breaking mid-word into "AFCNORT / H" */
 .board-medium .tile .eb{
   width:116px; flex:0 0 116px;
   padding:8px 8px;
@@ -806,7 +758,6 @@ button.ghost:hover::before{
   hyphens:none;
   white-space:nowrap;
 }
-
 .board-medium .tile .buyer{
   flex:1 1 120px;
   padding:6px 14px 6px 12px;
@@ -815,20 +766,14 @@ button.ghost:hover::before{
 .board-medium .tile .buyer .buyname,
 .board-medium .tile .buyer .buyname-btn{font-size:13px}
 .board-medium .tile .buyer .buyopen{font-size:8px; padding:1px 8px}
-
 .board-medium .tile .addbar{padding:5px 6px; gap:6px}
 .board-medium .tile .addbar input{padding:5px 9px; font-size:12px; border-radius:6px}
 .board-medium .tile .addbar button{padding:0 10px; font-size:14px; border-radius:6px}
 
 /* ============================================================
    THE PAIR FADE - club A's colour on the left melting into club B's
-   on the right.
-
-   IMPORTANT: app.js writes the colour onto the element INLINE
-       eb.style.background = t.colors[0];
-   and an inline style outranks every stylesheet rule. Without the
-   !important below, these gradients are drawn and then immediately
-   covered. Do not remove it.
+   on the right. app.js writes the colour onto the element INLINE, so
+   these need !important to win. Do not remove it.
    ============================================================ */
 
 .tile[data-target="Cowboys, Jags"] .eb{
@@ -927,8 +872,6 @@ button.ghost:hover::before{
     #044156 50%,
     #0B2265 66%, #0B2265 100%) !important;
 }
-
-.board-small .tile.taken .eb{filter:grayscale(1) brightness(.6)}
 
 /* ============================================================
    COMPACT MODE - tight type for the pairs tab. This block must NOT
