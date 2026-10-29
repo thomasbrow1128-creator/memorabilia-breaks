@@ -50,20 +50,19 @@ header{
 /* the mark, floating in its own pool of light */
 header .brand{
   position:relative; display:block;
-  width:clamp(180px,26vw,300px);
+  width:clamp(150px,20vw,230px);
   margin:0 auto 4px;
 }
 header .brand img{
   display:block; width:100%; height:auto;
-  /* the file is the mark on a black field: screen drops that black away
-     so the mark sits ON the backdrop instead of inside a dark box */
-  mix-blend-mode:screen;
-  filter:contrast(1.16) saturate(1.12) drop-shadow(0 0 24px rgba(90,170,255,.42));
+  /* vector art with a transparent canvas: nothing to hide, so it
+     drops straight onto the backdrop with only a soft glow around it */
+  filter:drop-shadow(0 0 22px rgba(90,170,255,.38));
   transition:transform .3s ease, filter .3s ease;
 }
 header .brand:hover img{
   transform:translateY(-2px) scale(1.02);
-  filter:contrast(1.16) saturate(1.12) drop-shadow(0 0 40px rgba(120,190,255,.6));
+  filter:drop-shadow(0 0 38px rgba(120,190,255,.55));
 }
 /* the halo behind it */
 header .brand::before{
@@ -72,14 +71,13 @@ header .brand::before{
   pointer-events:none;
   z-index:-1;
 }
-/* fade the square edges of the photo away, so no dark box and no
-   hard line along the bottom shows on the backdrop */
+/* a soft pool of dark under the mark so it feels seated on the page,
+   wide and feathered so no rectangle or ring ever shows */
 header .brand::after{
-  content:""; position:absolute; inset:-2%;
-  pointer-events:none; z-index:2; border-radius:50%;
-  background:radial-gradient(circle at 50% 44%,
-    transparent 0%, transparent 54%,
-    rgba(3,10,20,.35) 70%, rgba(3,10,20,.85) 86%, rgba(3,10,20,.98) 100%);
+  content:""; position:absolute; inset:-14% -10% -6%;
+  pointer-events:none; z-index:-1;
+  background:radial-gradient(ellipse 62% 58% at 50% 48%,
+    rgba(6,18,34,.55) 0%, rgba(6,18,34,.30) 46%, transparent 74%);
 }
 
 /* the wordmark line */
@@ -102,7 +100,7 @@ header p{
 
 /* compact mode: mark shrinks, wordmark steps aside */
 header.compact{padding:7px 12px 6px}
-header.compact .brand{width:clamp(64px,8vw,96px); margin-bottom:0}
+header.compact .brand{width:clamp(58px,7vw,86px); margin-bottom:0}
 header.compact h1{font-size:8px; letter-spacing:.32em}
 header.compact h1::after{height:2px; margin-top:5px; width:min(300px,58%)}
 header.compact p{display:none}
@@ -110,7 +108,7 @@ header.compact p{display:none}
 /* ---------- the backdrop: the mark ghosted into the field ---------- */
 body::before{
   content:""; position:fixed; inset:0; z-index:-2; pointer-events:none;
-  background-image:url("logo.jpeg");
+  background-image:url("tks-mark.svg");
   background-repeat:no-repeat;
   background-position:center 8%;
   background-size:min(78vw,760px) auto;
@@ -568,7 +566,7 @@ button.ghost{ position:relative; }
 
 .boardreset::before,
 button.ghost::before{
-  content:"K";
+  content:"T";
   position:absolute; left:10px; top:50%;
   transform:translateY(-50%);
   width:19px; height:19px; line-height:17px;
@@ -603,7 +601,7 @@ button.ghost:hover::before{
 .cedel{ position:relative; }
 #undobtn::before,
 .cesave::before{
-  content:"K";
+  content:"T";
   display:inline-block;
   width:16px; height:16px; line-height:14px;
   margin-right:7px; vertical-align:middle;
@@ -615,7 +613,7 @@ button.ghost:hover::before{
   border:1px solid rgba(255,248,215,.9);
 }
 .tile .addbar button::before{
-  content:"K";
+  content:"T";
   display:inline-block;
   width:13px; height:13px; line-height:11px;
   margin-right:4px; vertical-align:middle;
