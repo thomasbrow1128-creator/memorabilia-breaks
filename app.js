@@ -1,44 +1,24 @@
 /* Memorabilia Breaks — one page, any number of boards.
 
    REQUIRES: teams.js, then boards.js, then this file.
-   The boards themselves live in boards.js — THIS FILE NEVER CHANGES
-   when you add a board. Add a board in boards.js and the tab, the
-   grid, the headings, the counter and the Reset button all follow.
 
    ONE PERSON PER BOX. A box takes one username. While it is free the
    field is open; once a name is saved the box greys out.
 
    THE GREY IS ONLY VISUAL. A filled box stays fully usable: click it
-   anywhere — the icon, the PURCHASER bar, or the gold name — and the
-   edit panel opens, so the name can be renamed or removed. Removing it
-   clears the grey and frees the box for someone else. You never have to
-   clear a whole board to fix one name.
-
-   The edit panel is built into the tile once, hidden, and shown on
-   demand. It is never rebuilt, so nothing can destroy it as it opens.
-
-   Resetting: every board carries its own Reset, which clears only the
-   boxes on that board. Every reset offers Undo.
-
-   BACKEND_ENDPOINT: leave "" to store usernames in this browser's
-   localStorage only. Set it to your form endpoint to save them centrally.
+   anywhere and the edit panel opens, so the name can be renamed or
+   removed. Removing it clears the grey and frees the box.
    --------------------------------------------------------------- */
 
 const BACKEND_ENDPOINT = "";
 const STORE_KEY = "memorabilia-breaks-usernames-v1";
 
-/* Tabs with more than one board get the tightened layout so everything
-   fits on screen without scrolling. */
 const COMPACT_TABS = { pairs: true };
 
 const $ = (id) => document.getElementById(id);
 
-let entries = [];            // { id, username, target, createdAt }
-let currentTab = "teams";    // a board id from BOARDS
-
-/* ---------- element lookup, without CSS selectors ----------
-   Box names contain commas and spaces, so a CSS selector built from a
-   name would break. Walk the tiles and compare data attributes instead. */
+let entries = [];
+let currentTab = "teams";
 
 function tileFor(targetId) {
   const tiles = document.querySelectorAll(".tile");
@@ -51,8 +31,6 @@ function tileFor(targetId) {
 function normalizeName(raw) {
   return (raw || "").trim().replace(/^@/, "");
 }
-
-/* ---------- storage ---------- */
 
 function loadEntries() {
   try {
@@ -76,7 +54,6 @@ function usersOn(targetId) {
   return entries.filter(function (e) { return e.target === targetId; });
 }
 
-/* How many names sit on one whole board. */
 function countOnBoard(boardId) {
   const board = boardById(boardId);
   if (!board) return 0;
@@ -85,7 +62,6 @@ function countOnBoard(boardId) {
   return entries.filter(function (e) { return names[e.target]; }).length;
 }
 
-/* only one edit panel open at a time */
 function closeAllPanels(except) {
   document.querySelectorAll(".tile").forEach(function (el) {
     if (el === except) return;
@@ -94,9 +70,6 @@ function closeAllPanels(except) {
     if (p) p.hidden = true;
   });
 }
-
-/* ---------- tabs ----------
-   Built from BOARDS, so a new board gets a tab automatically. */
 
 function buildTabs() {
   const nav = $("tabs");
@@ -113,7 +86,43 @@ function buildTabs() {
   });
 }
 
-/* ---------- board construction ---------- */
+function setCompact(on) {
+  const wrap = document.querySelector(".wrap");
+  if (wrap) wrap.classList.toggle("compact", !!on);
+  const head = document.querySelector("header");
+  if (head) head.classList.toggle("compact", !!on);
+}
+
+function setTab(tabId) {
+  currentTab = boardById(tabId) ? tabId : BOARDS[0].id;
+  const board = boardById(currentTab);
+  const stack = boardsOnTab(currentTab);
+
+  setCompact(COMPACT_TABS[currentTab]);
+
+  document.querySelectorAll("[data-view-btn]").forEach(function (b) {
+    const on = b.dataset.viewBtn === currentTab;
+    b.className = on ? "on" : "";
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+
+  $("boardTitle").textContent = board.label;
+  if (stack.length > 1) {
+    const rest = stack.slice(1).map(function (b) { return b.label; }).join(" and ");
+    $("boardSub").textContent =
+      "Both boards on this screen \u2014 " + board.label + " on top, " + rest +
+      " underneath. Each has its own Reset.";
+  } else {
+    $("boardSub").textContent =
+      board.boxes.length + " boxes. Type a username into a box to put them on it.";
+  }
+  $("filter").placeholder = "Filter " + board.label.toLowerCase() + "\u2026";
+
+  renderBoards();
+  refreshBoards();
+  applyFilter($("filter").value);
+  $("saved").textContent = "";
+}
 
 function buildTile(t) {
   const tile = document.createElement("div");
@@ -126,7 +135,6 @@ function buildTile(t) {
   badge.style.display = "none";
   tile.appendChild(badge);
 
-  /* --- the emblem block --- */
   const eb = document.createElement("div");
   eb.className = "eb";
   eb.style.background = t.colors[0];
@@ -139,7 +147,6 @@ function buildTile(t) {
 
   eb.title = "Click to enter a username for " + t.name;
 
-  /* --- the PURCHASER plate --- */
   const buyer = document.createElement("div");
   buyer.className = "buyer";
   const buylbl = document.createElement("span");
@@ -152,7 +159,6 @@ function buildTile(t) {
   buyer.appendChild(names);
   tile.appendChild(buyer);
 
-  /* --- the add-a-name row --- */
   const bar = document.createElement("form");
   bar.className = "addbar";
   const input = document.createElement("input");
@@ -174,9 +180,6 @@ function buildTile(t) {
   });
   tile.appendChild(bar);
 
-  /* --- the edit panel, built once and hidden ---
-     Kept in the tile from the start so opening it never depends on
-     rebuilding anything. The grey-out stays a purely visual state. */
   const panel = document.createElement("div");
   panel.className = "chipeditor";
   panel.hidden = true;
@@ -208,14 +211,13 @@ function buildTile(t) {
   panel.appendChild(editCancel);
   tile.appendChild(panel);
 
-  /* the name holding this box, if any */
   function holder() {
     return usersOn(t.id)[0] || null;
   }
 
   function openPanel() {
     const e = holder();
-    if (!e) return;                 /* nothing to edit on an empty box */
+    if (!e) return;
     closeAllPanels(tile);
     editInput.value = e.username;
     panel.hidden = false;
@@ -265,11 +267,8 @@ function buildTile(t) {
     closePanel();
   });
 
-  /* Clicking anywhere on a FILLED box opens the panel. The grey-out is
-     only a look: the box stays fully usable. The typing row is left
-     alone, so adding a name still works. */
   tile.addEventListener("click", function (ev) {
-    if (!panel.hidden) return;                                  /* already open */
+    if (!panel.hidden) return;
     if (ev.target.closest && ev.target.closest(".addbar")) return;
     if (usersOn(t.id).length) openPanel();
   });
@@ -348,7 +347,6 @@ function refreshBoardCounts() {
   });
 }
 
-/* Fill the gold PURCHASER plate: the name holding the box, or OPEN. */
 function paintBuyerPlate(tile, list) {
   const host = tile.querySelector("[data-names]");
   if (!host) return;
@@ -376,16 +374,12 @@ function refreshBoards() {
     if (!tile) return;
 
     const list = usersOn(t.id);
-
-    /* the gold plate is the only readout of who holds the box */
     paintBuyerPlate(tile, list);
 
     const badge = tile.querySelector(".badge");
     badge.textContent = list.length;
     badge.style.display = list.length ? "" : "none";
 
-    /* FILLED -> greyed and its field closed, but STILL CLICKABLE.
-       The grey is a visual state, never a lock. */
     const taken = list.length > 0;
     tile.classList.toggle("taken", taken);
 
@@ -397,12 +391,6 @@ function refreshBoards() {
     }
     if (btn) btn.disabled = taken;
 
-    /* a filled box carries no wording - the grey is the signal */
-    const lockText = tile.querySelector(".lockedtext");
-    if (lockText) lockText.textContent = "";
-
-    /* if the last name went away, close any panel left open and let the
-       grey clear, so the box reads as free again */
     if (!taken) {
       const p = tile.querySelector(".chipeditor");
       if (p) p.hidden = true;
@@ -412,8 +400,6 @@ function refreshBoards() {
 
   refreshBoardCounts();
 }
-
-/* ---------- resetting one board ---------- */
 
 function resetBoard(boardId) {
   const board = boardById(boardId);
@@ -442,8 +428,6 @@ function resetBoard(boardId) {
   showUndo("Cleared " + doomed.length + " from " + board.label + ".");
 }
 
-/* ---------- add and remove ---------- */
-
 async function addUser(targetId, rawName) {
   const username = normalizeName(rawName);
   const tile = tileFor(targetId);
@@ -454,7 +438,6 @@ async function addUser(targetId, rawName) {
     return;
   }
 
-  /* one person per box */
   if (usersOn(targetId).length) {
     $("saved").textContent = targetId + " is already taken. Remove that name first.";
     return;
@@ -495,8 +478,6 @@ function removeUser(id) {
   refreshBoards();
   renderEntries();
 }
-
-/* ---------- the list under the boards ---------- */
 
 function renderEntries() {
   const host = $("entries");
@@ -614,10 +595,6 @@ function textCell(text) {
   return td;
 }
 
-/* ---------- export ----------
-   Built from character codes: a stray backslash in a quoted string here
-   once stopped the whole script from parsing. */
-
 function csvEscape(v) {
   const QUOTE = String.fromCharCode(34);
   const COMMA = String.fromCharCode(44);
@@ -657,8 +634,6 @@ function downloadCsv() {
   URL.revokeObjectURL(a.href);
 }
 
-/* ---------- filter ---------- */
-
 function applyFilter(q) {
   const needle = (q || "").trim().toLowerCase();
   let shown = 0;
@@ -670,8 +645,6 @@ function applyFilter(q) {
   const total = targetsOnTab(currentTab).length;
   $("count").textContent = shown === total ? total + " shown" : shown + " of " + total + " shown";
 }
-
-/* ---------- boot ---------- */
 
 let undoSnapshot = null;
 let undoTimer = null;
