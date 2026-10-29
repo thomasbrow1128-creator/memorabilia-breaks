@@ -17,12 +17,18 @@
    remove a line from the winners page — not Reset board, not Hide all,
    not removing a single name, not a rename. A line leaves that page
    ONLY through its own Clear winners button, which lives in winners.js.
+
+   COMPACT TABS. Compact mode squashes a tab so every box fits one
+   screen without scrolling. It is only for boards whose cards are
+   already small. The Pairs board is NOT compact: its cards need their
+   own room, so it uses the normal .board-small card layout. Turning
+   compact on there flattened the cards into spreadsheet-like rows.
    --------------------------------------------------------------- */
 
 const BACKEND_ENDPOINT = "";
 const STORE_KEY = "memorabilia-breaks-usernames-v1";
 
-const COMPACT_TABS = { pairs: true };
+const COMPACT_TABS = {};
 
 const $ = (id) => document.getElementById(id);
 
@@ -119,7 +125,7 @@ function setTab(tabId) {
   if (stack.length > 1) {
     const rest = stack.slice(1).map(function (b) { return b.label; }).join(" and ");
     $("boardSub").textContent =
-      "Both boards on this screen - " + board.label + " on top, " + rest +
+      board.boxes.length + " boxes on this screen - " + board.label + " on top, " + rest +
       " underneath. Each has its own Reset.";
   } else {
     $("boardSub").textContent =
@@ -498,7 +504,7 @@ async function addUser(targetId, rawName) {
 
     /* an entry naming an item with a "$" is logged on the winners page */
     let logged = null;
-    if (typeof recordWin === "function") logged = recordWin(targetId, username);
+    if (typeof recordWin === "function") logged = await recordWin(targetId, username);
 
     refreshBoards();
     renderEntries();
