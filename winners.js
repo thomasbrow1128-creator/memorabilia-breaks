@@ -14,8 +14,16 @@
    A plain name with no "$" is just an entry: it still holds the box,
    but nothing is written to the winners log, because no item is named.
 
-   The log is stored in this browser alongside the boards, under its own
-   key, so clearing the boards never wipes the winners history.
+   THE LOG IS APPEND-ONLY FROM THE BOARDS. Nothing done on a board can
+   remove a line from this page:
+     - Reset board            -> log untouched
+     - Hide all               -> log untouched
+     - removing one name      -> log untouched
+     - renaming a name        -> the line is UPDATED in place
+   The ONLY way a line leaves is the Clear winners button on this page.
+
+   Stored in this browser under its own key, so clearing the boards never
+   wipes the winners history.
    ============================================================ */
 
 const WINNERS_KEY = "memorabilia-breaks-winners-v1";
@@ -82,9 +90,36 @@ function recordWin(target, rawEntry) {
   return win;
 }
 
-/* Remove the log entry for a box, if there is one. Used when a name is
-   taken off a box, so the winners log never shows a win that no longer
-   sits on a board. */
+/* Update the winner line for a box after a rename, IN PLACE.
+
+   A rename must never delete a line — the log is append-only from the
+   boards. So this rewrites the username and item on the existing line
+   and leaves its id, date and time untouched.
+
+   If that box has no logged win yet (a plain name being changed into one
+   that now names an item, say), a new line is recorded instead. */
+function updateWinFor(target, rawEntry) {
+  const parts = splitEntry(rawEntry);
+  const hit = winners.filter(function (x) { return x.target === target; })[0];
+
+  if (!hit) {
+    /* no line yet — only add one if this entry actually names an item */
+    if (parts.item) return recordWin(target, rawEntry);
+    return null;
+  }
+
+  hit.username = parts.username || "(no name)";
+  hit.item = parts.item;
+  saveWinners();
+  renderWinners();
+  return hit;
+}
+
+/* Remove the log entry for a box, if there is one.
+
+   NOTE: nothing on a board calls this any more. The log is append-only
+   from the boards, so this exists only for internal use and keeps the
+   file honest about what CAN remove a line. */
 function dropWinFor(target) {
   const before = winners.length;
   winners = winners.filter(function (w) { return w.target !== target; });
@@ -259,7 +294,9 @@ function downloadWinnersCsv() {
   URL.revokeObjectURL(a.href);
 }
 
-/* clear the whole winners log, with undo */
+/* clear the whole winners log, with undo.
+
+   THIS IS THE ONLY THING THAT EMPTIES THE WINNERS PAGE. */
 function clearWinners() {
   if (!winners.length) return;
   const line1 = "Remove all " + winners.length + " logged wins?";
