@@ -1,1 +1,216 @@
-@@DIV@@
+/* ============================================================
+   MEMORABILIA BREAKS - two overrides on top of casino.css.
+
+   Loaded AFTER casino.css, so a handful of rules can restyle two
+   boards without touching the rest of the theme.
+
+   1. THE DIVISIONS BOARD as cards, matching Teams and Pairs.
+   2. THE GIVEAWAY BOARD: tiles, entry counts, and the spin wheel.
+
+   Every selector is scoped, so nothing here can affect the Teams or
+   Pairs boards. Small on purpose: short files upload reliably.
+   ============================================================ */
+
+/* ============================================================
+   1. THE DIVISIONS BOARD - cards, like the other two boards
+   ============================================================ */
+
+.board.board-medium{grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px}
+@media(max-width:1080px){ .board.board-medium{grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px} }
+@media(max-width:900px){ .board.board-medium{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media(max-width:640px){ .board.board-medium{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media(max-width:420px){ .board.board-medium{grid-template-columns:minmax(0,1fr)} }
+
+.board-medium .tile{
+  flex-direction:column; flex-wrap:nowrap; align-items:stretch;
+  border-radius:11px; min-height:0; overflow:hidden;
+  background:linear-gradient(180deg, #17406a 0%, #102c4c 44%, #0a1d34 78%, #061324 100%);
+  border:1px solid rgba(165,205,240,.5);
+  box-shadow:0 0 0 1px rgba(0,0,0,.8), 0 4px 14px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.16);
+}
+.board-medium .tile .eb{
+  position:relative; flex:2 1 auto; min-height:54px;
+  width:auto; align-self:auto; border-right:0;
+  display:grid; place-items:center; overflow:hidden;
+  border-bottom:1px solid rgba(0,0,0,.55);
+  box-shadow:inset 0 0 30px rgba(0,0,0,.4);
+}
+.board-medium .tile .eb::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.16) 0%, transparent 34%,
+    rgba(0,0,0,.34) 100%);
+}
+.board-medium .tile .eb::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.22) 0%,
+    rgba(255,255,255,.04) 30%, transparent 52%);
+}
+.board-medium .tile .eb .initials{
+  position:relative; z-index:3;
+  font-size:clamp(13px,1.5vw,19px);
+  font-weight:900; letter-spacing:.06em; line-height:1.2;
+  color:#fff; text-align:center; padding:0 8px;
+  text-shadow:0 2px 8px rgba(0,0,0,.95), 0 0 20px rgba(255,255,255,.35);
+  overflow-wrap:normal; word-break:keep-all; hyphens:none; white-space:nowrap;
+}
+.board-medium .tile .buyer{
+  flex:0 0 auto; text-align:center; padding:2px 6px 3px;
+  background:linear-gradient(180deg, rgba(0,0,0,.34), rgba(0,0,0,.16));
+  border-top:1px solid rgba(255,255,255,.07);
+}
+.board-medium .tile .buyer .buylbl{font-size:6px; letter-spacing:.2em; color:#93aec9}
+.board-medium .tile .buyer .buyname,
+.board-medium .tile .buyer .buyname-btn{font-size:10.5px; text-align:center; letter-spacing:.03em}
+.board-medium .tile .buyer .buyopen{font-size:6px; padding:0 5px; margin-top:1px; letter-spacing:.12em}
+.board-medium .tile .addbar{
+  flex:0 0 auto; padding:3px 4px; gap:4px;
+  background:rgba(0,0,0,.42);
+  border-top:1px solid rgba(160,205,240,.16);
+}
+.board-medium .tile .addbar input{padding:3px 6px; font-size:10px; border-radius:5px}
+.board-medium .tile .addbar button{padding:0 6px; font-size:12px; border-radius:5px}
+.board-medium .tile .badge{top:2px; right:2px; font-size:6.5px; padding:0 3px; min-width:11px}
+.board-medium .chipeditor{padding:6px; gap:5px}
+.board-medium .chipeditor input{font-size:12px; padding:6px 8px}
+.board-medium .cesave, .board-medium .cedel, .board-medium .cecancel{
+  padding:5px 8px; font-size:9px;
+}
+
+/* ============================================================
+   2. THE GIVEAWAY BOARD
+
+   One tile per PERSON, with the number of entries they hold. The
+   count is the headline, because that is the thing you want to read
+   across the board at a glance. The wheel still gives one wedge per
+   entry, so three entries means three chances.
+   ============================================================ */
+
+.board.givetiles{grid-template-columns:repeat(5,minmax(0,1fr)); gap:11px}
+
+.givetile{
+  cursor:default; min-height:0;
+  background:linear-gradient(180deg, rgba(24,52,88,.94), rgba(6,16,30,.9));
+  border-color:rgba(165,205,240,.45);
+}
+.givetile:hover{transform:none; border-color:rgba(201,162,39,.7);
+  box-shadow:0 0 0 1px rgba(0,0,0,.85), 0 6px 20px rgba(0,0,0,.62),
+    0 0 22px rgba(255,206,80,.18), inset 0 1px 0 rgba(255,255,255,.16)}
+
+.givetile .eb{position:relative; flex:2 1 auto; min-height:74px;
+  display:grid; place-items:center; overflow:hidden;
+  border-bottom:1px solid rgba(0,0,0,.5)}
+.givetile .eb .initials{font-size:26px; letter-spacing:.04em}
+
+/* the entry count, a gold seal on the emblem */
+.givcount{
+  position:absolute; right:7px; bottom:6px; z-index:4;
+  min-width:34px; padding:1px 9px; border-radius:999px;
+  font-size:22px; font-weight:900; line-height:1.35; letter-spacing:-.02em;
+  text-align:center; color:#241a02;
+  background:linear-gradient(180deg, #fff6d2, #f2d264 44%, #b6880f);
+  border:1px solid rgba(255,255,255,.85);
+  box-shadow:0 3px 12px rgba(0,0,0,.75), inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.givetile .buyer{padding:7px 9px 8px}
+.givetile .buyer .buylbl{font-size:7.5px; letter-spacing:.2em; color:#f0d67a}
+.givetile .buyer .buyname{font-size:14px}
+
+/* where the entries came from, in plain words */
+.givfrom{
+  display:block; margin-top:3px;
+  font-size:8.5px; font-weight:800; letter-spacing:.08em;
+  text-transform:uppercase; color:#8ea9c4;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+/* the Remove on a tile that carries hand-typed entries */
+.givemanual{padding:5px; justify-content:center}
+.givedel{padding:5px 12px; font-size:9px}
+
+@media(max-width:1080px){ .board.givetiles{grid-template-columns:repeat(4,minmax(0,1fr))} }
+@media(max-width:900px){ .board.givetiles{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media(max-width:640px){ .board.givetiles{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media(max-width:420px){ .board.givetiles{grid-template-columns:minmax(0,1fr)} }
+
+/* ============================================================
+   3. THE SPIN WHEEL
+   ============================================================ */
+
+.wheelwrap{margin:24px 0 6px; text-align:center}
+.wheelholder{position:relative; display:inline-block; width:min(460px,88vw)}
+.wheelcanvas{width:100%; height:auto; display:block; border-radius:50%;
+  box-shadow:0 20px 48px rgba(0,0,0,.7), 0 0 0 1px rgba(201,162,39,.4)}
+
+/* the pointer, fixed at the top, aimed down into the wheel */
+.wheelpointer{position:absolute; left:50%; top:-8px; transform:translateX(-50%);
+  width:0; height:0; z-index:3;
+  border-left:16px solid transparent; border-right:16px solid transparent;
+  border-top:30px solid #ffd75e;
+  filter:drop-shadow(0 4px 7px rgba(0,0,0,.85))}
+
+/* the hub: a lit game-show button */
+.wheelhub{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  z-index:4; width:118px; height:118px; border-radius:50%; cursor:pointer;
+  font-family:inherit; font-size:19px; font-weight:900;
+  letter-spacing:.09em; text-indent:.09em;
+  color:#3d2a02; border:3px solid #fff6d2;
+  background:radial-gradient(circle at 50% 26%,
+    #fffbe6 0%, #ffe9a0 26%, #f2c53f 52%, #c9962a 74%, #8a6410 100%);
+  text-shadow:0 1px 0 rgba(255,255,255,.7), 0 -1px 0 rgba(120,80,0,.35);
+  animation:hubGlow 2.6s ease-in-out infinite;
+  transition:transform .12s ease, filter .16s ease;
+}
+@keyframes hubGlow{
+  0%,100%{box-shadow:0 0 0 6px rgba(255,215,106,.24), 0 0 30px rgba(255,206,80,.45),
+    0 14px 30px rgba(0,0,0,.75), inset 0 3px 0 rgba(255,255,255,.9),
+    inset 0 -6px 14px rgba(120,80,0,.5)}
+  50%{box-shadow:0 0 0 6px rgba(255,215,106,.42), 0 0 52px rgba(255,215,110,.8),
+    0 14px 30px rgba(0,0,0,.8), inset 0 3px 0 rgba(255,255,255,.95),
+    inset 0 -6px 14px rgba(120,80,0,.5)}
+}
+.wheelhub::after{
+  content:""; position:absolute; left:14%; top:8%; width:72%; height:34%;
+  border-radius:50%; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.75), transparent);
+}
+.wheelhub:hover{filter:brightness(1.07); transform:translate(-50%,-50%) scale(1.05)}
+.wheelhub:active{transform:translate(-50%,-50%) scale(.95)}
+.wheelhub:disabled{animation:none; opacity:.6; cursor:default; filter:grayscale(.35)}
+
+.wheelresult{margin:18px 0 0; font-size:14px; font-weight:800;
+  letter-spacing:.06em; color:#a9c3dc; min-height:22px}
+.wheelresult.won{color:#ffd75e; font-size:20px;
+  text-shadow:0 0 24px rgba(255,206,80,.65)}
+.wheelresult b{color:#fff; font-weight:900}
+
+/* the hand-add bar under the wheel */
+.givadd{display:flex; flex-wrap:wrap; gap:9px; align-items:center;
+  margin:20px 0 4px; padding:13px 16px; border-radius:12px;
+  background:linear-gradient(180deg, rgba(8,28,52,.85), rgba(3,12,24,.7));
+  border:1px solid rgba(201,162,39,.4); justify-content:center}
+.givaddlbl{font-size:10.5px; font-weight:900; letter-spacing:.12em;
+  text-transform:uppercase; color:#f0d67a}
+.givadd input{flex:1 1 200px; min-width:0; max-width:280px; font-family:inherit;
+  font-size:13px; background:linear-gradient(180deg, #ffffff, #e6f1fd);
+  border:1px solid rgba(150,205,240,.65); color:#08192b;
+  border-radius:9px; padding:9px 13px}
+.givadd input:focus{outline:none; border-color:#fff;
+  box-shadow:0 0 0 2px rgba(255,255,255,.3)}
+.givadd button{font-family:inherit; font-size:15px; font-weight:900;
+  color:#241a02; border:1px solid rgba(255,248,215,.85); border-radius:9px;
+  padding:0 18px; line-height:2.05; cursor:pointer;
+  background:linear-gradient(180deg, #fff3c0, #e2b833 46%, #a3760a)}
+.givadd button:hover{filter:brightness(1.12)}
+
+@media(max-width:640px){
+  .wheelhub{width:88px; height:88px; font-size:14px; border-width:2px}
+  .wheelpointer{border-left:12px solid transparent;
+    border-right:12px solid transparent; border-top:22px solid #ffd75e}
+  .wheelresult.won{font-size:16px}
+  .givcount{font-size:17px; min-width:26px; right:5px; bottom:5px}
+  .givadd{padding:11px 12px}
+  .givadd input{flex:1 1 100%; max-width:none}
+}
