@@ -59,34 +59,146 @@ const $ = (id) => document.getElementById(id);
 
 let entries = [];
 
-/* ---------- THE KEPT ENTRIES ----------
+/* ---------- THE GIVEAWAY ENTRIES ARE STORED ----------
 
-   Clearing a board used to take its giveaway entries with it, because the
-   giveaway counts its entries by READING THE BOARD ROWS. Delete the row
-   and the entry vanished with it.
+   An entry used to be WORKED OUT from the board rows, which meant a row
+   that was removed took its entry with it: reset Pairs and the draw
+   shrank. That is the bug this replaces.
 
-   So before a board is cleared, the giveaway entries those rows were
-   worth are written down here first. The board empties; the draw does
-   not. Only the Giveaway's own Remove and Reset take a kept entry back
-   out - nothing on Teams, Divisions or Pairs can.
+   Now an entry is WRITTEN DOWN the moment it is earned - one row in
+   public.giveaway_entries for each Team box, one for every TWO Pairs
+   boxes - and after that it belongs to the giveaway alone.
 
-   Keyed by username, holding how many entries are owed and which board
-   they came from, so the giveaway can still say where they came from. */
-let keptEntries = {};
+     Teams / Pairs Reset        -> touches nothing here
+     removing or renaming a name-> touches nothing here
+     the Giveaway's Remove      -> deletes that one row
+     Reset Giveaway             -> deletes the hand-added rows
 
-function keepEntry(username, boardId, howMany) {
+   Because the rows live in the database, an entry survives a refresh and
+   shows on every device, which the old in-page version did not. */
+let giveawayRows = [];
+let gwSyncing = false;
+
+const SB_GIVEAWAY_URL = SB_WIN_URL + "/rest/v1/giveaway_entries";
+
+async function gwLoad() {
+  try {
+    const res = await fetch(
+      SB_GIVEAWAY_URL + "?select=*&order=created_at.asc",
+      { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+    );
+    if (!res.ok) return giveawayRows;
+    giveawayRows = await res.json();
+  } catch (e) {
+    /* leave what we have rather than emptying the draw */
+  }
+  return giveawayRows;
+}
+
+/* write one entry down. A failure is reported, never swallowed. */
+async function gwAdd(username, source) {
   const name = buyerOnly(username);
-  if (!name || !howMany) return;
-  if (!keptEntries[name]) keptEntries[name] = { teams: 0, pairs: 0, manual: 0, from: {} };
-  keptEntries[name][boardId] = (keptEntries[name][boardId] || 0) + howMany;
-  keptEntries[name].from[boardId] = (keptEntries[name].from[boardId] || 0) + howMany;
+  if (!name) return null;
+  const res = await fetch(SB_GIVEAWAY_URL, {
+    method: "POST",
+    headers: {
+      "apikey": SB_WIN_KEY,
+      "Authorization": "Bearer " + SB_WIN_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation"
+    },
+    body: JSON.stringify({ username: name, source: source })
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(function () { return ""; });
+    throw new Error("Could not save the giveaway entry (" + res.status + ") " + txt);
+  }
+  const rows = await res.json();
+  const row = rows[0] || null;
+  if (row) giveawayRows.push(row);
+  return row;
 }
 
-function keptFor(name) {
-  const k = keptEntries[name];
-  if (!k) return { teams: 0, pairs: 0, manual: 0 };
-  return { teams: k.teams || 0, pairs: k.pairs || 0, manual: k.manual || 0 };
+async function gwDeleteRow(id) {
+  const res = await fetch(SB_GIVEAWAY_URL + "?id=eq." + encodeURIComponent(id), {
+    method: "DELETE",
+    headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY }
+  });
+  if (!res.ok) throw new Error("Could not remove that entry (" + res.status + ")");
+  giveawayRows = giveawayRows.filter(function (r) { return r.id !== id; });
 }
+
+/* HOW MANY ENTRIES A PERSON IS OWED.
+
+   Counted from the stored rows, and from the boards as well, so a name
+   added while the table was unreachable still shows its entry once the
+   board row is there. The two are reconciled by source: a stored 'teams'
+   row and a Team box are the same entry, never two. */
+function gwStoredCount(username) {
+  const name = buyerOnly(username);
+  return giveawayRows.filter(function (r) { return r.username === name; }).length;
+}
+
+/* WRITE DOWN WHAT THIS BOX JUST EARNED.
+
+   Teams  - every box earns one entry, at once.
+   Pairs  - every SECOND box earns one, so the odd box is held by the
+            board until its partner arrives. The count is worked out
+            from the board as it now stands, and only the missing
+            entries are written, so filling a box twice cannot double
+            an entry. */
+async function gwEarnFor(targetId, username) {
+  const name = buyerOnly(username);
+  if (!name) return;
+
+  const boardId = giveawayBoardOf(targetId);
+  if (!boardId) return;                       /* divisions, or unknown */
+
+  const mine = entries.filter(function (e) {
+    return buyerOnly(e.username) === name && giveawayBoardOf(e.target) === boardId;
+  }).length;
+
+  const owed = giveawayRate(boardId, mine);
+  const have = gwStoredCount(name);
+  const heldByOtherBoard = giveawayRows.filter(function (r) {
+    return r.username === name && r.source === boardId;
+  }).length;
+
+  const missing = owed - heldByOtherBoard;
+  for (let i = 0; i < missing; i++) {
+    await gwAdd(name, boardId);
+  }
+}
+
+async function gwSyncFromBoards() {
+  if (gwSyncing) return;
+  gwSyncing = true;
+  try {
+    const perPerson = {};
+    entries.forEach(function (e) {
+      const name = buyerOnly(e.username);
+      if (!name) return;
+      const boardId = giveawayBoardOf(e.target);
+      if (!boardId) return;
+      if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0 };
+      perPerson[name][boardId] += 1;
+    });
+
+    Object.keys(perPerson).forEach(function (name) {
+      const c = perPerson[name];
+      const owed = giveawayRate("teams", c.teams) + giveawayRate("pairs", c.pairs);
+      const have = gwStoredCount(name);
+      if (owed <= have) return;
+      const missing = owed - have;
+      for (let i = 0; i < missing; i++) {
+        gwAdd(name, "earned").catch(function () {});
+      }
+    });
+  } finally {
+    gwSyncing = false;
+  }
+}
+
 let currentTab = "teams";
 let liveMath = false;
 let undoSnapshot = null;
@@ -495,67 +607,38 @@ function buildBoardHeader(b) {
    list to keep in step. */
 
 function giveawayEntries() {
-  /* Count how many boxes each person holds, per board.
+  /* COUNT THE STORED ROWS, AND NOTHING ELSE.
 
-     WHICH BOARD A ROW BELONGS TO IS DECIDED BY ITS NAME, looked up in
-     the two explicit name sets. A row whose name is in neither earns
-     nothing, so Divisions can never leak into the draw however its rows
-     happen to be stored - and a single Pairs box can never count as a
-     team, which would have given one entry for one pair. */
+     Every entry is a row in public.giveaway_entries, written the moment
+     it was earned. The board rows on Teams and Pairs are NOT read here
+     any more - that is the whole point: once an entry is stored, no
+     board can take it away. Reset Pairs empties the Pairs boxes and the
+     draw does not move.
+
+     A row whose source is "manual" came from the box on the giveaway
+     board itself, and only those carry a Remove. */
   const perPerson = {};
-  entries.forEach(function (e) {
-    const name = buyerOnly(e.username);
+  giveawayRows.forEach(function (r) {
+    const name = buyerOnly(r.username);
     if (!name) return;
-
-    if (isGiveawayTarget(e.target)) {
-      /* a manual entry: one entry per row, however many times it is typed */
-      if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0, manual: 0 };
+    if (!perPerson[name]) perPerson[name] = { stored: 0, manual: 0, ids: [], manualIds: [] };
+    perPerson[name].stored += 1;
+    perPerson[name].ids.push(r.id);
+    if (r.source === "manual") {
       perPerson[name].manual += 1;
-      return;
+      perPerson[name].manualIds.push(r.id);
     }
-
-    const boardId = giveawayBoardOf(e.target);
-    if (!boardId) return;                      /* divisions, or unknown */
-    if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0, manual: 0 };
-    perPerson[name][boardId] += 1;
   });
 
-  /* ADD WHAT CLEARED BOARDS ARE STILL OWED.
-
-     Every entry written down when a board was cleared is counted in
-     again here, so a name that was on Pairs keeps its giveaway entries
-     after Pairs is emptied. This is what stops Reset on Teams or Pairs
-     from quietly shrinking the draw. */
-  Object.keys(keptEntries).forEach(function (name) {
-    const k = keptEntries[name];
-    if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0, manual: 0 };
-    perPerson[name].teams += k.teams || 0;
-    perPerson[name].pairs += k.pairs || 0;
-    perPerson[name].manual += k.manual || 0;
-  });
-
-  /* Turn those counts into tiles, one per entry.
-
-     An entry earned from Teams or Pairs carries no id: it lives and dies
-     with the name on that board. A hand-typed entry carries its row id,
-     so it can be taken back out from the tile itself. */
   const out = Object.keys(perPerson).map(function (name) {
     const c = perPerson[name];
-    const earned = giveawayRate("teams", c.teams) + giveawayRate("pairs", c.pairs);
-    const total = earned + (c.manual || 0);
-
-    const manualRows = entries.filter(function (e) {
-      return isGiveawayTarget(e.target) && buyerOnly(e.username) === name;
-    });
-
     return {
       name: name,
-      count: total,
-      earned: earned,
-      manual: c.manual || 0,
-      manualIds: manualRows.map(function (e) { return e.id; }),
-      teams: c.teams,
-      pairs: c.pairs,
+      count: c.stored,
+      earned: c.stored - c.manual,
+      manual: c.manual,
+      ids: c.ids,
+      manualIds: c.manualIds,
       index: 0
     };
   });
@@ -654,7 +737,7 @@ function buildGiveawayTile(person) {
       ev.stopPropagation();
       const id = person.manualIds[0];
       try {
-        await sbRemoveEntry(id);
+        await gwDeleteRow(id);
       } catch (err) {
         $("saved").textContent = "Could not remove that entry: " + err.message;
         return;
@@ -710,8 +793,7 @@ function buildGiveawayAddBar() {
 
     note.textContent = "Adding...";
     try {
-      const saved = await sbAddEntry(name, giveawayTargetFor(name));
-      if (saved) entries.push(saved);
+      await gwAdd(name, "manual");
     } catch (err) {
       note.textContent = "Could not add that entry: " + err.message;
       return;
@@ -720,6 +802,7 @@ function buildGiveawayAddBar() {
     input.value = "";
     renderBoards();
     renderEntries();
+    if (typeof renderWinners === "function") renderWinners();
     note.textContent = "Added one giveaway entry for @" + name + ".";
     input.focus();
   });
@@ -734,37 +817,35 @@ function buildGiveawayAddBar() {
    and no other board is touched either. */
 async function resetGiveaway() {
   const note = $("saved");
-  const manual = entries.filter(function (e) { return isGiveawayTarget(e.target); });
+  const manual = giveawayRows.filter(function (r) { return r.source === "manual"; });
 
   if (!manual.length) {
-    note.textContent = "Nothing added by hand. Entries earned on Teams and Pairs " +
-      "are cleared on those boards.";
+    note.textContent = "No hand-added entries to take out.";
     return;
   }
 
-  const line1 = "Remove all " + manual.length + " hand-typed entries?";
-  const line2 = "Entries earned on the Teams and Pairs boards are kept." +
-    String.fromCharCode(10) +
-    "No name, no win and no other board is touched.";
-  if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
-
-  undoSnapshot = manual.slice();
-
-  try {
-    for (let i = 0; i < manual.length; i++) {
-      await sbRemoveEntry(manual[i].id);
+  /* only the rows typed straight onto the giveaway go. Entries earned on
+     Teams or Pairs are a different source and are left alone. */
+  const stuck = [];
+  for (let i = 0; i < manual.length; i++) {
+    try {
+      await gwDeleteRow(manual[i].id);
+    } catch (err) {
+      stuck.push(err.message);
     }
-  } catch (err) {
-    note.textContent = "Could not remove every entry: " + err.message;
-    await loadEntries();
-    return;
   }
 
-  entries = entries.filter(function (e) { return !isGiveawayTarget(e.target); });
+  await gwLoad();
   renderBoards();
   renderEntries();
-  showUndo("Took out " + manual.length + " hand-typed entries - the boards are unchanged.");
+  if (typeof renderWinners === "function") renderWinners();
+
+  note.textContent = stuck.length
+    ? "Could not remove " + stuck.length + " of " + manual.length + " entries: " + stuck.join(", ")
+    : "Took " + manual.length + " hand-added entr" + (manual.length === 1 ? "y" : "ies") +
+      " out. Entries earned on Teams and Pairs are untouched.";
 }
+
 
 /* ---------- THE SPIN WHEEL ----------
 
@@ -1174,6 +1255,19 @@ async function addUser(targetId, rawName, fromTile) {
 
   entries.push(saved);
 
+  /* THE ENTRY IS EARNED THE MOMENT THE BOX IS FILLED.
+
+     Written straight to public.giveaway_entries, so it belongs to the
+     giveaway from now on: clearing this board, removing the name or
+     renaming it cannot touch it. A failure here is reported rather than
+     swallowed, because a silent miss is an entry someone paid for. */
+  let gwError = "";
+  try {
+    await gwEarnFor(targetId, username);
+  } catch (err) {
+    gwError = err && err.message ? err.message : "unknown error";
+  }
+
   /* an entry naming an item with a "$" is logged on the winners page.
 
      boardSplit and boardLogWin live in THIS file, so the win records
@@ -1204,6 +1298,10 @@ async function addUser(targetId, rawName, fromTile) {
       " BUT the win did not log: " + logError;
   } else {
     note.textContent = "Added @" + buyerOnly(username) + " to " + targetId;
+  }
+
+  if (gwError) {
+    note.textContent += " - BUT the giveaway entry did not save: " + gwError;
   }
 }
 
@@ -1315,12 +1413,6 @@ async function resetBoard(boardId) {
     if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0 };
     perPerson[name][boardId] += 1;
   });
-  Object.keys(perPerson).forEach(function (name) {
-    const c = perPerson[name];
-    keepEntry(name, "teams", giveawayRate("teams", c.teams));
-    keepEntry(name, "pairs", giveawayRate("pairs", c.pairs));
-  });
-
   undoSnapshot = doomed.slice();
   $("saved").textContent = "Clearing " + doomed.length + " from " + board.label + "...";
 
@@ -1618,6 +1710,11 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   sbWatchEntries(function () { loadEntries(); });
+
+  /* the stored giveaway entries are read once at startup and watched, so
+     a name entered on another device shows in the draw here */
+  gwLoad().then(function () { refreshBoards(); });
+  sbWatchGiveaway(function () { gwLoad().then(function () { refreshBoards(); }); });
   setInterval(function () { loadEntries(); }, 30000);
 
   $("filter").addEventListener("input", function (e) { applyFilter(e.target.value); });
