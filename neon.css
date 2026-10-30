@@ -3,12 +3,12 @@
 
    Loaded AFTER casino.css and divisions.css, so it repaints the whole
    site without touching either file. Nothing here is structural: it is
-   colour, light and surface only, so every board, tile, table and
+   colour, light, and surface only, so every board, tile, table and
    button keeps working exactly as it did.
 
    THE LOOK, taken from the TKS Breakz mark:
      - a deep space field, near black, shot through with violet
-     - NEON BLUE and NEON MAGENTA rails crossing the page
+     - NEON BLUE and NEON MAGENTA light, crossing the page
      - panels as dark glass with a cyan-to-violet rim
      - faceted crystal chips, caught in the light
      - brushed GOLD metal on the wordmark and the seals
@@ -17,26 +17,45 @@
 :root{
   --nk-ink:#eaf0ff;
   --nk-dim:#93a6cf;
+
+  /* the two neon rails from the mark */
   --nk-blue:#2b6bff;
   --nk-cyan:#3fd0ff;
   --nk-magenta:#c026ff;
   --nk-pink:#ff3bd4;
+
+  /* the gold metal on the lettering and the seals */
   --nk-gold:#e8bf5c;
   --nk-gold-hi:#fff3c4;
   --nk-gold-lo:#8a6410;
+
+  /* glass panels */
   --nk-glass-1:rgba(24,20,64,.92);
   --nk-glass-2:rgba(12,14,42,.9);
   --nk-glass-3:rgba(6,8,26,.94);
+
   --nk-edge:rgba(90,180,255,.42);
   --nk-edge-hi:rgba(192,120,255,.85);
 }
 
 /* ============================================================
-   1. THE FIELD
+   THE FIELD
    ============================================================ */
 
 body{background:#03040e}
 
+/* THE FIELD. Two kinds of rail, woven so they read as light in space
+   rather than paint on a page:
+
+     - two BIG rails running corner to corner, the pair from the mark
+     - four SHORT rails that fade at both ends, so the light looks like
+       it passes behind the panels instead of lying flat on top
+     - a violet core behind the mark, and a second bloom low down, so
+       the page has two light sources to read depth against
+     - a scatter of star points
+
+   Every rail is a thin bright line with soft edges. A hard-edged stripe
+   reads as painted on; a soft one reads as light. */
 body::before{
   background-image:
     linear-gradient(72deg,
@@ -84,6 +103,7 @@ body::before{
   mix-blend-mode:normal;
 }
 
+/* the wash over it: keep the centre bright, crush the edges */
 body::after{
   background:
     radial-gradient(ellipse 90% 60% at 50% 26%, rgba(60,20,150,.34), transparent 74%),
@@ -92,18 +112,18 @@ body::after{
 }
 
 /* ============================================================
-   2. THE MARK
+   THE MARK, on a crown of light
    ============================================================ */
 
 header{
   border-bottom:1px solid rgba(120,90,255,.4);
   background:linear-gradient(180deg, rgba(6,4,24,.94), rgba(8,6,30,.4) 70%, transparent);
-  box-shadow:0 22px 54px rgba(0,0,0,.6), inset 0 1px 0 rgba(150,120,255,.2);
+  box-shadow:0 22px 54px rgba(0,0,0,.6), 0 1px 0 rgba(150,120,255,.2) inset;
 }
 header .brand{width:clamp(200px,28vw,320px)}
-header .brand img{
-  filter:drop-shadow(0 0 30px rgba(120,90,255,.6))
-    drop-shadow(0 0 70px rgba(60,120,255,.35));
+header .brand img{filter:drop-shadow(0 0 30px rgba(120,90,255,.6)) drop-shadow(0 0 70px rgba(60,120,255,.35))}
+header .brand:hover img{
+  filter:drop-shadow(0 0 40px rgba(160,110,255,.85)) drop-shadow(0 0 90px rgba(80,160,255,.5));
 }
 header .brand::before{
   background:radial-gradient(ellipse 62% 56% at 50% 46%, rgba(120,70,255,.5), transparent 70%);
@@ -114,14 +134,13 @@ header h1{
 }
 header h1::after{
   background:linear-gradient(90deg, transparent,
-    rgba(63,208,255,.9) 14%, var(--nk-gold-hi) 50%,
-    rgba(192,38,255,.9) 86%, transparent);
+    rgba(63,208,255,.9) 14%, var(--nk-gold-hi) 50%, rgba(192,38,255,.9) 86%, transparent);
   box-shadow:0 0 22px rgba(190,120,255,.8), 0 0 60px rgba(64,160,255,.5);
 }
 header p{color:#b8c6ea}
 
 /* ============================================================
-   3. THE TABS
+   THE TABS - chromed plates with a neon edge
    ============================================================ */
 
 .segment{
@@ -150,7 +169,7 @@ header p{color:#b8c6ea}
 }
 
 /* ============================================================
-   4. PANELS
+   PANELS - dark glass with a lit rim
    ============================================================ */
 
 .panel{
@@ -182,7 +201,7 @@ header p{color:#b8c6ea}
 .sectionhead .sectioncount{color:var(--nk-dim)}
 
 /* ============================================================
-   5. THE BOXES
+   THE BOXES - dark glass tiles, lit along the top edge
    ============================================================ */
 
 .tile{
@@ -220,6 +239,8 @@ header p{color:#b8c6ea}
   background:rgba(0,0,0,.5);
   border-top:1px solid rgba(120,160,255,.22);
 }
+
+/* THE TAKEN BOX: drained of colour, its name still gold */
 .tile.taken{
   background:linear-gradient(180deg, rgba(32,34,54,.9), rgba(12,14,26,.94));
   border-color:rgba(110,120,170,.3);
@@ -229,6 +250,11 @@ header p{color:#b8c6ea}
   color:var(--nk-gold);
   text-shadow:0 0 22px rgba(255,205,90,.6), 0 2px 6px rgba(0,0,0,.98);
 }
+
+/* ============================================================
+   BOARD GRIDS - the plates that carry the tiles
+   ============================================================ */
+
 .board-large .tile{
   background:linear-gradient(180deg,
     rgba(36,28,86,.95) 0%, rgba(18,18,58,.94) 40%,
@@ -242,18 +268,22 @@ header p{color:#b8c6ea}
 }
 
 /* ============================================================
-   6. TABLES
+   TABLES - ruled in violet, headers in gold
    ============================================================ */
 
 th,td{border-bottom:1px solid rgba(120,110,220,.24)}
-th{color:#cfe0ff; text-shadow:0 0 14px rgba(150,140,255,.5)}
+th{
+  color:#cfe0ff;
+  text-shadow:0 0 14px rgba(150,140,255,.5);
+}
 .winnersTable tbody tr:first-child td{
   background:linear-gradient(180deg, rgba(192,38,255,.12), rgba(43,107,255,.05));
 }
+
 .empty{color:var(--nk-dim)}
 
 /* ============================================================
-   7. BUTTONS
+   BUTTONS - gold seals on a neon plate
    ============================================================ */
 
 button.ghost{
@@ -273,6 +303,7 @@ button.ghost:hover{
 }
 .boardreset:hover{border-color:#ff9b9e; color:#ffd3d5}
 
+/* the little gold T seal on every action button */
 .boardreset::before,
 button.ghost::before{
   background:linear-gradient(180deg, var(--nk-gold-hi), var(--nk-gold) 42%, var(--nk-gold-lo));
@@ -283,6 +314,7 @@ button.ghost:hover::before{
   box-shadow:0 0 16px rgba(255,215,110,.9), inset 0 1px 0 rgba(255,255,255,.85);
 }
 
+/* inputs */
 .toolbar input,
 .tile .addbar input,
 .chipeditor input,
@@ -296,7 +328,7 @@ button.ghost:hover::before{
 }
 
 /* ============================================================
-   8. THE GIVEAWAY
+   THE GIVEAWAY - neon tiles, a gold count
    ============================================================ */
 
 .givetile{
@@ -313,7 +345,7 @@ button.ghost:hover::before{
 }
 
 /* ============================================================
-   9. THE SPIN HUB
+   THE SPIN HUB - the brightest thing on the page
    ============================================================ */
 
 .wheelholder{
@@ -329,6 +361,8 @@ button.ghost:hover::before{
   border-top-color:var(--nk-gold);
   filter:drop-shadow(0 0 10px rgba(255,215,110,.8)) drop-shadow(0 4px 8px rgba(0,0,0,.9));
 }
+
+/* the hub keeps its gold face but gains the neon halo */
 .wheelhub{
   border-color:var(--nk-gold-hi);
   animation:hubGlow2 2.6s ease-in-out infinite;
@@ -341,6 +375,7 @@ button.ghost:hover::before{
     0 0 110px rgba(160,100,255,.6), 0 14px 30px rgba(0,0,0,.82),
     inset 0 3px 0 rgba(255,255,255,.95), inset 0 -6px 14px rgba(120,80,0,.5)}
 }
+
 .wheelresult{color:var(--nk-dim)}
 .wheelresult.won{
   color:var(--nk-gold);
@@ -348,7 +383,7 @@ button.ghost:hover::before{
 }
 
 /* ============================================================
-   10. THE CUSTOMER PAGE
+   THE CUSTOMER PAGE - its podium and pale bits, in the same light
    ============================================================ */
 
 .podiumCard{
@@ -405,8 +440,9 @@ button.ghost:hover::before{
   border-color:rgba(140,110,255,.5);
   color:var(--nk-gold);
 }
-.findbar input,
-.givadd input{border-color:rgba(130,110,255,.6)}
+.findbar input,.givadd input{
+  border-color:rgba(130,110,255,.6);
+}
 .findbar input:focus{
   border-color:var(--nk-cyan);
   box-shadow:0 0 0 3px rgba(63,208,255,.22);
@@ -437,34 +473,45 @@ button.ghost:hover::before{
 }
 
 /* ============================================================
-   11. CRYSTAL CHIPS - twelve shards in three depth bands
+   A CRYSTAL CHIP - the faceted shards from the mark
 
-   FAR  - small, dim, blurred, so they sit back behind everything
-   MID  - the mark's own size, the main scatter
-   NEAR - larger and brighter, closer to the viewer
-
-   All at z-index -1, and none of them take a click.
+   Small tilted quadrilaterals with a bright facet, scattered behind
+   the content. Purely decorative, and they never take a click.
    ============================================================ */
 
 .crystal{
   position:fixed; z-index:-1; pointer-events:none;
-  width:74px; height:52px; opacity:.5; border-radius:4px;
-  background:linear-gradient(126deg,
-    rgba(255,255,255,.85) 0%, rgba(160,220,255,.55) 14%,
-    rgba(120,140,255,.30) 34%, rgba(180,90,255,.42) 58%,
-    rgba(60,90,255,.22) 74%, rgba(255,255,255,.5) 100%);
-  box-shadow:0 0 24px rgba(140,110,255,.6), 0 0 54px rgba(60,120,255,.35),
+  width:74px; height:52px;
+  opacity:.5;
+  border-radius:4px;
+  background:
+    linear-gradient(126deg,
+      rgba(255,255,255,.85) 0%, rgba(160,220,255,.55) 14%,
+      rgba(120,140,255,.30) 34%, rgba(180,90,255,.42) 58%,
+      rgba(60,90,255,.22) 74%, rgba(255,255,255,.5) 100%);
+  box-shadow:
+    0 0 24px rgba(140,110,255,.6),
+    0 0 54px rgba(60,120,255,.35),
     inset 0 1px 0 rgba(255,255,255,.8);
   filter:saturate(1.25);
 }
+/* TWELVE chips in three depth bands, so the field reads as space with
+   things floating in it rather than a flat wallpaper:
 
-/* far band */
+     FAR  - small, dim, blurred: they sit back behind everything
+     MID  - the mark's own size, the main scatter
+     NEAR - larger and brighter, close to the viewer
+
+   None of them take a click, and all sit at z-index -1, so they pass
+   behind every panel and tile. */
+
+/* far band - small, soft, blurred */
 .crystal.c7{left:18%; top:8%;   transform:rotate(-38deg) skewX(-12deg) scale(.42); opacity:.22; filter:blur(2px) saturate(1.2)}
 .crystal.c8{left:70%; top:6%;   transform:rotate(22deg)  skewX(-10deg) scale(.38); opacity:.2;  filter:blur(2px) saturate(1.2)}
 .crystal.c9{left:40%; top:34%;  transform:rotate(-14deg) skewX(-14deg) scale(.44); opacity:.2;  filter:blur(3px) saturate(1.2)}
 .crystal.c10{left:92%; top:48%; transform:rotate(34deg)  skewX(-12deg) scale(.4);  opacity:.22; filter:blur(2px) saturate(1.2)}
 
-/* mid band */
+/* mid band - the main scatter */
 .crystal.c1{left:5%;  top:22%; transform:rotate(-24deg) skewX(-12deg)}
 .crystal.c2{left:88%; top:16%; transform:rotate(18deg)  skewX(-10deg) scale(.78)}
 .crystal.c3{left:8%;  top:68%; transform:rotate(12deg)  skewX(-14deg) scale(.66)}
@@ -472,12 +519,15 @@ button.ghost:hover::before{
 .crystal.c5{left:44%; top:4%;  transform:rotate(28deg)  skewX(-12deg) scale(.55)}
 .crystal.c6{left:62%; top:52%; transform:rotate(-32deg) skewX(-14deg) scale(.62)}
 
-/* near band */
+/* near band - larger, brighter, closer to the viewer */
 .crystal.c11{left:2%;  top:44%; transform:rotate(30deg)  skewX(-12deg) scale(1.15); opacity:.62}
 .crystal.c12{left:78%; top:34%; transform:rotate(-28deg) skewX(-14deg) scale(1.05); opacity:.58}
 .crystal.c13{left:26%; top:88%; transform:rotate(-20deg) skewX(-10deg) scale(1.2);  opacity:.5}
 .crystal.c14{left:64%; top:80%; transform:rotate(16deg)  skewX(-12deg) scale(1.1);  opacity:.55}
 
+/* on a phone the chips crowd the content, so only two survive */
+/* on a phone the chips crowd the content, so the scatter thins right
+   down: two mid chips and one near one, dimmed */
 @media(max-width:760px){
   .crystal{width:48px; height:34px; opacity:.32}
   .crystal.c2,.crystal.c3,.crystal.c5,.crystal.c6,
@@ -486,6 +536,7 @@ button.ghost:hover::before{
   .crystal.c11{opacity:.34}
 }
 
+/* respect a stated preference for less motion */
 @media (prefers-reduced-motion:reduce){
   .podiumCard.p1,.wheelhub{animation:none !important}
 }
