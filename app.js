@@ -36,13 +36,15 @@
    not record, the message line says so, with the reason.
 
    THE GIVEAWAY BOARD. A spin-wheel board whose tiles are worked out,
-   not stored, and nobody types on it:
+   plus any typed by hand:
 
      Teams board  - every name entered earns ONE giveaway entry.
      Pairs board  - every TWO names entered earn ONE giveaway entry.
      Divisions    - feeds nothing at all.
 
    One tile per entry, so three entries means three chances in the draw.
+   A name can also be typed straight onto the giveaway board for an
+   extra entry, and Reset giveaway takes those back out.
 
    The winners log is append-only from here. Nothing on any board can
    remove a line from it. Only its own Clear winners button does.
@@ -211,7 +213,9 @@ function setTab(tabId) {
   });
 
   $("boardTitle").textContent = board.label;
-  if (stack.length > 1) {
+  if (board.derived) {
+    /* the heading is written in renderBoards, which knows the counts */
+  } else if (stack.length > 1) {
     const rest = stack.slice(1).map(function (b) { return b.label; }).join(" and ");
     $("boardSub").textContent =
       board.boxes.length + " boxes on this screen - " + board.label + " on top, " + rest +
@@ -433,9 +437,8 @@ function buildBoardHeader(b) {
 
 /* ---------- THE GIVEAWAY BOARD ----------
 
-   Nobody types on this board. Every tile is one chance in the draw, and
-   the names come from the two boards that feed it, worked out fresh from
-   the live board data whenever the page draws.
+   Every tile is one chance in the draw. Names arrive two ways: earned
+   from the Teams and Pairs boards, or typed here by hand.
 
      Teams board  - every name entered earns ONE giveaway entry.
      Pairs board  - every TWO names entered earn ONE giveaway entry
@@ -444,9 +447,10 @@ function buildBoardHeader(b) {
    The Divisions board feeds nothing at all. A name there never enters
    the draw.
 
-   Because the tiles are derived, renaming or removing somebody on the
-   Teams or Pairs board updates this board by itself. There is no second
-   list to keep in step. */
+   The EARNED tiles are worked out fresh each draw, so renaming or
+   removing somebody on Teams or Pairs updates this board by itself.
+   The HAND-TYPED ones are stored, so they survive a reload and reach
+   every device. */
 
 function giveawayEntries() {
   /* box name -> board id, so we know which board each name came from */
@@ -460,6 +464,7 @@ function giveawayEntries() {
   /* count how many boxes each person holds, per board */
   const perPerson = {};
   entries.forEach(function (e) {
+    if (isGiveawayTarget(e.target)) return;    /* hand-typed, handled below */
     const boardId = whereBoard[e.target];
     if (!boardId) return;                      /* divisions, or unknown */
     const name = buyerOnly(e.username);
@@ -468,18 +473,38 @@ function giveawayEntries() {
     perPerson[name][boardId] += 1;
   });
 
-  /* turn those counts into entries, one tile each */
+  /* Turn those counts into tiles, one per entry.
+
+     An entry earned from Teams or Pairs carries no id: it lives and dies
+     with the name on that board. A hand-typed entry carries its row id,
+     so it can be taken back out from the tile itself. */
   const out = [];
   Object.keys(perPerson).forEach(function (name) {
     const c = perPerson[name];
-    const total = giveawayRate("teams", c.teams) + giveawayRate("pairs", c.pairs);
-    for (let i = 0; i < total; i++) out.push(name);
+    const earned = giveawayRate("teams", c.teams) + giveawayRate("pairs", c.pairs);
+    for (let i = 0; i < earned; i++) {
+      out.push({ name: name, manualId: null });
+    }
   });
+
+  /* hand-typed rows last, so their Remove buttons line up with the rows */
+  entries.forEach(function (e) {
+    if (!isGiveawayTarget(e.target)) return;
+    const name = buyerOnly(e.username);
+    if (!name) return;
+    out.push({ name: name, manualId: e.id });
+  });
+
+  out.forEach(function (entry, i) { entry.index = i; });
   return out;
 }
 
-/* One giveaway tile: a name, and nothing to type into. */
-function buildGiveawayTile(name, index) {
+/* One giveaway tile: a name, and a Remove button on the manual ones.
+
+   `manualId` is the row id when this entry was typed by hand, so it can
+   be taken back out. An entry earned from Teams or Pairs has no id of
+   its own, so it gets no Remove button. */
+function buildGiveawayTile(name, index, manualId) {
   const tile = document.createElement("div");
   tile.className = "tile givetile";
   tile.dataset.target = "giveaway:" + name + ":" + index;
@@ -492,7 +517,7 @@ function buildGiveawayTile(name, index) {
 
   const eb = document.createElement("div");
   eb.className = "eb";
-  eb.style.background = "#2b303c";
+  eb.style.background = manualId ? "#3a2f16" : "#2b303c";
   const initials = document.createElement("span");
   initials.className = "initials";
   initials.textContent = String(name).slice(0, 2).toUpperCase();
@@ -503,7 +528,7 @@ function buildGiveawayTile(name, index) {
   buyer.className = "buyer";
   const buylbl = document.createElement("span");
   buylbl.className = "buylbl";
-  buylbl.textContent = "In the draw";
+  buylbl.textContent = manualId ? "In the draw (added)" : "In the draw";
   buyer.appendChild(buylbl);
   const names = document.createElement("span");
   names.className = "buynames";
@@ -514,7 +539,127 @@ function buildGiveawayTile(name, index) {
   buyer.appendChild(names);
   tile.appendChild(buyer);
 
+  /* only a hand-typed entry can be taken back from here */
+  if (manualId) {
+    const bar = document.createElement("div");
+    bar.className = "addbar givemanual";
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "cedel givedel";
+    del.textContent = "Remove";
+    del.title = "Take this hand-typed entry back out";
+    del.addEventListener("click", async function (ev) {
+      ev.stopPropagation();
+      try {
+        await sbRemoveEntry(manualId);
+      } catch (err) {
+        $("saved").textContent = "Could not remove that entry: " + err.message;
+        return;
+      }
+      entries = entries.filter(function (x) { return x.id !== manualId; });
+      renderBoards();
+      renderEntries();
+      $("saved").textContent = "Removed the manual entry for " + name + ".";
+    });
+    bar.appendChild(del);
+    tile.appendChild(bar);
+  }
+
   return tile;
+}
+
+/* The bar at the foot of the giveaway board: type a name, press +, and
+   that person gets one extra entry in the draw.
+
+   Hand-typed entries are stored as ordinary rows so they survive a
+   reload and reach every device, under a target that names this board
+   and nothing else. They add to whatever the person already earned. */
+function buildGiveawayAddBar() {
+  const bar = document.createElement("form");
+  bar.className = "givadd";
+
+  const label = document.createElement("span");
+  label.className = "givaddlbl";
+  label.textContent = "Add an entry by hand";
+  bar.appendChild(label);
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "username";
+  input.setAttribute("aria-label", "Name to add to the giveaway");
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  bar.appendChild(input);
+
+  const btn = document.createElement("button");
+  btn.type = "submit";
+  btn.textContent = "+";
+  btn.title = "Add one giveaway entry for this name";
+  bar.appendChild(btn);
+
+  bar.addEventListener("submit", async function (ev) {
+    ev.preventDefault();
+    const name = buyerOnly(input.value);
+    const note = $("saved");
+
+    if (!name) { input.focus(); return; }
+
+    note.textContent = "Adding...";
+    try {
+      const saved = await sbAddEntry(name, giveawayTargetFor(name));
+      if (saved) entries.push(saved);
+    } catch (err) {
+      note.textContent = "Could not add that entry: " + err.message;
+      return;
+    }
+
+    input.value = "";
+    renderBoards();
+    renderEntries();
+    note.textContent = "Added one giveaway entry for @" + name + ".";
+    input.focus();
+  });
+
+  return bar;
+}
+
+/* Take every hand-typed entry out of the giveaway.
+
+   It removes the manual rows ONLY. Entries earned on Teams or Pairs are
+   untouched, because those live on those boards - and no win, no name,
+   and no other board is touched either. */
+async function resetGiveaway() {
+  const note = $("saved");
+  const manual = entries.filter(function (e) { return isGiveawayTarget(e.target); });
+
+  if (!manual.length) {
+    note.textContent = "Nothing added by hand. Entries earned on Teams and Pairs " +
+      "are cleared on those boards.";
+    return;
+  }
+
+  const line1 = "Remove all " + manual.length + " hand-typed entries?";
+  const line2 = "Entries earned on the Teams and Pairs boards are kept." +
+    String.fromCharCode(10) +
+    "No name, no win and no other board is touched.";
+  if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
+
+  undoSnapshot = manual.slice();
+
+  try {
+    for (let i = 0; i < manual.length; i++) {
+      await sbRemoveEntry(manual[i].id);
+    }
+  } catch (err) {
+    note.textContent = "Could not remove every entry: " + err.message;
+    await loadEntries();
+    return;
+  }
+
+  entries = entries.filter(function (e) { return !isGiveawayTarget(e.target); });
+  renderBoards();
+  renderEntries();
+  showUndo("Took out " + manual.length + " hand-typed entries - the boards are unchanged.");
 }
 
 function renderBoards() {
@@ -533,56 +678,68 @@ function renderBoards() {
     grid.setAttribute("aria-label", (b.label || b.id) + " board");
 
     if (b.derived) {
-      /* a generated board: one tile per entry, no input, no editing */
+      /* a generated board: one tile per entry. Entries arrive by
+         themselves from Teams and Pairs, and can also be typed here. */
       const drawn = giveawayEntries();
       grid.className = "board board-" + b.size + " givetiles";
-      drawn.forEach(function (name, i) {
-        grid.appendChild(buildGiveawayTile(name, i));
+      drawn.forEach(function (entry) {
+        grid.appendChild(buildGiveawayTile(entry.name, entry.index, entry.manualId));
       });
       if (!drawn.length) {
         const p = document.createElement("p");
         p.className = "empty";
         p.textContent = "Nobody in the draw yet. Names entered on the Teams and Pairs " +
-          "boards appear here by themselves.";
+          "boards appear here by themselves, and you can add one by hand below.";
         grid.appendChild(p);
       }
-    } else {
-      b.boxes.forEach(function (box) {
-        const t = targetByName(box.name);
-        if (t) grid.appendChild(buildTile(t));
-      });
+      host.appendChild(grid);
+      host.appendChild(buildGiveawayAddBar());
+      return;
     }
+
+    b.boxes.forEach(function (box) {
+      const t = targetByName(box.name);
+      if (t) grid.appendChild(buildTile(t));
+    });
     host.appendChild(grid);
   });
 
-  /* a derived board has nothing to reset, so the toolbar takes it away */
+  /* The giveaway gets its own Reset, and the toolbar buttons that only
+     make sense on a typed board step aside. */
   const primary = boards[0];
   const toolbarReset = $("resetBoard");
   const toolbarCsv = $("exportCsv");
   const toolbarClear = $("clearAll");
-  const derivedOnly = !!primary && primary.derived;
+  const onGiveaway = !!primary && primary.derived;
 
   if (primary) {
     toolbarReset.dataset.resetFor = primary.id;
-    toolbarReset.textContent = stacked ? "Reset " + primary.label : "Reset board";
-    toolbarReset.title = "Remove every username from the " + primary.label + " boxes";
-    toolbarReset.disabled = derivedOnly;
-    toolbarReset.style.display = derivedOnly ? "none" : "";
+    if (onGiveaway) {
+      toolbarReset.textContent = "Reset giveaway";
+      toolbarReset.title = "Take every hand-typed entry back out. " +
+        "Entries earned on Teams and Pairs stay, and no win is touched.";
+    } else {
+      toolbarReset.textContent = stacked ? "Reset " + primary.label : "Reset board";
+      toolbarReset.title = "Remove every username from the " + primary.label + " boxes";
+    }
+    toolbarReset.disabled = false;
+    toolbarReset.style.display = "";
   }
-  /* Hide all and Download CSV mean nothing on a generated board either */
-  if (toolbarClear) toolbarClear.style.display = derivedOnly ? "none" : "";
-  if (toolbarCsv) toolbarCsv.style.display = derivedOnly ? "none" : "";
+  /* Hide all and Download CSV mean nothing on a generated board */
+  if (toolbarClear) toolbarClear.style.display = onGiveaway ? "none" : "";
+  if (toolbarCsv) toolbarCsv.style.display = onGiveaway ? "none" : "";
 
   /* the heading line, so the giveaway explains its own numbers */
-  if (derivedOnly) {
+  if (onGiveaway) {
     const drawn = giveawayEntries();
     const people = {};
-    drawn.forEach(function (n) { people[n] = (people[n] || 0) + 1; });
+    drawn.forEach(function (e) { people[e.name] = (people[e.name] || 0) + 1; });
+    const manual = entries.filter(function (e) { return isGiveawayTarget(e.target); }).length;
     const howMany = Object.keys(people).length;
     $("boardSub").textContent = drawn.length
       ? drawn.length + (drawn.length === 1 ? " entry" : " entries") +
         " from " + howMany + (howMany === 1 ? " person" : " people") +
-        " - one tile per entry."
+        (manual ? " - " + manual + " added by hand." : " - one tile per entry.")
       : "No entries yet.";
   }
 }
@@ -812,7 +969,7 @@ function renderEntries() {
     tdUser.appendChild(nameBtn);
     tr.appendChild(tdUser);
 
-    tr.appendChild(textCell(e.target));
+    tr.appendChild(textCell(targetLabel(e.target)));
 
     const when = new Date(e.created_at);
     tr.appendChild(textCell(isNaN(when) ? "-" : when.toLocaleString()));
@@ -885,7 +1042,8 @@ function startRowEdit(tr, entry) {
     refreshBoards();
     renderEntries();
     if (typeof renderWinners === "function") renderWinners();
-    $("saved").textContent = "Renamed to @" + buyerOnly(next) + " on " + entry.target;
+    $("saved").textContent = "Renamed to @" + buyerOnly(next) + " on " +
+      targetLabel(entry.target);
   }
 
   save.addEventListener("click", commit);
@@ -937,7 +1095,7 @@ function downloadCsv() {
     rows.push(
       csvEscape(parts.username) + "," +
       csvEscape(parts.item) + "," +
-      csvEscape(e.target) + "," +
+      csvEscape(targetLabel(e.target)) + "," +
       csvEscape(e.created_at)
     );
   });
@@ -960,7 +1118,7 @@ function applyFilter(q) {
     el.style.display = match ? "" : "none";
     if (match) shown++;
   });
-  const total = targetsOnTab(currentTab).length;
+  const total = document.querySelectorAll("#boards .tile").length;
   $("count").textContent = shown === total ? total + " shown" : shown + " of " + total + " shown";
 }
 
@@ -1045,7 +1203,11 @@ document.addEventListener("DOMContentLoaded", function () {
   $("exportCsv").addEventListener("click", downloadCsv);
 
   $("resetBoard").addEventListener("click", function () {
-    resetBoard(this.dataset.resetFor || currentTab);
+    const id = this.dataset.resetFor || currentTab;
+    const b = boardById(id);
+    /* the giveaway has its own reset: hand-typed entries only */
+    if (b && b.derived) { resetGiveaway(); return; }
+    resetBoard(id);
   });
 
   $("clearAll").addEventListener("click", async function () {
