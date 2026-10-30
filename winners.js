@@ -9,18 +9,16 @@
    browser. Enter a win on your phone and it is on your laptop, and on
    the customer page, about a second later.
 
-   LOGGING NEEDS NO SIGN-IN. The wins table is open, the same way the
-   boards are open, so a name entered as buyer$item logs a win from any
-   device without anyone signing in first. That is what makes the $
-   command work everywhere.
+   NO SIGN-IN ANYWHERE. Every action on this page works for whoever
+   opens it: logging a win, typing a tracking number, deleting a line,
+   clearing the whole log, and starting a new run. The database's rules
+   let anyone read and anyone write.
 
-   CLEARING DOES NEED A SIGN-IN. The Clear winners button and Delete on
-   a line are still gated behind the sign-in box above, so a visitor who
-   finds this page cannot wipe the log. They can add; they cannot erase.
-
-   THE SIGN-IN. The password is used once to obtain a session and is then
-   dropped. It lives in this tab only, never written to a file. Close the
-   tab and it is gone.
+   That is a deliberate trade. It removes every bit of friction during a
+   break - a win lands whether or not anyone is signed in, on any device.
+   It also means anyone who finds this page can empty the log. Two habits
+   cover that: keep this address to yourself, and press Download winners
+   after each break so you hold a copy nothing can touch.
 
    THE CURRENT RUN. The customer page shows two leaderboards: the Current
    Run board, which counts only wins since a certain moment, and the
@@ -74,8 +72,8 @@ async function loadWins() {
 
 /* Record a win. Called when a name is entered that names an item.
 
-   NO SIGN-IN NEEDED. The database lets anyone add a win, which is what
-   lets the $ command work on a phone nobody signed in on. */
+   No sign-in, no gate: the database lets anyone add a win, which is what
+   lets the $ command work from any device. */
 async function recordWin(target, rawEntry) {
   const parts = splitEntry(rawEntry);
   if (!parts.item) return null;
@@ -139,11 +137,6 @@ async function startNewRun() {
   const note = W("saved");
   const btn = W("newRun");
 
-  if (!sbSignedIn()) {
-    if (note) note.textContent = "Sign in above before starting a new run.";
-    return;
-  }
-
   const line1 = "Start a new run?";
   const line2 = "The Current Run board on the customer page goes back to zero." +
     String.fromCharCode(10) +
@@ -163,70 +156,6 @@ async function startNewRun() {
   } finally {
     if (btn) btn.disabled = false;
   }
-}
-
-/* ---------- the sign-in bar ---------- */
-
-function paintSignIn() {
-  const who = W("signInWho");
-  const form = W("signInForm");
-  if (!form) return;
-
-  if (sbSignedIn()) {
-    const u = sbUser();
-    form.style.display = "none";
-    if (who) {
-      who.style.display = "";
-      who.textContent = u && u.email ? "Signed in as " + u.email : "Signed in";
-    }
-  } else {
-    form.style.display = "";
-    if (who) who.style.display = "none";
-  }
-}
-
-function wireSignIn() {
-  const form = W("signInForm");
-  if (!form) return;
-
-  form.addEventListener("submit", async function (ev) {
-    ev.preventDefault();
-    const email = (W("signInEmail").value || "").trim();
-    const pass = W("signInPass").value || "";
-    const msg = W("signInMsg");
-    const btn = W("signInGo");
-
-    if (!email || !pass) {
-      if (msg) msg.textContent = "Enter the email and password.";
-      return;
-    }
-
-    if (btn) btn.disabled = true;
-    if (msg) msg.textContent = "Signing in...";
-
-    try {
-      await sbSignIn(email, pass);
-      W("signInPass").value = "";
-      if (msg) msg.textContent = "";
-      paintSignIn();
-      await loadWins();
-      const moved = await importLocalWins();
-      if (moved && msg) {
-        msg.textContent = "Brought " + moved + (moved === 1 ? " old win" : " old wins") +
-          " across from this browser.";
-      }
-    } catch (e) {
-      if (msg) msg.textContent = "Could not sign in: " + e.message;
-    } finally {
-      if (btn) btn.disabled = false;
-    }
-  });
-
-  const out = W("signInOut");
-  if (out) out.addEventListener("click", function () {
-    sbSignOut();
-    paintSignIn();
-  });
 }
 
 /* ---------- the page ---------- */
@@ -306,8 +235,6 @@ function renderWinners() {
     trkInput.autocomplete = "off";
     trkInput.spellcheck = false;
 
-    /* a tracking number saves without a sign-in too, so it works from
-       whichever device you happen to be shipping from */
     async function saveTracking() {
       const next = trkInput.value.trim();
       if (next === (w.tracking || "")) return;
@@ -334,8 +261,6 @@ function renderWinners() {
     tdTrk.appendChild(trkInput);
     tr.appendChild(tdTrk);
 
-    /* Delete stays behind the sign-in, so a passing visitor cannot
-       erase a line. */
     const td = document.createElement("td");
     const del = document.createElement("button");
     del.type = "button";
@@ -343,11 +268,6 @@ function renderWinners() {
     del.textContent = "Delete";
     del.title = "Remove only this logged win";
     del.addEventListener("click", async function () {
-      if (!sbSignedIn()) {
-        const note = W("saved");
-        if (note) note.textContent = "Sign in above to delete a line.";
-        return;
-      }
       try {
         await sbDeleteWin(w.id);
         wins = wins.filter(function (x) { return x.id !== w.id; });
@@ -476,18 +396,10 @@ function downloadWinnersCsv() {
   URL.revokeObjectURL(a.href);
 }
 
-/* ---------- clear, WITH a sign-in ----------
-
-   This is the one destructive action on the page, so it asks for the
-   session. Anyone can add a win; only you can empty the log. */
+/* ---------- clear, open to anyone ---------- */
 
 async function clearWinners() {
   const note = W("saved");
-
-  if (!sbSignedIn()) {
-    if (note) note.textContent = "Sign in above before clearing the winners.";
-    return;
-  }
   if (!wins.length) return;
 
   const line1 = "Remove all " + wins.length + " logged wins?";
@@ -564,8 +476,6 @@ async function importLocalWins() {
 /* ---------- start ---------- */
 
 function initWinners() {
-  wireSignIn();
-  paintSignIn();
   paintRun();
 
   const csv = W("winnerCsv");
