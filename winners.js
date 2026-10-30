@@ -9,29 +9,31 @@
    browser. Enter a win on your phone and it is on your laptop, and on
    the customer page, about a second later.
 
-   THE SIGN-IN. Writing needs a session, which needs a password. This
-   page asks for it in the box at the top and keeps it for the tab only,
-   never written to a file or to localStorage. Close the tab and it is
-   gone. Reading needs no password, which is how customers see their
-   own items.
+   LOGGING NEEDS NO SIGN-IN. The wins table is open, the same way the
+   boards are open, so a name entered as buyer$item logs a win from any
+   device without anyone signing in first. That is what makes the $
+   command work everywhere.
 
-   THE CURRENT RUN. The customer page shows two leaderboards: the
-   Current Run board, which counts only wins since a certain moment, and
-   the All-Time board, which counts everything. The marker that decides
-   where the current run begins belongs to this page.
+   CLEARING DOES NEED A SIGN-IN. The Clear winners button and Delete on
+   a line are still gated behind the sign-in box above, so a visitor who
+   finds this page cannot wipe the log. They can add; they cannot erase.
+
+   THE SIGN-IN. The password is used once to obtain a session and is then
+   dropped. It lives in this tab only, never written to a file. Close the
+   tab and it is gone.
+
+   THE CURRENT RUN. The customer page shows two leaderboards: the Current
+   Run board, which counts only wins since a certain moment, and the
+   All-Time board, which counts everything. The marker that decides where
+   the current run begins belongs to this page.
 
    STARTING A NEW RUN MOVES ONE TIMESTAMP. It deletes nothing, so the
-   all-time board is untouched and no customer loses their history.
-   Only the current-run board goes back to zero.
-
-   HOW THE WIN LOG WORKS. A name entered as  buyer$item  logs a win: the
-   part before the $ is the username, the part after is the item won,
-   and the box itself shows only the buyer's name.
+   all-time board is untouched and no customer loses their history. Only
+   the current-run board goes back to zero.
 
    THE LOG IS APPEND-ONLY FROM THE BOARDS. Nothing done on a board can
    remove a line - not Reset board, not Hide all, not removing a name,
-   not a rename (a rename UPDATES the line in place). A line leaves only
-   through its own Delete button, or Clear winners.
+   not a rename (a rename UPDATES the line in place).
    ============================================================ */
 
 let wins = [];
@@ -70,13 +72,13 @@ async function loadWins() {
 
 /* ---------- writing ---------- */
 
+/* Record a win. Called when a name is entered that names an item.
+
+   NO SIGN-IN NEEDED. The database lets anyone add a win, which is what
+   lets the $ command work on a phone nobody signed in on. */
 async function recordWin(target, rawEntry) {
   const parts = splitEntry(rawEntry);
   if (!parts.item) return null;
-
-  if (!sbSignedIn()) {
-    throw new Error("Sign in at the top of this page before entering wins.");
-  }
 
   const saved = await sbAddWin({
     username: parts.username || "(no name)",
@@ -92,6 +94,11 @@ async function recordWin(target, rawEntry) {
   return saved;
 }
 
+/* A rename updates that box's winner line IN PLACE.
+
+   A rename never deletes a line - the log is append-only from the
+   boards. This rewrites username and item on the existing row and leaves
+   its id, date, time and tracking number untouched. */
 async function updateWinFor(target, rawEntry) {
   const parts = splitEntry(rawEntry);
   const hit = wins.filter(function (x) { return x.team === target; })[0];
@@ -100,8 +107,6 @@ async function updateWinFor(target, rawEntry) {
     if (parts.item) return recordWin(target, rawEntry);
     return null;
   }
-
-  if (!sbSignedIn()) return hit;
 
   try {
     const saved = await sbUpdateWin(hit.id, {
@@ -301,10 +306,11 @@ function renderWinners() {
     trkInput.autocomplete = "off";
     trkInput.spellcheck = false;
 
+    /* a tracking number saves without a sign-in too, so it works from
+       whichever device you happen to be shipping from */
     async function saveTracking() {
       const next = trkInput.value.trim();
       if (next === (w.tracking || "")) return;
-      if (!sbSignedIn()) { trkInput.value = w.tracking || ""; return; }
       try {
         const saved = await sbUpdateWin(w.id, { tracking: next });
         if (saved) { w.tracking = saved.tracking; flash(trkInput); }
@@ -328,6 +334,8 @@ function renderWinners() {
     tdTrk.appendChild(trkInput);
     tr.appendChild(tdTrk);
 
+    /* Delete stays behind the sign-in, so a passing visitor cannot
+       erase a line. */
     const td = document.createElement("td");
     const del = document.createElement("button");
     del.type = "button";
@@ -335,7 +343,11 @@ function renderWinners() {
     del.textContent = "Delete";
     del.title = "Remove only this logged win";
     del.addEventListener("click", async function () {
-      if (!sbSignedIn()) return;
+      if (!sbSignedIn()) {
+        const note = W("saved");
+        if (note) note.textContent = "Sign in above to delete a line.";
+        return;
+      }
       try {
         await sbDeleteWin(w.id);
         wins = wins.filter(function (x) { return x.id !== w.id; });
@@ -400,7 +412,6 @@ function editWin(tr, win, field) {
   async function commit() {
     const next = input.value.trim();
     if (!next) { input.focus(); return; }
-    if (!sbSignedIn()) { renderWinners(); return; }
     const patch = {};
     patch[field] = next;
     try {
@@ -465,10 +476,20 @@ function downloadWinnersCsv() {
   URL.revokeObjectURL(a.href);
 }
 
-/* ---------- clear, with undo ---------- */
+/* ---------- clear, WITH a sign-in ----------
+
+   This is the one destructive action on the page, so it asks for the
+   session. Anyone can add a win; only you can empty the log. */
 
 async function clearWinners() {
-  if (!wins.length || !sbSignedIn()) return;
+  const note = W("saved");
+
+  if (!sbSignedIn()) {
+    if (note) note.textContent = "Sign in above before clearing the winners.";
+    return;
+  }
+  if (!wins.length) return;
+
   const line1 = "Remove all " + wins.length + " logged wins?";
   const line2 = "This clears the shared ledger too - customers will no longer see these items.";
   if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
@@ -483,7 +504,6 @@ async function clearWinners() {
     renderWinners();
     showWinnersUndo("Cleared " + undoWinsSnapshot.length + " logged wins.");
   } catch (e) {
-    const note = W("saved");
     if (note) note.textContent = "Could not clear every line. Press Refresh to see what remains.";
     await loadWins();
   }
@@ -502,8 +522,6 @@ function showWinnersUndo(message) {
 /* ---------- anything left in this browser ---------- */
 
 async function importLocalWins() {
-  if (!sbSignedIn()) return 0;
-
   let pending = [];
   try {
     const raw = localStorage.getItem(OLD_WINNERS_KEY);
@@ -568,7 +586,7 @@ function initWinners() {
 
   const undo = W("winnerUndoBtn");
   if (undo) undo.addEventListener("click", async function () {
-    if (!undoWinsSnapshot || !sbSignedIn()) return;
+    if (!undoWinsSnapshot) return;
     const bar = W("winnerUndoBar");
     if (bar) bar.classList.remove("show");
     const back = undoWinsSnapshot;
@@ -591,9 +609,7 @@ function initWinners() {
     if (bar) bar.classList.remove("show");
   });
 
-  loadWins().then(function () {
-    if (sbSignedIn()) importLocalWins();
-  });
+  loadWins().then(function () { return importLocalWins(); });
 
   /* a win, a rename, or a tracking number typed anywhere lands here */
   sbWatchWins(function () { loadWins(); });
