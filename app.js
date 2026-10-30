@@ -58,6 +58,35 @@ const COMPACT_TABS = {};
 const $ = (id) => document.getElementById(id);
 
 let entries = [];
+
+/* ---------- THE KEPT ENTRIES ----------
+
+   Clearing a board used to take its giveaway entries with it, because the
+   giveaway counts its entries by READING THE BOARD ROWS. Delete the row
+   and the entry vanished with it.
+
+   So before a board is cleared, the giveaway entries those rows were
+   worth are written down here first. The board empties; the draw does
+   not. Only the Giveaway's own Remove and Reset take a kept entry back
+   out - nothing on Teams, Divisions or Pairs can.
+
+   Keyed by username, holding how many entries are owed and which board
+   they came from, so the giveaway can still say where they came from. */
+let keptEntries = {};
+
+function keepEntry(username, boardId, howMany) {
+  const name = buyerOnly(username);
+  if (!name || !howMany) return;
+  if (!keptEntries[name]) keptEntries[name] = { teams: 0, pairs: 0, manual: 0, from: {} };
+  keptEntries[name][boardId] = (keptEntries[name][boardId] || 0) + howMany;
+  keptEntries[name].from[boardId] = (keptEntries[name].from[boardId] || 0) + howMany;
+}
+
+function keptFor(name) {
+  const k = keptEntries[name];
+  if (!k) return { teams: 0, pairs: 0, manual: 0 };
+  return { teams: k.teams || 0, pairs: k.pairs || 0, manual: k.manual || 0 };
+}
 let currentTab = "teams";
 let liveMath = false;
 let undoSnapshot = null;
@@ -489,6 +518,20 @@ function giveawayEntries() {
     if (!boardId) return;                      /* divisions, or unknown */
     if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0, manual: 0 };
     perPerson[name][boardId] += 1;
+  });
+
+  /* ADD WHAT CLEARED BOARDS ARE STILL OWED.
+
+     Every entry written down when a board was cleared is counted in
+     again here, so a name that was on Pairs keeps its giveaway entries
+     after Pairs is emptied. This is what stops Reset on Teams or Pairs
+     from quietly shrinking the draw. */
+  Object.keys(keptEntries).forEach(function (name) {
+    const k = keptEntries[name];
+    if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0, manual: 0 };
+    perPerson[name].teams += k.teams || 0;
+    perPerson[name].pairs += k.pairs || 0;
+    perPerson[name].manual += k.manual || 0;
   });
 
   /* Turn those counts into tiles, one per entry.
@@ -1254,6 +1297,29 @@ async function resetBoard(boardId) {
 
   resetPending = null;
   clearTimeout(resetPendingTimer);
+
+  /* BANK THE GIVEAWAY ENTRIES FIRST.
+
+     The giveaway counts its entries from the board rows, so a row that
+     goes takes its entry with it. Before anything is deleted, work out
+     what the whole board was worth to the draw and write it down, so
+     clearing Teams or Pairs leaves the giveaway exactly as it was.
+
+     The Divisions board feeds nothing, so it banks nothing. */
+  const perPerson = {};
+  doomed.forEach(function (e) {
+    const name = buyerOnly(e.username);
+    if (!name) return;
+    const boardId = giveawayBoardOf(e.target);
+    if (!boardId) return;                    /* divisions, or unknown */
+    if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0 };
+    perPerson[name][boardId] += 1;
+  });
+  Object.keys(perPerson).forEach(function (name) {
+    const c = perPerson[name];
+    keepEntry(name, "teams", giveawayRate("teams", c.teams));
+    keepEntry(name, "pairs", giveawayRate("pairs", c.pairs));
+  });
 
   undoSnapshot = doomed.slice();
   $("saved").textContent = "Clearing " + doomed.length + " from " + board.label + "...";
