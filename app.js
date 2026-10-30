@@ -3,39 +3,46 @@
    REQUIRES: teams.js, then boards.js, then sb-client.js, this file,
    then winners.js.
 
-   THE BOARD IS SHARED. Who is on which box lives in the database, so a
-   name typed on your phone appears on your laptop and on every screen.
+   THE BOARD IS SHARED. Who is on which box lives in the database, not
+   in this browser, so a name typed on your phone appears on your laptop
+   and on every screen looking at the board.
 
    ONE PERSON PER BOX. The database holds a unique index on the box
-   name, so two people cannot both win the same box.
+   name, so two people tapping the same box at the same moment cannot
+   both win it.
 
    THE GREY IS ONLY VISUAL. A filled box stays fully usable: click it
    anywhere and the edit panel opens, so the name can be renamed or
    removed.
 
-   WINNERS. A name entered as  buyer$item  logs a win, on EVERY board.
-   The part before the $ is the username, the part after is the item.
+   WINNERS. A name entered as  buyer$item  logs a win, on EVERY board -
+   teams, divisions, and picks. The part before the $ is the username,
+   the part after is the item won, and the box itself shows only the
+   buyer.
 
    THE $ SPLIT AND THE WIN WRITE LIVE IN THIS FILE, and the box you type
-   into is the box that saves. Both of those were bugs once: the write
-   reached across two other files, and the save re-found its tile by
-   NAME - which broke on the Pairs tab, where two grids are drawn at
-   once. Now the tile is passed straight through.
+   into is the box that saves. Both of those were bugs:
+
+     - the write used to reach across two other files, so three files
+       had to load with nothing stale in the cache, and a missing one
+       skipped the win in silence;
+     - the save used to re-find its tile by NAME, and the Pairs tab
+       draws two grids at once, so a lookup could land on the other
+       board's tile and the win never fired.
+
+   Now the tile is passed straight through from the box you typed in.
 
    A FAILED WIN LOG IS NEVER SILENT. If the name saves but the win does
    not record, the message line says so, with the reason.
 
-   THE GIVEAWAY BOARD. One tile PER PERSON, showing how many entries
-   they hold, and a spin wheel with one wedge per entry:
+   THE GIVEAWAY BOARD. A spin-wheel board whose tiles are worked out,
+   not stored, and nobody types on it:
 
      Teams board  - every name entered earns ONE giveaway entry.
-     Pairs board  - EVERY TWO SEPARATE PAIRS earn ONE entry, so 2 boxes
-                    earn one, 4 earn two, 6 earn three, and a single box
-                    earns NOTHING.
+     Pairs board  - every TWO names entered earn ONE giveaway entry.
      Divisions    - feeds nothing at all.
 
-   A name can also be typed straight onto the giveaway board for an
-   extra entry, and Reset giveaway takes those back out.
+   One tile per entry, so three entries means three chances in the draw.
 
    The winners log is append-only from here. Nothing on any board can
    remove a line from it. Only its own Clear winners button does.
@@ -71,13 +78,29 @@ function normalizeName(raw) {
 /* ---------- THE $ SPLIT, AND THE WIN WRITE ----------
 
    These two live HERE rather than in winners.js and sb-client.js on
-   purpose. The board used to reach across three files to log a win, so
-   three files had to load with nothing stale in the cache, and a
-   missing one skipped the win in silence. */
+   purpose. The board used to reach across three files to log a win:
+
+       addUser -> recordWin (winners.js) -> sbAddWin (sb-client.js)
+
+   Three files had to load, in order, with nothing stale in the cache.
+   When any one of them failed to arrive the win was silently skipped,
+   which is exactly what a broken $ command looks like.
+
+   Now the board splits the entry and writes the win itself, over plain
+   fetch, needing nothing from any other file. The winners page still
+   reads the same table, so the log fills up exactly as before. */
 
 const SB_WIN_URL = "https://bzvrslhfyaetmwzbnldt.supabase.co";
 const SB_WIN_KEY = "sb_publishable_pM8hQ1cP77AXANXCkAS0qA_jfC9ibYq";
 
+/* Split one entry into the buyer and the item.
+
+   "alex$jersey"  -> { username: "alex", item: "jersey" }
+   "alex"         -> { username: "alex", item: "" }       no item
+   "alex$"        -> { username: "alex", item: "" }       no item
+   "$jersey"      -> { username: "",     item: "jersey" } no buyer
+
+   Only the FIRST $ splits, so an item may itself contain one. */
 function boardSplit(raw) {
   const text = String(raw == null ? "" : raw).trim().replace(/^@/, "");
   const at = text.indexOf("$");
@@ -88,6 +111,8 @@ function boardSplit(raw) {
   };
 }
 
+/* Write one win straight to the database. Returns the saved row, or
+   throws with a readable reason. */
 async function boardLogWin(target, username, item) {
   const res = await fetch(SB_WIN_URL + "/rest/v1/wins", {
     method: "POST",
@@ -394,13 +419,30 @@ function buildBoardHeader(b) {
   n.dataset.countFor = b.id;
   head.appendChild(n);
 
+  /* ONE RESET PER TAB, AND NO MORE.
+
+     The Pairs tab also carries the Divisions board underneath it, so
+     giving every board its own button put two of them on that screen
+     and made it unclear which one you were pressing - and the one you
+     wanted, Pairs, was not the one that ran.
+
+     Now the button belongs to the board that OWNS the tab: Pairs gets
+     the only button on its screen, and it clears all 16 Pairs boxes.
+     A board merely stacked underneath gets none. */
+  if (b.stackedUnder) return head;
+
   const reset = document.createElement("button");
   reset.type = "button";
   reset.className = "boardreset";
+  reset.id = "resetFor_" + b.id;
   reset.dataset.resetFor = b.id;
-  reset.textContent = "Reset " + b.label;
-  reset.title = "Remove every username from the " + b.label + " boxes";
-  reset.addEventListener("click", function () { resetBoard(b.id); });
+  reset.textContent = "Reset " + (b.resetLabel || b.label);
+  reset.title = b.resetTitle || ("Remove every username from the " + b.label + " boxes");
+  reset.addEventListener("click", function (ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    resetBoard(b.id);
+  });
   head.appendChild(reset);
 
   return head;
@@ -408,25 +450,36 @@ function buildBoardHeader(b) {
 
 /* ---------- THE GIVEAWAY BOARD ----------
 
+   Nobody types on this board. Every tile is one chance in the draw, and
+   the names come from the two boards that feed it, worked out fresh from
+   the live board data whenever the page draws.
+
      Teams board  - every name entered earns ONE giveaway entry.
-     Pairs board  - EVERY TWO SEPARATE PAIRS earn ONE entry, so 2 boxes
-                    earn one, 4 earn two, 6 earn three, and one earns
-                    NOTHING.
+     Pairs board  - every TWO names entered earn ONE giveaway entry
+                    (4 on that board = 2 entries, 5 = 2, 6 = 3).
 
-   The Divisions board feeds nothing at all.
+   The Divisions board feeds nothing at all. A name there never enters
+   the draw.
 
-   WHICH BOARD A ROW BELONGS TO IS DECIDED BY ITS NAME, looked up in the
-   two explicit name sets in boards.js. That is what stops a Divisions
-   row leaking in, and what stops a single Pairs box being miscounted as
-   a team - which would hand out one entry for one pair. */
+   Because the tiles are derived, renaming or removing somebody on the
+   Teams or Pairs board updates this board by itself. There is no second
+   list to keep in step. */
 
 function giveawayEntries() {
+  /* Count how many boxes each person holds, per board.
+
+     WHICH BOARD A ROW BELONGS TO IS DECIDED BY ITS NAME, looked up in
+     the two explicit name sets. A row whose name is in neither earns
+     nothing, so Divisions can never leak into the draw however its rows
+     happen to be stored - and a single Pairs box can never count as a
+     team, which would have given one entry for one pair. */
   const perPerson = {};
   entries.forEach(function (e) {
     const name = buyerOnly(e.username);
     if (!name) return;
 
     if (isGiveawayTarget(e.target)) {
+      /* a manual entry: one entry per row, however many times it is typed */
       if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0, manual: 0 };
       perPerson[name].manual += 1;
       return;
@@ -438,14 +491,15 @@ function giveawayEntries() {
     perPerson[name][boardId] += 1;
   });
 
-  /* ONE TILE PER PERSON, carrying how many entries they hold.
+  /* Turn those counts into tiles, one per entry.
 
-     It used to be one tile per entry, so somebody with three entries got
-     three near-identical tiles and you could not see at a glance who was
-     best placed. The wheel still gives one wedge per entry. */
+     An entry earned from Teams or Pairs carries no id: it lives and dies
+     with the name on that board. A hand-typed entry carries its row id,
+     so it can be taken back out from the tile itself. */
   const out = Object.keys(perPerson).map(function (name) {
     const c = perPerson[name];
     const earned = giveawayRate("teams", c.teams) + giveawayRate("pairs", c.pairs);
+    const total = earned + (c.manual || 0);
 
     const manualRows = entries.filter(function (e) {
       return isGiveawayTarget(e.target) && buyerOnly(e.username) === name;
@@ -453,7 +507,7 @@ function giveawayEntries() {
 
     return {
       name: name,
-      count: earned + (c.manual || 0),
+      count: total,
       earned: earned,
       manual: c.manual || 0,
       manualIds: manualRows.map(function (e) { return e.id; }),
@@ -463,7 +517,6 @@ function giveawayEntries() {
     };
   });
 
-  /* best placed first, so the board reads as a standing */
   out.sort(function (x, y) {
     if (y.count !== x.count) return y.count - x.count;
     return x.name.localeCompare(y.name);
@@ -483,14 +536,12 @@ function giveawayDraw() {
   return out;
 }
 
-/* One giveaway tile: ONE PERSON, with how many entries they hold.
+/* One giveaway tile: a name, and a Remove button on the manual ones.
 
-   The count is the headline, because that is the thing you want to read
-   across the board. The small line under the name says where the
-   entries came from, so a hand-added one is never mistaken for earned.
-
-   A Remove button appears only when the person has hand-typed entries,
-   and one press takes one of theirs back out. */
+   `manualId` is the row id when this entry was typed by hand, so it can
+   be taken back out. An entry earned from Teams or Pairs has no id of
+   its own - it disappears when the name comes off that board - so it
+   gets no Remove button. */
 function buildGiveawayTile(person) {
   const name = person.name;
   const tile = document.createElement("div");
@@ -511,12 +562,11 @@ function buildGiveawayTile(person) {
   initials.textContent = String(name).slice(0, 2).toUpperCase();
   eb.appendChild(initials);
 
-  /* how many entries they hold, big and gold, on the emblem */
+  /* how many entries they hold, big and gold, right on the emblem */
   const count = document.createElement("span");
   count.className = "givcount";
   count.textContent = person.count;
-  count.title = person.count + (person.count === 1 ? " entry" : " entries") +
-    " in the draw";
+  count.title = person.count + (person.count === 1 ? " entry" : " entries") + " in the draw";
   eb.appendChild(count);
   tile.appendChild(eb);
 
@@ -556,7 +606,7 @@ function buildGiveawayTile(person) {
     del.type = "button";
     del.className = "cedel givedel";
     del.textContent = "Remove";
-    del.title = "Take one hand-typed entry back out";
+    del.title = "Take this hand-typed entry back out";
     del.addEventListener("click", async function (ev) {
       ev.stopPropagation();
       const id = person.manualIds[0];
@@ -579,7 +629,12 @@ function buildGiveawayTile(person) {
 }
 
 /* The bar at the foot of the giveaway board: type a name, press +, and
-   that person gets one extra entry in the draw. */
+   that person gets one extra entry in the draw.
+
+   Hand-typed entries are stored as ordinary rows so they survive a
+   reload and reach every device, under a target that names this board
+   and nothing else. They add to whatever the person already earned on
+   Teams and Pairs. */
 function buildGiveawayAddBar() {
   const bar = document.createElement("form");
   bar.className = "givadd";
@@ -670,10 +725,10 @@ async function resetGiveaway() {
 
 /* ---------- THE SPIN WHEEL ----------
 
-   A real wheel on a canvas. ONE WEDGE PER ENTRY, so somebody with three
-   entries holds three wedges and three times the odds. It reads the
-   same draw list the tiles are counted from, so the wheel and the board
-   can never disagree.
+   A real wheel, drawn on a canvas. One wedge per entry in the draw, so
+   somebody with three entries holds three wedges and three times the
+   odds. It reads the SAME list the tiles are built from, so the wheel
+   and the board can never disagree about who is in the draw.
 
    The pointer sits at the top. The wheel spins, slows, and stops under
    it; the winner is the name whose wedge landed there. */
@@ -716,9 +771,11 @@ function buildGiveawayWheel() {
   wrap.appendChild(result);
 
   const ctx = canvas.getContext("2d");
-  let angle = 0;
+  let angle = 0;          /* where the wheel currently sits, in radians */
   let spinning = false;
 
+  /* The wedges, one per entry, in a stable order so the wheel does not
+     reshuffle between draws. */
   function wedges() {
     const drawn = giveawayDraw();
     const n = drawn.length;
@@ -741,6 +798,7 @@ function buildGiveawayWheel() {
 
     ctx.clearRect(0, 0, w, w);
 
+    /* the rim */
     ctx.beginPath();
     ctx.arc(r, r, r - 6, 0, Math.PI * 2);
     ctx.fillStyle = "#0a1f3a";
@@ -767,6 +825,7 @@ function buildGiveawayWheel() {
       ctx.stroke();
     });
 
+    /* the names, written along each wedge */
     list.forEach(function (seg) {
       const mid = (seg.start + seg.end) / 2 + angle;
       ctx.save();
@@ -776,6 +835,8 @@ function buildGiveawayWheel() {
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#0a1424";
       ctx.font = "700 17px Inter, system-ui, sans-serif";
+
+      /* a wedge too thin for a name gets none, rather than a smear */
       const share = seg.end - seg.start;
       if (share > 0.14) {
         const label = seg.name.length > 13 ? seg.name.slice(0, 12) + "\u2026" : seg.name;
@@ -784,6 +845,7 @@ function buildGiveawayWheel() {
       ctx.restore();
     });
 
+    /* the rim again, on top, so wedges cannot spill past it */
     ctx.beginPath();
     ctx.arc(r, r, r - 8, 0, Math.PI * 2);
     ctx.strokeStyle = "#e6c24f";
@@ -792,11 +854,13 @@ function buildGiveawayWheel() {
   }
 
   /* Which wedge is under the pointer, given where the wheel is now.
+
      The pointer is at the top, which is -90 degrees from zero. */
   function winnerAt(a) {
     const list = wedges();
     if (!list.length) return null;
     const TAU = Math.PI * 2;
+    /* normalise the pointer angle into the wheel's own co-ordinates */
     let p = (-Math.PI / 2 - a) % TAU;
     if (p < 0) p += TAU;
     for (let i = 0; i < list.length; i++) {
@@ -820,15 +884,16 @@ function buildGiveawayWheel() {
     result.classList.remove("won");
 
     const TAU = Math.PI * 2;
-    const turns = 6 + Math.random() * 3;
-    const land = Math.random() * TAU;
+    const turns = 6 + Math.random() * 3;              /* full turns */
+    const land = Math.random() * TAU;                 /* where it stops */
     const from = angle;
     const to = from + turns * TAU + land;
     const started = performance.now();
-    const howLong = 5200;
+    const howLong = 5200;                             /* milliseconds */
 
     function frame(now) {
       const t = Math.min((now - started) / howLong, 1);
+      /* ease out: fast at first, crawling at the end */
       const eased = 1 - Math.pow(1 - t, 3);
       angle = from + (to - from) * eased;
       draw();
@@ -852,6 +917,7 @@ function buildGiveawayWheel() {
   hub.addEventListener("click", spin);
   canvas.addEventListener("click", spin);
 
+  /* draw once now, and again whenever the board is redrawn */
   draw();
   wrap.refreshWheel = draw;
   return wrap;
@@ -864,7 +930,11 @@ function renderBoards() {
 
   host.innerHTML = "";
 
-  boards.forEach(function (b) {
+  boards.forEach(function (b, bIndex) {
+    /* only the board that OWNS the tab carries a Reset. A board stacked
+       underneath it - Divisions, under Pairs - does not, so the Pairs
+       screen has exactly one button on it. */
+    b.stackedUnder = stacked && bIndex > 0;
     if (stacked) host.appendChild(buildBoardHeader(b));
 
     const grid = document.createElement("div");
@@ -873,7 +943,7 @@ function renderBoards() {
     grid.setAttribute("aria-label", (b.label || b.id) + " board");
 
     if (b.derived) {
-      /* a generated board: one tile per PERSON. Entries arrive by
+      /* a generated board: one tile per entry. Entries arrive by
          themselves from Teams and Pairs, and can also be typed here. */
       const drawn = giveawayEntries();
       grid.className = "board board-" + b.size + " givetiles";
@@ -891,12 +961,12 @@ function renderBoards() {
       host.appendChild(buildGiveawayWheel());
       host.appendChild(buildGiveawayAddBar());
       return;
+    } else {
+      b.boxes.forEach(function (box) {
+        const t = targetByName(box.name);
+        if (t) grid.appendChild(buildTile(t));
+      });
     }
-
-    b.boxes.forEach(function (box) {
-      const t = targetByName(box.name);
-      if (t) grid.appendChild(buildTile(t));
-    });
     host.appendChild(grid);
   });
 
@@ -909,18 +979,22 @@ function renderBoards() {
   const onGiveaway = !!primary && primary.derived;
 
   if (primary) {
-    toolbarReset.dataset.resetFor = primary.id;
     if (onGiveaway) {
+      toolbarReset.dataset.resetFor = primary.id;
       toolbarReset.textContent = "Reset giveaway";
       toolbarReset.title = "Take every hand-typed entry back out. " +
         "Entries earned on Teams and Pairs stay, and no win is touched.";
+      toolbarReset.disabled = false;
+      toolbarReset.style.display = "";
     } else {
+      toolbarReset.dataset.resetFor = primary.id;
       toolbarReset.textContent = stacked ? "Reset " + primary.label : "Reset board";
       toolbarReset.title = "Remove every username from the " + primary.label + " boxes";
+      toolbarReset.disabled = false;
+      toolbarReset.style.display = "";
     }
-    toolbarReset.disabled = false;
-    toolbarReset.style.display = "";
   }
+  /* Hide all and Download CSV mean nothing on a generated board */
   if (toolbarClear) toolbarClear.style.display = onGiveaway ? "none" : "";
   if (toolbarCsv) toolbarCsv.style.display = onGiveaway ? "none" : "";
 
@@ -935,6 +1009,7 @@ function renderBoards() {
         (people.length === 1 ? " person" : " people") +
         (manual ? " - " + manual + " added by hand." : " - one wedge per entry.")
       : "No entries yet.";
+    /* the wheel was rebuilt with the board, so it is already current */
   }
 }
 
@@ -1025,6 +1100,7 @@ function refreshBoards() {
    divisions and picks. */
 async function addUser(targetId, rawName, fromTile) {
   const username = normalizeName(rawName);
+  /* the tile we were handed wins; the lookup is only a fallback */
   const tile = fromTile || tileFor(targetId);
   const input = tile ? tile.querySelector(".addbar input") : null;
   const note = $("saved");
@@ -1056,6 +1132,7 @@ async function addUser(targetId, rawName, fromTile) {
   entries.push(saved);
 
   /* an entry naming an item with a "$" is logged on the winners page.
+
      boardSplit and boardLogWin live in THIS file, so the win records
      whether or not winners.js or sb-client.js loaded. */
   const parts = boardSplit(username);
@@ -1079,6 +1156,7 @@ async function addUser(targetId, rawName, fromTile) {
     note.textContent = "Added @" + logged.username + " to " + targetId +
       " - win logged: " + logged.item;
   } else if (parts.item && logError) {
+    /* the name is on the box, the win did NOT record - say so */
     note.textContent = "Added @" + buyerOnly(username) + " to " + targetId +
       " BUT the win did not log: " + logError;
   } else {
@@ -1086,38 +1164,125 @@ async function addUser(targetId, rawName, fromTile) {
   }
 }
 
+/* ---------- THE RESET ----------
+
+   Reset used to fail silently. Two reasons, both now gone.
+
+   1. It asked for confirmation with confirm(), a BROWSER dialog. When a
+      browser has suppressed dialogs - which Chrome does after the box is
+      ticked, and which some phones and in-app browsers do by default -
+      confirm() returns false without ever showing anything, so the click
+      did nothing and said nothing. The confirmation is now drawn on the
+      page itself instead.
+
+   2. It deleted through sbClearTargets() in sb-client.js, which builds
+      one PostgREST filter out of every box name. A name carrying a comma
+      or a bracket breaks that filter, the whole request 400s, and the
+      board - still full - simply reloaded looking untouched.
+
+   So the delete happens HERE, one request per box, using the same key
+   this file already carries for the win write. No other file has to be
+   loaded or current for the reset to work, and a failure says which box
+   it could not free rather than going quiet. */
+
+const SB_ENTRIES_URL = SB_WIN_URL + "/rest/v1/entries";
+const SB_HEADERS = {
+  "apikey": SB_WIN_KEY,
+  "Authorization": "Bearer " + SB_WIN_KEY,
+  "Content-Type": "application/json"
+};
+
+/* Free ONE box. The box name is escaped for the URL, so a name with a
+   space, a comma, a bracket or an apostrophe goes through intact. */
+async function boardFreeTarget(target) {
+  const url = SB_ENTRIES_URL + "?target=eq." + encodeURIComponent(target);
+  const res = await fetch(url, { method: "DELETE", headers: SB_HEADERS });
+  if (!res.ok) {
+    const txt = await res.text().catch(function () { return ""; });
+    throw new Error(res.status + " " + txt);
+  }
+  return true;
+}
+
+/* THE BOX NAMES OF ONE BOARD - that board only.
+
+   It must not reach across the tab. The Pairs board is drawn with the
+   Divisions board stacked underneath it, so anything that walks the tab
+   sweeps Divisions when you asked to reset Pairs. This used to do that,
+   which is why Reset Pairs took a bite out of Divisions and then left
+   the Pairs names behind. One board in, that board's names out. */
+function boardTargetNames(board) {
+  const names = {};
+  if (!board || board.derived) return [];
+  board.boxes.forEach(function (box) { names[box.name] = true; });
+  return Object.keys(names);
+}
+
+let resetPending = null;
+let resetPendingTimer = null;
+
 async function resetBoard(boardId) {
   const board = boardById(boardId);
   if (!board) return;
 
-  const names = board.boxes.map(function (b) { return b.name; });
-  const doomed = entries.filter(function (e) { return names.indexOf(e.target) !== -1; });
+  const names = boardTargetNames(board);
+  const inBoard = {};
+  names.forEach(function (n) { inBoard[n] = true; });
+
+  const doomed = entries.filter(function (e) { return inBoard[e.target]; });
 
   if (!doomed.length) {
     $("saved").textContent = "The " + board.label + " board is already empty.";
     return;
   }
 
-  const line1 = "Remove all " + doomed.length + " " +
-    (doomed.length === 1 ? "name" : "names") + " from the " + board.label + " board?";
-  const line2 = "Only that board is cleared, and the winners log is kept.";
-  if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
+  /* SECOND CLICK CONFIRMS. The first press arms it and says so on the
+     page; pressing again within a few seconds does the clear. Nothing
+     depends on a browser dialog appearing. */
+  if (resetPending !== boardId) {
+    resetPending = boardId;
+    $("saved").textContent = "Press Reset " + board.label + " again to clear " +
+      doomed.length + (doomed.length === 1 ? " name" : " names") +
+      ". The winners log is kept.";
+    clearTimeout(resetPendingTimer);
+    resetPendingTimer = setTimeout(function () {
+      resetPending = null;
+      $("saved").textContent = "";
+    }, 6000);
+    return;
+  }
+
+  resetPending = null;
+  clearTimeout(resetPendingTimer);
 
   undoSnapshot = doomed.slice();
+  $("saved").textContent = "Clearing " + doomed.length + " from " + board.label + "...";
 
-  try {
-    await sbClearTargets(names);
-  } catch (err) {
-    $("saved").textContent = "Could not clear that board: " + err.message;
-    return;
+  const stuck = [];
+  for (let i = 0; i < doomed.length; i++) {
+    try {
+      await boardFreeTarget(doomed[i].target);
+    } catch (err) {
+      stuck.push(doomed[i].target + " (" + err.message + ")");
+    }
+  }
+
+  if (stuck.length) {
+    $("saved").textContent = "Could not clear " + stuck.length + " of " +
+      doomed.length + " boxes on " + board.label + ": " + stuck.join(", ");
   }
 
   closeAllPanels(null);
   await loadEntries();
   if (typeof renderWinners === "function") renderWinners();
+
+  if (stuck.length) return;
+
   showUndo("Cleared " + doomed.length + " from " + board.label +
     " - the winners log is unchanged.");
 }
+
+
 
 /* ---------- the list of names ---------- */
 
@@ -1160,7 +1325,7 @@ function renderEntries() {
     tdUser.appendChild(nameBtn);
     tr.appendChild(tdUser);
 
-    tr.appendChild(textCell(targetLabel(e.target)));
+    tr.appendChild(textCell(e.target));
 
     const when = new Date(e.created_at);
     tr.appendChild(textCell(isNaN(when) ? "-" : when.toLocaleString()));
@@ -1233,8 +1398,7 @@ function startRowEdit(tr, entry) {
     refreshBoards();
     renderEntries();
     if (typeof renderWinners === "function") renderWinners();
-    $("saved").textContent = "Renamed to @" + buyerOnly(next) + " on " +
-      targetLabel(entry.target);
+    $("saved").textContent = "Renamed to @" + buyerOnly(next) + " on " + entry.target;
   }
 
   save.addEventListener("click", commit);
@@ -1286,7 +1450,7 @@ function downloadCsv() {
     rows.push(
       csvEscape(parts.username) + "," +
       csvEscape(parts.item) + "," +
-      csvEscape(targetLabel(e.target)) + "," +
+      csvEscape(e.target) + "," +
       csvEscape(e.created_at)
     );
   });
@@ -1309,7 +1473,7 @@ function applyFilter(q) {
     el.style.display = match ? "" : "none";
     if (match) shown++;
   });
-  const total = document.querySelectorAll("#boards .tile").length;
+  const total = targetsOnTab(currentTab).length;
   $("count").textContent = shown === total ? total + " shown" : shown + " of " + total + " shown";
 }
 
@@ -1398,6 +1562,16 @@ document.addEventListener("DOMContentLoaded", function () {
     const b = boardById(id);
     /* the giveaway has its own reset: hand-typed entries only */
     if (b && b.derived) { resetGiveaway(); return; }
+
+    /* ON A TAB THAT HAS ITS OWN BUTTON, the toolbar button stands down.
+       Pairs carries "Reset Pick your Pairs" over its heading; letting the
+       toolbar button run as well gave the same screen two resets that
+       could disagree about which board they meant. */
+    if (boardsOnTab(id).length > 1) {
+      $("saved").textContent = "Use the Reset button on the " + b.label +
+        " heading to clear that board.";
+      return;
+    }
     resetBoard(id);
   });
 
@@ -1430,6 +1604,8 @@ document.addEventListener("DOMContentLoaded", function () {
     let put = 0;
     for (let i = 0; i < back.length; i++) {
       try {
+        /* a hand-typed giveaway row is rebuilt under its own target; a
+           board row goes back onto its box */
         const saved = await sbAddEntry(back[i].username, back[i].target);
         if (saved) put++;
       } catch (e) { /* the box may already be taken again */ }
