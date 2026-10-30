@@ -1,1 +1,893 @@
-@@LEDGER3@@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TKS Break - Winners</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  @import url("casino.css");
+  @import url("neon.css");
+  .live{display:inline-flex; align-items:center; gap:7px;
+    font-size:11px; font-weight:800; letter-spacing:.12em;
+    text-transform:uppercase; color:#7fe0a0}
+  .live::before{content:""; width:8px; height:8px; border-radius:50%;
+    background:#7fe0a0; box-shadow:0 0 10px rgba(127,224,160,.9);
+    animation:pulse 2s ease-in-out infinite}
+  .live.off{color:#8ea9c4}
+  .live.off::before{background:#8ea9c4; box-shadow:none; animation:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .who{color:#ffd75e; font-weight:900;
+    text-shadow:0 0 16px rgba(255,206,80,.45), 0 2px 4px rgba(0,0,0,.9)}
+  .trk b{display:inline-block; padding:4px 11px; border-radius:7px;
+    background:rgba(4,20,34,.85); border:1px solid rgba(201,162,39,.5);
+    color:#ffe9a8; font-size:12.5px; letter-spacing:.03em}
+  .trk span{color:#8ea9c4; font-size:12px}
+  .findbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0 0 6px}
+  .findbar input{
+    flex:1 1 240px; min-width:0; max-width:400px; font-family:inherit;
+    background:linear-gradient(180deg, rgba(2,12,24,.85), rgba(4,18,34,.7));
+    border:1px solid rgba(201,162,39,.55); color:#eaf3ff;
+    border-radius:11px; padding:12px 16px; font-size:14px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,.6)}
+  .findbar input::placeholder{color:#7f98b0}
+  .findbar input:focus{
+    outline:none; border-color:#ffd76a;
+    box-shadow:0 0 0 3px rgba(255,215,106,.22), inset 0 2px 8px rgba(0,0,0,.6)}
+  .findbar .ghost{flex:0 0 auto}
+  .findmsg{margin:0 0 14px; font-size:12px; font-weight:800;
+    letter-spacing:.1em; text-transform:uppercase; color:#ffd75e; min-height:16px}
+  .findmsg.none{color:#a9c3dc}
+  .runstart{margin:-8px 0 16px; font-size:11px; font-weight:800;
+    letter-spacing:.12em; text-transform:uppercase; color:#8ea9c4}
+  .runstart b{color:#ffd75e}
+  .podium{display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:14px; align-items:end; margin:0 0 22px}
+  .podiumCard{position:relative; text-align:center;
+    padding:22px 12px 18px; border-radius:16px;
+    background:linear-gradient(180deg, rgba(24,62,106,.92), rgba(6,18,34,.86));
+    border:1px solid rgba(150,205,245,.35);
+    box-shadow:0 14px 34px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.14);
+    overflow:hidden; transition:transform .2s ease, box-shadow .2s ease}
+  .podiumCard::before{content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(ellipse 80% 55% at 50% 0%, rgba(255,215,110,.22), transparent 70%)}
+  .podiumCard:hover{transform:translateY(-3px)}
+  .podiumCard.p1{padding-top:34px; padding-bottom:26px;
+    border-color:rgba(255,215,106,.85);
+    background:linear-gradient(180deg, rgba(58,44,10,.95), rgba(14,26,44,.9));
+    animation:crown 3.4s ease-in-out infinite}
+  .podiumCard.p1::before{
+    background:radial-gradient(ellipse 85% 60% at 50% 0%, rgba(255,215,110,.42), transparent 72%)}
+  @keyframes crown{
+    0%,100%{box-shadow:0 0 0 1px rgba(255,215,106,.35),0 18px 44px rgba(0,0,0,.66),0 0 46px rgba(255,206,80,.42),inset 0 1px 0 rgba(255,255,255,.2)}
+    50%{box-shadow:0 0 0 1px rgba(255,215,106,.6),0 18px 48px rgba(0,0,0,.7),0 0 74px rgba(255,215,110,.66),inset 0 1px 0 rgba(255,255,255,.28)}}
+  .podiumCard.p2{border-color:rgba(214,226,238,.7);
+    background:linear-gradient(180deg, rgba(52,62,76,.92), rgba(10,20,34,.86))}
+  .podiumCard.p3{border-color:rgba(206,140,86,.68);
+    background:linear-gradient(180deg, rgba(62,42,26,.92), rgba(12,20,32,.86))}
+  .podMedal{font-size:30px; line-height:1; margin-bottom:10px;
+    filter:drop-shadow(0 3px 10px rgba(0,0,0,.7))}
+  .podiumCard.p1 .podMedal{font-size:42px}
+  .podRing{width:56px; height:56px; margin:0 auto 10px; border-radius:50%;
+    display:grid; place-items:center;
+    font-size:19px; font-weight:900; letter-spacing:.04em; color:#221803;
+    background:linear-gradient(180deg, #fff8dc, #f2d264 44%, #b6880f);
+    border:2px solid rgba(255,248,215,.9);
+    box-shadow:0 6px 18px rgba(0,0,0,.6), inset 0 2px 0 rgba(255,255,255,.85)}
+  .podiumCard.p1 .podRing{width:70px; height:70px; font-size:24px}
+  .podiumCard.p2 .podRing{background:linear-gradient(180deg,#f4f8ff,#c9d6e4 44%,#7d8b9c)}
+  .podiumCard.p3 .podRing{background:linear-gradient(180deg,#f7d9bd,#cd8f57 44%,#8a5322)}
+  .podWho{font-size:14px; font-weight:900; color:#fff; line-height:1.25;
+    overflow-wrap:anywhere; word-break:break-word;
+    text-shadow:0 2px 5px rgba(0,0,0,.9)}
+  .podiumCard.p1 .podWho{font-size:17px; color:#ffe9a8}
+  .podItems{font-size:34px; font-weight:900; line-height:1; margin-top:9px;
+    color:#ffd75e;
+    text-shadow:0 0 22px rgba(255,206,80,.7), 0 2px 6px rgba(0,0,0,.95)}
+  .podiumCard.p1 .podItems{font-size:46px}
+  .podiumCard.p2 .podItems,.podiumCard.p3 .podItems{color:#e8f1fa}
+  .podLbl{font-size:9px; font-weight:800; letter-spacing:.2em;
+    text-transform:uppercase; color:#9fb9d2; margin-top:4px}
+  .rankList{display:flex; flex-direction:column; gap:7px}
+  .rankRow{display:flex; align-items:center; gap:12px;
+    padding:11px 15px; border-radius:11px;
+    background:linear-gradient(180deg, rgba(16,44,76,.66), rgba(4,14,28,.6));
+    border:1px solid rgba(150,205,245,.22);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.07);
+    transition:border-color .16s, transform .16s}
+  .rankRow:hover{border-color:rgba(255,215,106,.6); transform:translateX(3px)}
+  .rankPos{flex:0 0 auto; min-width:38px;
+    font-size:13px; font-weight:900; color:#ffd75e; letter-spacing:.04em}
+  .rankWho{flex:1 1 auto; min-width:0; font-size:14px; font-weight:900; color:#fff;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .rankTeam{flex:0 0 auto; font-size:11px; color:#8ea9c4;
+    max-width:38%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .rankItems{flex:0 0 auto; min-width:34px; text-align:right;
+    font-size:16px; font-weight:900; color:#ffd75e;
+    text-shadow:0 0 16px rgba(255,206,80,.5)}
+  #allBoard .podiumCard{border-color:rgba(201,162,39,.5)}
+  #allBoard .podiumCard.p1{border-color:rgba(255,215,106,.9)}
+  #allBoard .rankRow{border-color:rgba(201,162,39,.3)}
+
+  /* ---- the giveaway entries table ---- */
+  .givTable td.givrank{
+    font-weight:900; color:#ffd75e; font-size:13px; letter-spacing:.04em}
+  .givTable td.givn{
+    font-weight:900; color:#fff; font-size:19px;
+    text-shadow:0 0 16px rgba(255,206,80,.5)}
+  .givTable td.givsrc{
+    color:#8ea9c4; font-size:11.5px; letter-spacing:.04em;
+    text-transform:uppercase; font-weight:700}
+  .givTable tbody tr:first-child td{
+    background:linear-gradient(180deg, rgba(201,162,39,.14), rgba(201,162,39,.04))}
+  .givTable tbody tr:first-child td.givn{color:#ffd75e; font-size:22px}
+
+  @media (max-width:900px){
+    html,body{overflow-x:hidden !important}
+    .wrap{max-width:100% !important}}
+
+  @media (max-width:760px){
+    .wrap{padding:20px 14px 60px !important}
+    .panel{padding:16px !important; border-radius:13px !important}
+    .panel h2{font-size:13px !important}
+    .podium{grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+      gap:10px !important; align-items:stretch !important}
+    .podiumCard.p1{grid-column:1 / -1 !important; padding:22px 12px 18px !important}
+    .podiumCard{padding:16px 10px 14px !important; border-radius:13px !important}
+    .podiumCard.p1 .podMedal{font-size:34px !important}
+    .podMedal{font-size:24px !important; margin-bottom:7px !important}
+    .podRing{width:46px !important; height:46px !important; font-size:16px !important;
+      margin-bottom:8px !important}
+    .podiumCard.p1 .podRing{width:58px !important; height:58px !important; font-size:20px !important}
+    .podWho{font-size:12.5px !important}
+    .podiumCard.p1 .podWho{font-size:15px !important}
+    .podItems{font-size:26px !important; margin-top:7px !important}
+    .podiumCard.p1 .podItems{font-size:38px !important}
+    .podLbl{font-size:8px !important; letter-spacing:.14em !important}
+    .rankRow{padding:10px 12px !important; gap:9px !important}
+    .rankPos{min-width:32px !important; font-size:12px !important}
+    .rankWho{font-size:13px !important}
+    .rankTeam{display:none !important}
+    .rankItems{font-size:15px !important; min-width:28px !important}
+
+    table.winnersTable{display:block !important; table-layout:auto !important;
+      width:100% !important; border-collapse:separate !important}
+    table.winnersTable thead{display:none !important}
+    table.winnersTable tbody{display:block !important; width:100% !important}
+    table.winnersTable tr{
+      display:block !important; width:100% !important; box-sizing:border-box !important;
+      margin:0 0 11px !important; padding:13px 15px !important;
+      border:1px solid rgba(201,162,39,.4) !important; border-radius:12px !important;
+      background:linear-gradient(180deg, rgba(19,53,92,.7), rgba(5,16,31,.6)) !important;
+      box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.09) !important;
+      white-space:normal !important}
+    table.winnersTable tr:last-child{margin-bottom:0 !important}
+    table.winnersTable td{
+      display:block !important; width:100% !important; box-sizing:border-box !important;
+      border-bottom:0 !important; padding:3px 0 !important;
+      white-space:normal !important; overflow:visible !important;
+      text-overflow:clip !important; text-align:left !important;
+      font-size:13px !important; max-width:none !important}
+    table.winnersTable td.who{
+      font-size:17px !important; line-height:1.25 !important; font-weight:900 !important;
+      color:#ffd75e !important; padding-bottom:6px !important; margin-bottom:5px !important;
+      border-bottom:1px solid rgba(201,162,39,.25) !important;
+      overflow-wrap:anywhere !important; word-break:break-word !important}
+    table.winnersTable td.item{
+      font-size:14px !important; font-weight:700 !important; color:#eaf3ff !important;
+      padding-bottom:7px !important; overflow-wrap:anywhere !important; word-break:break-word !important}
+    table.winnersTable td.team,
+    table.winnersTable td.meta,
+    table.winnersTable td.trk{font-size:12px !important; color:#a9c3dc !important}
+    table.winnersTable td.team::before{content:"Team: " !important; color:#8ea9c4 !important; font-weight:800 !important}
+    table.winnersTable td.meta::before{content:"Won: " !important; color:#8ea9c4 !important; font-weight:800 !important}
+    table.winnersTable td.trk::before{content:"Tracking: " !important; color:#8ea9c4 !important; font-weight:800 !important}
+    table.winnersTable td.trk{padding-top:5px !important}
+    table.winnersTable td.trk b{font-size:12px !important; padding:3px 9px !important;
+      overflow-wrap:anywhere !important; word-break:break-word !important}
+
+    table.givTable{display:block !important; table-layout:auto !important;
+      width:100% !important; border-collapse:separate !important}
+    table.givTable thead{display:none !important}
+    table.givTable tbody{display:block !important; width:100% !important}
+    table.givTable tr{
+      display:block !important; width:100% !important; box-sizing:border-box !important;
+      margin:0 0 11px !important; padding:13px 15px !important;
+      border:1px solid rgba(201,162,39,.4) !important; border-radius:12px !important;
+      background:linear-gradient(180deg, rgba(19,53,92,.7), rgba(5,16,31,.6)) !important;
+      box-shadow:0 6px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.09) !important;
+      white-space:normal !important}
+    table.givTable tr:last-child{margin-bottom:0 !important}
+    table.givTable td{
+      display:block !important; width:100% !important; box-sizing:border-box !important;
+      border-bottom:0 !important; padding:3px 0 !important;
+      white-space:normal !important; overflow:visible !important;
+      text-align:left !important; max-width:none !important}
+    table.givTable td.givrank{
+      font-size:11px !important; color:#ffd75e !important;
+      letter-spacing:.14em !important; text-transform:uppercase !important}
+    table.givTable td.who{
+      font-size:17px !important; color:#ffd75e !important; font-weight:900 !important;
+      padding-bottom:6px !important; margin-bottom:5px !important;
+      border-bottom:1px solid rgba(201,162,39,.25) !important;
+      overflow-wrap:anywhere !important; word-break:break-word !important}
+    table.givTable td.givn{
+      font-size:26px !important; color:#ffd75e !important; line-height:1.15 !important}
+    table.givTable tbody tr:first-child td.givn{font-size:30px !important}
+    table.givTable td.givsrc{
+      font-size:11.5px !important; color:#a9c3dc !important; padding-top:4px !important}
+
+    .toolbar{gap:8px 10px !important; margin-bottom:14px !important}
+    .toolbar .left{gap:7px 8px !important; flex-wrap:wrap !important}
+    button.ghost{font-size:10.5px !important; padding:8px 12px !important;
+      padding-left:30px !important; flex:0 0 auto !important}
+    button.ghost::before{width:15px !important; height:15px !important;
+      line-height:15px !important; font-size:9.5px !important; left:8px !important}
+    #ledgerCsv,#ledgerRefresh{padding-left:30px !important}
+    .boardhead h2{font-size:17px !important}
+    .boardhead span{font-size:11.5px !important}
+    .live{font-size:10px !important}
+    .findbar{gap:8px !important; margin-bottom:5px !important}
+    .findbar input{flex:1 1 100% !important; max-width:none !important;
+      font-size:14px !important; padding:11px 14px !important}
+    .findbar .ghost{flex:0 0 auto !important}
+    .findmsg{font-size:11px !important; margin-bottom:12px !important}}
+</style>
+</head>
+<body>
+
+<!-- the faceted chips from the mark, scattered behind the page -->
+<div class="crystal c1" aria-hidden="true"></div>
+<div class="crystal c2" aria-hidden="true"></div>
+<div class="crystal c3" aria-hidden="true"></div>
+<div class="crystal c4" aria-hidden="true"></div>
+<div class="crystal c5" aria-hidden="true"></div>
+<div class="crystal c6" aria-hidden="true"></div>
+
+<header class="compact">
+  <a class="brand" href="./" aria-label="TKS Break home">
+    <img src="logo.png" alt="TKS Break">
+  </a>
+  <h1>Winners</h1>
+  <p>Every item won, newest first</p>
+</header>
+<div class="wrap">
+  <div class="boardhead">
+    <h2>Winners</h2>
+    <span id="ledgerCount"></span>
+  </div>
+  <div class="toolbar">
+    <div class="left"><span class="live" id="liveBadge">Live</span></div>
+    <div class="left">
+      <button class="ghost" id="ledgerRefresh" type="button">Refresh</button>
+      <button class="ghost" id="ledgerCsv" type="button">Download list</button>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Current Run <span class="count" id="runCount"></span></h2>
+    <p class="sub">
+      Most items won in the run now under way. This board starts fresh each new run,
+      so everyone gets a clean shot at the top.
+    </p>
+    <p class="runstart" id="runStart"></p>
+    <div id="runBoard"></div>
+  </div>
+  <div class="panel">
+    <h2>All-Time Leaders <span class="count" id="allCount"></span></h2>
+    <p class="sub">
+      Every item ever won, going back to the first break. This board never resets.
+    </p>
+    <div id="allBoard"></div>
+  </div>
+  <div class="panel">
+    <h2>Giveaway entries <span class="count" id="givCount"></span></h2>
+    <p class="sub">
+      Every entry you hold in the current giveaway. One entry per name on the Teams
+      board, and one for every TWO names on the Pick your Pairs board. This updates
+      by itself as entries are added.
+    </p>
+    <div class="findbar">
+      <input id="givFind" type="search" placeholder="search your username"
+        aria-label="Search giveaway entries by username" autocomplete="off" spellcheck="false">
+      <button type="button" id="givClear" class="ghost">Show all</button>
+    </div>
+    <p class="findmsg" id="givMsg"></p>
+    <div id="giveaway"></div>
+  </div>
+  <div class="panel">
+    <h2>Every winner</h2>
+    <p class="sub">
+      Newest first. This updates by itself - leave the page open and a new win appears
+      within a second or two of being recorded.
+    </p>
+    <div class="findbar">
+      <input id="find" type="search" placeholder="search your username"
+        aria-label="Search winners by username" autocomplete="off" spellcheck="false">
+      <button type="button" id="findClear" class="ghost">Show all</button>
+    </div>
+    <p class="findmsg" id="findMsg"></p>
+    <div id="ledger"></div>
+  </div>
+  <div class="panel">
+    <h2>How this page works</h2>
+    <div class="note">
+      Every item won in the break, in the order it was won. There are two leaderboards:
+      the <strong>Current Run</strong> board counts only the run under way, so it starts
+      fresh each time. <strong>All-Time Leaders</strong> counts every win ever recorded and
+      never resets.<br><br>
+      <strong>Giveaway entries</strong> shows how many chances each person holds in the
+      current giveaway. One entry per name on the Teams board, and one for every two
+      names on the Pick your Pairs board. The wheel gives one wedge per entry.<br><br>
+      Type a username into either search box to pull up just that person's rows.
+      Nothing on this page can be changed from here - it is read-only: nobody can alter
+      a record, including their own.<br><br>
+      The page refreshes on its own, so there is nothing to reload.
+    </div>
+  </div>
+</div>
+<script src="sb-client.js"></script>
+<script>
+var allWins = [];
+var allEntries = [];
+var findQuery = "";
+var runStarted = null;
+var L = function (id) { return document.getElementById(id); };
+
+function when(iso) {
+  var d = new Date(iso);
+  if (isNaN(d)) return "-";
+  return d.toLocaleDateString() + " " + d.toLocaleTimeString();
+}
+function setLive(on) {
+  var b = L("liveBadge");
+  if (!b) return;
+  b.textContent = on ? "Live" : "Reconnecting";
+  b.classList.toggle("off", !on);
+}
+function td(text, cls) {
+  var el = document.createElement("td");
+  if (cls) el.className = cls;
+  el.textContent = text;
+  return el;
+}
+
+function buildBoard(rowsIn) {
+  var counts = {};
+  var source = rowsIn || allWins;
+  source.forEach(function (w) {
+    var name = String(w.username || "").trim();
+    if (!name) return;
+    if (!counts[name]) counts[name] = { username: name, items: 0, firstAt: w.won_at, teams: {} };
+    var row = counts[name];
+    row.items += 1;
+    row.firstAt = w.won_at;
+    if (row.teams[w.team]) row.teams[w.team] += 1;
+    else row.teams[w.team] = 1;
+  });
+  var board = Object.keys(counts).map(function (k) { return counts[k]; });
+  board.sort(function (a, b) {
+    if (b.items !== a.items) return b.items - a.items;
+    var at = new Date(a.firstAt).getTime() || 0;
+    var bt = new Date(b.firstAt).getTime() || 0;
+    if (at !== bt) return at - bt;
+    return a.username.localeCompare(b.username);
+  });
+  return board;
+}
+function topTeam(t) {
+  var best = "", n = 0;
+  Object.keys(t).forEach(function (k) { if (t[k] > n) { n = t[k]; best = k; } });
+  return n > 1 ? best + " x" + n : best;
+}
+function initials(name) {
+  var s = String(name || "?").replace(/^@/, "").trim();
+  return s ? s.slice(0, 2).toUpperCase() : "?";
+}
+
+function drawBoard(hostId, countId, rowsIn, emptyText) {
+  var host = L(hostId);
+  if (!host) return;
+  var board = buildBoard(rowsIn);
+  host.innerHTML = "";
+  var badge = L(countId);
+  if (badge) {
+    badge.textContent = board.length
+      ? "(" + board.length + (board.length === 1 ? " player" : " players") + ")"
+      : "";
+  }
+  if (!board.length) {
+    var p0 = document.createElement("p");
+    p0.className = "empty";
+    p0.textContent = emptyText;
+    host.appendChild(p0);
+    return;
+  }
+  var podium = document.createElement("div");
+  podium.className = "podium";
+  var medals = ["1st", "2nd", "3rd"];
+  var classes = ["p1", "p2", "p3"];
+  board.slice(0, 3).forEach(function (row, i) {
+    var card = document.createElement("div");
+    card.className = "podiumCard " + classes[i];
+    var medal = document.createElement("div");
+    medal.className = "podMedal";
+    medal.textContent = medals[i];
+    card.appendChild(medal);
+    var ring = document.createElement("div");
+    ring.className = "podRing";
+    var ini = document.createElement("span");
+    ini.textContent = initials(row.username);
+    ring.appendChild(ini);
+    card.appendChild(ring);
+    var who = document.createElement("div");
+    who.className = "podWho";
+    who.textContent = "@" + row.username;
+    card.appendChild(who);
+    var n = document.createElement("div");
+    n.className = "podItems";
+    n.textContent = row.items;
+    card.appendChild(n);
+    var ww = document.createElement("div");
+    ww.className = "podLbl";
+    ww.textContent = row.items === 1 ? "item won" : "items won";
+    card.appendChild(ww);
+    podium.appendChild(card);
+  });
+  host.appendChild(podium);
+  var rest = board.slice(3);
+  if (rest.length) {
+    var list = document.createElement("div");
+    list.className = "rankList";
+    rest.forEach(function (row, i) {
+      var line = document.createElement("div");
+      line.className = "rankRow";
+      var pos = document.createElement("span");
+      pos.className = "rankPos";
+      pos.textContent = "#" + (i + 4);
+      line.appendChild(pos);
+      var who = document.createElement("span");
+      who.className = "rankWho";
+      who.textContent = "@" + row.username;
+      line.appendChild(who);
+      var team = document.createElement("span");
+      team.className = "rankTeam";
+      team.textContent = topTeam(row.teams);
+      line.appendChild(team);
+      var n = document.createElement("span");
+      n.className = "rankItems";
+      n.textContent = row.items;
+      line.appendChild(n);
+      list.appendChild(line);
+    });
+    host.appendChild(list);
+  }
+}
+
+function currentRunRows() {
+  if (!runStarted) return allWins;
+  var t = new Date(runStarted).getTime();
+  if (isNaN(t)) return allWins;
+  return allWins.filter(function (w) {
+    var at = new Date(w.won_at).getTime();
+    return !isNaN(at) && at >= t;
+  });
+}
+
+function renderLeaderboard() {
+  drawBoard("runBoard", "runCount", currentRunRows(),
+    "No wins in this run yet. The first one takes the top spot.");
+  drawBoard("allBoard", "allCount", allWins,
+    "No wins recorded yet. The first win puts someone on top.");
+  var rs = L("runStart");
+  if (rs) {
+    if (runStarted) {
+      var d = new Date(runStarted);
+      rs.innerHTML = isNaN(d) ? "" : "Run began <b>" + d.toLocaleDateString() +
+        " " + d.toLocaleTimeString() + "</b>";
+    } else {
+      rs.textContent = "";
+    }
+  }
+}
+
+/* ---------- THE GIVEAWAY ENTRIES ----------
+
+   The same figures the board page works out, shown to customers.
+
+   WHICH BOARD A ROW BELONGS TO IS DECIDED BY ITS NAME. This page does not
+   load boards.js, so rather than pull in more scripts that could go
+   stale, the two lists are built from the rows already fetched: a Pairs
+   box is always named "Team, Team" and carries a comma, while a Teams
+   box is "City Nickname" and a division is a single word. A name in
+   neither list earns nothing, so Divisions can never appear here.
+
+     Teams board  - every name entered earns ONE giveaway entry.
+     Pairs board  - every TWO SEPARATE PAIRS earn ONE entry, so 2 boxes
+                    earn one, 4 earn two, 6 earn three, one earns none.
+
+   This page can only read, so the counts are worked out from the rows
+   rather than trusted from a stored total. That means it can never
+   drift from the board page. */
+
+var GB_TARGET_PREFIX = "Giveaway: ";
+
+function isGiveawayTarget(target) {
+  return String(target || "").indexOf(GB_TARGET_PREFIX) === 0;
+}
+
+var GB_TEAM_SET = {};
+var GB_PAIR_SET = {};
+
+function gbBuildSets() {
+  GB_TEAM_SET = {};
+  GB_PAIR_SET = {};
+  allEntries.forEach(function (e) {
+    var t = String(e.target || "");
+    if (!t || isGiveawayTarget(t)) return;
+    if (t.indexOf(",") !== -1) GB_PAIR_SET[t] = true;
+    else GB_TEAM_SET[t] = true;
+  });
+}
+
+function gbBoardOf(name) {
+  var n = String(name || "");
+  if (GB_PAIR_SET[n]) return "pairs";
+  if (GB_TEAM_SET[n]) return "teams";
+  return "";
+}
+
+function gbRate(boardId, howMany) {
+  if (boardId === "pairs") return Math.floor(howMany / 2);
+  return howMany;
+}
+
+function gbSplit(raw) {
+  var text = String(raw == null ? "" : raw).trim().replace(/^@/, "");
+  var at = text.indexOf("$");
+  if (at === -1) return { username: text, item: "" };
+  return {
+    username: text.slice(0, at).trim(),
+    item: text.slice(at + 1).trim()
+  };
+}
+
+function gbBuyer(raw) {
+  var parts = gbSplit(raw);
+  return parts.username || raw || "";
+}
+
+function gbEntries() {
+  gbBuildSets();
+  var perPerson = {};
+
+  allEntries.forEach(function (e) {
+    var name = gbBuyer(e.username);
+    if (!name) return;
+
+    if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0, manual: 0 };
+
+    if (isGiveawayTarget(e.target)) {
+      perPerson[name].manual += 1;
+      return;
+    }
+    var boardId = gbBoardOf(e.target);
+    if (!boardId) return;                      /* divisions, or unknown */
+    perPerson[name][boardId] += 1;
+  });
+
+  var out = Object.keys(perPerson).map(function (name) {
+    var c = perPerson[name];
+    return {
+      name: name,
+      count: gbRate("teams", c.teams) + gbRate("pairs", c.pairs) + c.manual,
+      teams: c.teams,
+      pairs: c.pairs,
+      manual: c.manual
+    };
+  });
+
+  out.sort(function (x, y) {
+    if (y.count !== x.count) return y.count - x.count;
+    return x.name.localeCompare(y.name);
+  });
+  return out;
+}
+
+var givQuery = "";
+
+function gbShown() {
+  var rows = gbEntries();
+  var q = givQuery.trim().toLowerCase().replace(/^@/, "");
+  if (!q) return rows;
+  return rows.filter(function (r) {
+    return String(r.name).toLowerCase().replace(/^@/, "").indexOf(q) !== -1;
+  });
+}
+
+function renderGiveaway() {
+  var host = L("giveaway");
+  if (!host) return;
+
+  var all = gbEntries();
+  var rows = gbShown();
+
+  var badge = L("givCount");
+  if (badge) {
+    badge.textContent = all.length
+      ? "(" + all.length + (all.length === 1 ? " player" : " players") + ")"
+      : "";
+  }
+
+  var msg = L("givMsg");
+  if (msg) {
+    if (!givQuery.trim()) {
+      msg.textContent = "";
+      msg.classList.remove("none");
+    } else if (rows.length) {
+      msg.textContent = rows.length + (rows.length === 1 ? " match" : " matches") +
+        " for \"" + givQuery.trim() + "\"";
+      msg.classList.remove("none");
+    } else {
+      msg.textContent = "Nobody matching \"" + givQuery.trim() + "\"";
+      msg.classList.add("none");
+    }
+  }
+
+  host.innerHTML = "";
+
+  if (!all.length) {
+    var p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Nobody is in the giveaway yet. Entries appear here as names are " +
+      "added to the Teams and Pick your Pairs boards.";
+    host.appendChild(p);
+    return;
+  }
+
+  if (!rows.length) {
+    var p2 = document.createElement("p");
+    p2.className = "empty";
+    p2.textContent = "No giveaway entries match \"" + givQuery.trim() +
+      "\". Clear the box to see everyone.";
+    host.appendChild(p2);
+    return;
+  }
+
+  var table = document.createElement("table");
+  table.className = "winnersTable givTable";
+  var thead = document.createElement("thead");
+  thead.innerHTML = "<tr><th>Rank</th><th>Username</th><th>Entries</th>" +
+    "<th>Where they came from</th></tr>";
+  table.appendChild(thead);
+
+  var tbody = document.createElement("tbody");
+
+  rows.forEach(function (r) {
+    var tr = document.createElement("tr");
+
+    var tdRank = document.createElement("td");
+    tdRank.className = "givrank";
+    tdRank.textContent = "#" + (all.indexOf(r) + 1);
+    tr.appendChild(tdRank);
+
+    var tdWho = document.createElement("td");
+    tdWho.className = "who";
+    tdWho.textContent = "@" + r.name;
+    tr.appendChild(tdWho);
+
+    var tdCount = document.createElement("td");
+    tdCount.className = "givn";
+    tdCount.textContent = r.count;
+    tr.appendChild(tdCount);
+
+    var tdFrom = document.createElement("td");
+    tdFrom.className = "givsrc";
+    var bits = [];
+    if (r.teams) bits.push(r.teams + " team");
+    if (r.pairs) bits.push(r.pairs + (r.pairs === 1 ? " pair" : " pairs"));
+    if (r.manual) bits.push(r.manual + " added");
+    tdFrom.textContent = bits.join(" + ");
+    tr.appendChild(tdFrom);
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  host.appendChild(table);
+
+  var note = document.createElement("p");
+  note.className = "sub";
+  note.style.marginTop = "12px";
+  note.textContent = "One entry per name on the Teams board, and one for every two names " +
+    "on the Pick your Pairs board. The wheel gives one spin wedge per entry.";
+  host.appendChild(note);
+}
+
+function shown() {
+  var q = findQuery.trim().toLowerCase().replace(/^@/, "");
+  if (!q) return allWins;
+  return allWins.filter(function (w) {
+    return String(w.username || "").toLowerCase().replace(/^@/, "").indexOf(q) !== -1;
+  });
+}
+
+function render() {
+  var host = L("ledger");
+  host.innerHTML = "";
+  var rows = shown();
+  var msg = L("findMsg");
+  if (msg) {
+    if (!findQuery.trim()) { msg.textContent = ""; msg.classList.remove("none"); }
+    else if (rows.length) {
+      msg.textContent = rows.length + (rows.length === 1 ? " match" : " matches") +
+        " for \"" + findQuery.trim() + "\"";
+      msg.classList.remove("none");
+    } else {
+      msg.textContent = "Nobody matching \"" + findQuery.trim() + "\"";
+      msg.classList.add("none");
+    }
+  }
+  if (!allWins.length) {
+    var p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "No winners recorded yet. Check back once the break has started.";
+    host.appendChild(p);
+    return;
+  }
+  if (!rows.length) {
+    var p2 = document.createElement("p");
+    p2.className = "empty";
+    p2.textContent = "No winner matches \"" + findQuery.trim() +
+      "\". Check the spelling, or clear the box to see everyone.";
+    host.appendChild(p2);
+    return;
+  }
+  var table = document.createElement("table");
+  table.className = "winnersTable";
+  var thead = document.createElement("thead");
+  thead.innerHTML = "<tr><th>Date</th><th>Winner</th><th>Item won</th>"
+    + "<th>Team</th><th>Tracking number</th></tr>";
+  table.appendChild(thead);
+  var tbody = document.createElement("tbody");
+  rows.forEach(function (w) {
+    var tr = document.createElement("tr");
+    tr.appendChild(td(when(w.won_at), "meta"));
+    tr.appendChild(td("@" + w.username, "who"));
+    tr.appendChild(td(w.item, "item"));
+    tr.appendChild(td(w.team, "team"));
+    var tdTrk = document.createElement("td");
+    tdTrk.className = "trk";
+    if (w.tracking) {
+      var b = document.createElement("b");
+      b.textContent = w.tracking;
+      tdTrk.appendChild(b);
+    } else {
+      var sp = document.createElement("span");
+      sp.textContent = "not shipped yet";
+      tdTrk.appendChild(sp);
+    }
+    tr.appendChild(tdTrk);
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  host.appendChild(table);
+}
+
+function count() {
+  var c = L("ledgerCount");
+  if (!c) return;
+  var rows = shown();
+  c.textContent = allWins.length
+    ? "(" + rows.length + " of " + allWins.length + " winners)" : "";
+}
+
+async function load(showError) {
+  try {
+    allWins = await sbListWins();
+    allEntries = await sbListEntries();
+    runStarted = await sbRunStarted();
+    if (findBox) findQuery = findBox.value || findQuery;
+    if (givBox) givQuery = givBox.value || givQuery;
+    count();
+    renderLeaderboard();
+    renderGiveaway();
+    render();
+    setLive(true);
+    try { sessionStorage.setItem("mb-find", findQuery); } catch (e) {}
+  } catch (e) {
+    setLive(false);
+    if (showError) {
+      var host = L("ledger");
+      host.innerHTML = "";
+      var p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = "Could not reach the ledger. " + e.message;
+      host.appendChild(p);
+    }
+  }
+}
+
+function csvEscape(v) {
+  var Q = String.fromCharCode(34), C = String.fromCharCode(44), N = String.fromCharCode(10);
+  var s = String(v == null ? "" : v);
+  if (s.indexOf(Q) !== -1 || s.indexOf(C) !== -1 || s.indexOf(N) !== -1) {
+    return Q + s.split(Q).join(Q + Q) + Q;
+  }
+  return s;
+}
+
+function downloadAll() {
+  var rows = shown();
+  if (!rows.length) return;
+  var N = String.fromCharCode(10);
+  var out = ["date,winner,item_won,team,tracking_number"];
+  rows.forEach(function (w) {
+    out.push([
+      csvEscape(w.won_at), csvEscape(w.username), csvEscape(w.item),
+      csvEscape(w.team), csvEscape(w.tracking || "")
+    ].join(","));
+  });
+  var blob = new Blob([out.join(N)], { type: "text/csv;charset=utf-8" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = findQuery.trim() ? "break-winners-" + findQuery.trim() + ".csv" : "break-winners.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+var findBox = L("find");
+var findClear = L("findClear");
+if (findBox) {
+  findBox.addEventListener("input", function () {
+    findQuery = findBox.value || "";
+    render();
+    count();
+  });
+  try {
+    var kept = sessionStorage.getItem("mb-find");
+    if (kept) { findBox.value = kept; findQuery = kept; }
+  } catch (e) {}
+}
+if (findClear) {
+  findClear.addEventListener("click", function () {
+    if (findBox) findBox.value = "";
+    findQuery = "";
+    try { sessionStorage.removeItem("mb-find"); } catch (e) {}
+    render();
+    count();
+    if (findBox) findBox.focus();
+  });
+}
+
+/* the giveaway search box, kept apart from the winners one */
+var givBox = L("givFind");
+var givClear = L("givClear");
+
+if (givBox) {
+  givBox.addEventListener("input", function () {
+    givQuery = givBox.value || "";
+    renderGiveaway();
+  });
+}
+
+if (givClear) {
+  givClear.addEventListener("click", function () {
+    if (givBox) givBox.value = "";
+    givQuery = "";
+    renderGiveaway();
+    if (givBox) givBox.focus();
+  });
+}
+
+L("ledgerRefresh").addEventListener("click", function () { load(true); });
+L("ledgerCsv").addEventListener("click", downloadAll);
+load(true);
+sbWatchWins(function () { load(false); });
+sbWatchRun(function () { load(false); });
+sbWatchEntries(function () { load(false); });
+setInterval(function () { load(false); }, 30000);
+</script>
+</body>
+</html>
