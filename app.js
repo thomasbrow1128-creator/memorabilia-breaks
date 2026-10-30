@@ -15,16 +15,22 @@
    anywhere and the edit panel opens, so the name can be renamed or
    removed.
 
-   WINNERS. A name entered as  buyer$item  logs a win. The part before
-   the $ is the username, the part after is the item won, and the box
-   itself shows only the buyer.
+   WINNERS. A name entered as  buyer$item  logs a win, on EVERY board -
+   teams, divisions, and picks. The part before the $ is the username,
+   the part after is the item won, and the box itself shows only the
+   buyer.
 
-   THE $ SPLIT AND THE WIN WRITE LIVE IN THIS FILE. They used to reach
-   across two other files - addUser -> recordWin (winners.js) ->
-   sbAddWin (sb-client.js) - so three files had to load, in order, with
-   nothing stale in the cache. When any one of them failed to arrive the
-   win was skipped in silence, which looks exactly like a broken $
-   command. The board now splits the entry and writes the win itself.
+   THE $ SPLIT AND THE WIN WRITE LIVE IN THIS FILE, and the box you type
+   into is the box that saves. Both of those were bugs:
+
+     - the write used to reach across two other files, so three files
+       had to load with nothing stale in the cache, and a missing one
+       skipped the win in silence;
+     - the save used to re-find its tile by NAME, and the Pairs tab
+       draws two grids at once, so a lookup could land on the other
+       board's tile and the win never fired.
+
+   Now the tile is passed straight through from the box you typed in.
 
    A FAILED WIN LOG IS NEVER SILENT. If the name saves but the win does
    not record, the message line says so, with the reason.
@@ -266,7 +272,10 @@ function buildTile(t) {
   bar.appendChild(btn);
   bar.addEventListener("submit", function (ev) {
     ev.preventDefault();
-    addUser(t.id, input.value);
+    /* pass the tile itself, not just its name. tileFor() returns the
+       FIRST element matching a name, and the Pairs tab draws two grids
+       at once, so a lookup by name can land on the wrong board's tile. */
+    addUser(t.id, input.value, tile);
     input.value = "";
   });
   tile.appendChild(bar);
@@ -425,6 +434,7 @@ function renderBoards() {
 
     const grid = document.createElement("div");
     grid.className = "board board-" + b.size;
+    grid.dataset.board = b.id;
     grid.setAttribute("aria-label", (b.label || b.id) + " board");
     b.boxes.forEach(function (box) {
       const t = targetByName(box.name);
@@ -524,13 +534,13 @@ function refreshBoards() {
 
 /* Add a name to a box.
 
-   THE WIN LOG IS NO LONGER SILENT. If the name saves but the win does
-   not record, that is said out loud. It used to be swallowed, so a box
-   could show a name while the Winners page stayed empty and nothing
-   explained why. */
-async function addUser(targetId, rawName) {
+   THE TILE IS PASSED IN, not looked up by name. Every board calls this
+   the same way, so the $ command behaves identically on teams,
+   divisions and picks. */
+async function addUser(targetId, rawName, fromTile) {
   const username = normalizeName(rawName);
-  const tile = tileFor(targetId);
+  /* the tile we were handed wins; the lookup is only a fallback */
+  const tile = fromTile || tileFor(targetId);
   const input = tile ? tile.querySelector(".addbar input") : null;
   const note = $("saved");
 
@@ -563,8 +573,7 @@ async function addUser(targetId, rawName) {
   /* an entry naming an item with a "$" is logged on the winners page.
 
      boardSplit and boardLogWin live in THIS file, so the win records
-     whether or not winners.js or sb-client.js loaded. That was the bug:
-     a missing file meant the win was skipped with nothing said. */
+     whether or not winners.js or sb-client.js loaded. */
   const parts = boardSplit(username);
 
   let logged = null;
