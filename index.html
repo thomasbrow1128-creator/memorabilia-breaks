@@ -1,1 +1,279 @@
-@@INDEX@@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TKS Breakz — Boards and Winners</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script>
+/* THE STYLESHEETS, LOADED IN ORDER. casino.css is the whole theme;
+   divisions.css restyles the Divisions board into cards and nothing
+   else. A plain <link> starts downloading at once. */
+(function () {
+  var files = ["casino.css?v=5", "divisions.css?v=5", "neon.css?v=5"];
+  for (var i = 0; i < files.length; i++) {
+    var link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = files[i];
+    document.head.appendChild(link);
+  }
+})();
+</script>
+<style>
+  /* the run banner on the winners page */
+  .runbar{
+    display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center;
+    padding:13px 16px; margin:0 0 18px;
+    background:linear-gradient(180deg, rgba(8,28,52,.85), rgba(3,12,24,.7));
+    border:1px solid rgba(201,162,39,.45); border-radius:12px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  .runbar .lbl{
+    font-size:10.5px; font-weight:900; letter-spacing:.12em;
+    text-transform:uppercase; color:#f0d67a;
+  }
+  .runbar .when{font-size:13px; font-weight:800; color:#eaf3ff}
+  .runbar .spacer{flex:1 1 auto}
+  #newRun{
+    font-family:inherit; font-size:11px; font-weight:900;
+    letter-spacing:.09em; text-transform:uppercase; cursor:pointer;
+    padding:9px 18px; border-radius:9px;
+    color:#221803; border:1px solid #ffeeae;
+    background:linear-gradient(180deg, #fff8dc, #f2d264 42%, #b6880f 100%);
+    box-shadow:0 3px 10px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.85);
+  }
+  #newRun:hover{filter:brightness(1.08)}
+  #newRun:disabled{opacity:.5; cursor:not-allowed}
+
+  .note.warn{border-left-color:#ff9b9e; color:#ffd3d5}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="brand" href="./" aria-label="TKS Breakz home">
+    <img src="logo.png" alt="TKS Breakz">
+  </a>
+  <h1>Breakz</h1>
+  <p>Type a customer's username into a box and press + to place them on that box.</p>
+
+  <div class="segment" id="pages" role="tablist" aria-label="Choose a page">
+    <button type="button" id="pageBoardsBtn" role="tab" aria-selected="true">Boards</button>
+    <button type="button" id="pageWinnersBtn" role="tab" aria-selected="false">Winners</button>
+  </div>
+
+  <div class="segment" id="tabs" role="tablist" aria-label="Choose a board"></div>
+</header>
+
+<!-- ============================ THE BOARDS PAGE ============================ -->
+<div class="wrap" id="boardsPage">
+
+  <div id="bootReport" style="display:none;background:#3a1d1d;border:1px solid #ff6b6b;border-radius:9px;padding:14px 16px;margin-bottom:16px;color:#ffd4d4;font-family:monospace;font-size:12.5px;white-space:pre-wrap"></div>
+
+  <div class="boardhead">
+    <h2 id="boardTitle">Teams</h2>
+    <span id="boardSub"></span>
+  </div>
+
+  <div class="toolbar">
+    <div class="left">
+      <input id="filter" type="text" placeholder="Filter…" aria-label="Filter">
+      <span class="count" id="count"></span>
+    </div>
+    <div class="left">
+      <button class="ghost" id="resetBoard" type="button">Reset board</button>
+      <button class="ghost" id="exportCsv" type="button">Download CSV</button>
+      <button class="ghost" id="clearAll" type="button">Hide all</button>
+    </div>
+  </div>
+
+  <div id="boards"></div>
+
+  <div class="panel">
+    <h2>Everyone entered <span class="count" id="entryCount"></span></h2>
+    <p class="sub">Click any name to rename it, and Delete removes just that one name. Nothing here clears the whole board.</p>
+    <div id="entries"></div>
+    <p class="ok" id="saved"></p>
+  </div>
+
+  <div class="panel">
+    <h2>Entering a winner</h2>
+    <div class="note">
+      Type a name into any box in the form <strong>buyer$item</strong> — for example
+      <code>alex$signed jersey</code>. The part before the <strong>$</strong> becomes the username,
+      and the part after it becomes the item won. Both are written to the
+      <strong>Winners</strong> page automatically with the date and time. The box itself shows only the
+      buyer's name, so the boards stay readable.<br><br>
+      A name with no <strong>$</strong> is just an entry: it holds the box but logs no win, because no
+      item was named. The winners log is append-only from the boards — only the
+      <strong>Clear winners</strong> button removes anything from it.<br><br>
+      If a win fails to log, the line under the boards says so rather than staying quiet.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Editing a name</h2>
+    <div class="note">
+      <strong>Click the greyed box itself</strong> — clicking anywhere on a filled box opens the edit panel:
+      the faded icon, the PURCHASER bar, or the gold name. Change the spelling and press <strong>Save</strong>,
+      or press <strong>Remove</strong> to free that box for someone else. <strong>Cancel</strong> or
+      <strong>Escape</strong> closes it without changing anything.<br><br>
+      The grey is only a visual state — it never locks the box. As soon as the last name is removed the box
+      returns to full colour with an open field.
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================ THE WINNERS PAGE ============================ -->
+<div class="wrap" id="winnersPage" style="display:none">
+
+  <div class="boardhead">
+    <h2>Winners</h2>
+    <span id="winnerCount"></span>
+  </div>
+
+  <!-- THE CURRENT RUN. Starting a new run moves one timestamp and
+       deletes nothing, so the all-time board on the customer page
+       keeps counting right through it. -->
+  <div class="runbar">
+    <span class="lbl">Current run began</span>
+    <span class="when" id="runBegan">-</span>
+    <span class="spacer"></span>
+    <button type="button" id="newRun" title="Start a fresh run. No wins are deleted and the all-time board is untouched.">Start new run</button>
+  </div>
+
+  <div class="toolbar">
+    <div class="left">
+      <span class="sub" style="color:#a9c3dc;font-size:12.5px">
+        Every item won, logged automatically when a box is filled as buyer$item.
+        Type a tracking number straight onto the winner's line.
+      </span>
+    </div>
+    <div class="left">
+      <button class="ghost" id="winnerRefresh" type="button">Refresh</button>
+      <button class="ghost" id="winnerCsv" type="button">Download winners</button>
+      <button class="ghost" id="winnerClear" type="button">Clear winners</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Items won</h2>
+    <div id="winners"></div>
+  </div>
+
+  <div class="panel">
+    <h2>How this page fills up</h2>
+    <div class="note">
+      <strong>Items won</strong> is filled automatically: every time a name is placed on a board as
+      <strong>buyer$item</strong>, a line appears with the date, the time, the username and the item.<br><br>
+      <strong>Tracking numbers</strong> are typed into the small box on each winner's own line — no
+      separate list. Type the number and it saves as soon as you click away or press Enter.<br><br>
+      <strong>Start new run</strong> moves the run marker to now. The customer page's
+      <strong>Current Run</strong> board goes back to zero, while <strong>All-Time Leaders</strong> keeps
+      every win ever recorded. Nothing is deleted either way.<br><br>
+      Nothing on the boards can remove a line from this list — not Reset board, not Hide all, not removing
+      or renaming a name. Only <strong>Clear winners</strong> empties it.
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>The customer ledger</h2>
+    <div class="note warn">
+      This page is the shared ledger. Everything written here also appears, live, on the customer page:
+      <strong>ledger.html</strong> — send customers that address and nothing else.<br><br>
+      Customers see two leaderboards there, the Current Run board and the All-Time board, plus a list of
+      every winner with a search box. That page is read-only by the database's own rules: it holds no
+      sign-in and cannot write, change or delete a single row, whoever is using it.<br><br>
+      <strong>This page has no sign-in either.</strong> Every button on it works for whoever opens it,
+      including <strong>Clear winners</strong>. Keep the address to yourself, and use
+      <strong>Download winners</strong> after each break so you always hold a copy nothing can touch.<br><br>
+      Because the ledger is open to anyone with the link, <strong>do not put anything private on a winner's
+      line</strong>. The username, the item and the tracking number are all visible to anyone who opens
+      that page.
+    </div>
+  </div>
+
+</div>
+
+<div id="undobar">
+  <span id="undotext"></span>
+  <button id="undobtn" type="button">Undo</button>
+  <button id="undoclose" type="button" aria-label="Dismiss">&times;</button>
+</div>
+
+<div id="winnerUndoBar">
+  <span id="winnerUndoText"></span>
+  <button id="winnerUndoBtn" type="button">Undo</button>
+  <button id="winnerUndoClose" type="button" aria-label="Dismiss">&times;</button>
+</div>
+
+<!-- ORDER MATTERS: teams.js defines TEAMS, boards.js builds BOARDS from it,
+     sb-client.js holds the shared connection, winners.js logs the wins,
+     app.js draws it all. -->
+<!-- A VERSION ON EVERY SCRIPT.
+
+     These were plain filenames, so when the code changed the browser kept
+     serving the copy already in its cache - and so did GitHub's CDN.
+     Uploading a new app.js changed nothing, because the URL had not.
+
+     ?v= makes each one a different URL, so a changed file is a new
+     download everywhere. BUMP THIS NUMBER WHENEVER A SCRIPT CHANGES. -->
+<script src="teams.js?v=5"></script>
+<script src="boards.js?v=5"></script>
+<script src="sb-client.js?v=5"></script>
+<script src="winners.js?v=5"></script>
+<script src="app.js?v=5"></script>
+
+<script>
+(function () {
+  function show(which) {
+    var boards = document.getElementById("boardsPage");
+    var wins = document.getElementById("winnersPage");
+    var bBtn = document.getElementById("pageBoardsBtn");
+    var wBtn = document.getElementById("pageWinnersBtn");
+    if (!boards || !wins) return;
+
+    var onWinners = which === "winners";
+    boards.style.display = onWinners ? "none" : "";
+    wins.style.display = onWinners ? "" : "none";
+    if (bBtn) bBtn.className = onWinners ? "" : "on";
+    if (wBtn) wBtn.className = onWinners ? "on" : "";
+    if (bBtn) bBtn.setAttribute("aria-selected", onWinners ? "false" : "true");
+    if (wBtn) wBtn.setAttribute("aria-selected", onWinners ? "true" : "false");
+
+    if (typeof renderWinners === "function") renderWinners();
+    if (typeof paintRun === "function") paintRun();
+  }
+
+  window.showPage = show;
+
+  var b = document.getElementById("pageBoardsBtn");
+  var w = document.getElementById("pageWinnersBtn");
+  if (b) b.addEventListener("click", function () { show("boards"); });
+  if (w) w.addEventListener("click", function () { show("winners"); });
+})();
+
+(function () {
+  function boot() {
+    if (typeof initWinners === "function") initWinners();
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+(function () {
+  window.addEventListener("error", function (e) {
+    var box = document.getElementById("bootReport");
+    if (!box) return;
+    box.style.display = "block";
+    box.textContent += "Error: " + (e.message || "?") + "\n  at " +
+      (e.filename || "?") + " line " + (e.lineno || "?") + "\n";
+  });
+})();
+</script>
+</body>
+</html>
