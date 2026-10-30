@@ -239,6 +239,16 @@
     <div id="ledger"></div>
   </div>
   <div class="panel">
+    <h2>Giveaway entries <span class="count" id="givCount"></span></h2>
+    <p class="sub">
+      Every entry you hold in the current giveaway. One entry per Team box, and one
+      for every two boxes on the Pairs board. Hand-added entries are listed too.
+    </p>
+    <div id="givBoard"></div>
+    <p class="findmsg" id="givMsg"></p>
+  </div>
+
+  <div class="panel">
     <h2>How this page works</h2>
     <div class="note">
       Every item won in the break, in the order it was won. There are two leaderboards:
@@ -575,6 +585,129 @@ L("ledgerCsv").addEventListener("click", downloadAll);
 load(true);
 sbWatchWins(function () { load(false); });
 sbWatchRun(function () { load(false); });
+
+/* ---------- THE GIVEAWAY ENTRIES ----------
+
+   These are read from public.giveaway_entries, which is where an entry is
+   written the moment it is earned - one row per Team box, one for every
+   two Pairs boxes, plus any added by hand on the giveaway board.
+
+   The entries are NOT worked out from the board rows any more. That used
+   to be how this page counted them, which meant clearing a board made a
+   customer's entries vanish. They belong to the giveaway now, so nothing
+   on Teams or Pairs can take them away. */
+var SB_GIV_URL = "https://bzvrslhfyaetmwzbnldt.supabase.co/rest/v1/giveaway_entries";
+var SB_GIV_KEY = "sb_publishable_pM8hQ1cP77AXANXCkAS0qA_jfC9ibYq";
+
+function gwWhen(iso) {
+  var d = new Date(iso);
+  if (isNaN(d)) return "-";
+  return d.toLocaleDateString() + " " + d.toLocaleTimeString();
+}
+
+function renderGiveaway(rows) {
+  var host = L("givBoard");
+  var msg = L("givMsg");
+  if (!host) return;
+
+  host.innerHTML = "";
+
+  var per = {};
+  rows.forEach(function (r) {
+    var name = String(r.username || "").trim();
+    if (!name) return;
+    if (!per[name]) per[name] = { name: name, count: 0, teams: 0, pairs: 0, manual: 0, first: r.created_at };
+    per[name].count += 1;
+    if (r.source === "pairs") per[name].pairs += 1;
+    else if (r.source === "manual") per[name].manual += 1;
+    else per[name].teams += 1;
+    if (r.created_at < per[name].first) per[name].first = r.created_at;
+  });
+
+  var people = Object.keys(per).map(function (k) { return per[k]; });
+  people.sort(function (x, y) {
+    if (y.count !== x.count) return y.count - x.count;
+    return x.name.localeCompare(y.name);
+  });
+
+  L("givCount").textContent = people.length ? "(" + people.length + ")" : "";
+
+  if (!people.length) {
+    var p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "No giveaway entries yet. Names entered on the Teams and Pairs boards earn them automatically.";
+    host.appendChild(p);
+    return;
+  }
+
+  var table = document.createElement("table");
+  table.className = "givTable";
+  var thead = document.createElement("thead");
+  thead.innerHTML = "<tr><th>#</th><th>Username</th><th>Entries</th><th>Where from</th></tr>";
+  table.appendChild(thead);
+
+  var tbody = document.createElement("tbody");
+  people.forEach(function (person, i) {
+    var tr = document.createElement("tr");
+
+    var c1 = document.createElement("td");
+    c1.className = "givrank";
+    c1.textContent = i + 1;
+    tr.appendChild(c1);
+
+    var c2 = document.createElement("td");
+    c2.className = "who";
+    c2.textContent = "@" + person.name;
+    tr.appendChild(c2);
+
+    var c3 = document.createElement("td");
+    c3.className = "givn";
+    c3.textContent = person.count;
+    tr.appendChild(c3);
+
+    var bits = [];
+    if (person.teams) bits.push(person.teams + (person.teams === 1 ? " team" : " teams"));
+    if (person.pairs) bits.push(person.pairs + (person.pairs === 1 ? " pairs entry" : " pairs entries"));
+    if (person.manual) bits.push(person.manual + " added by hand");
+
+    var c4 = document.createElement("td");
+    c4.className = "givsrc";
+    c4.textContent = bits.join(" + ") || "-";
+    tr.appendChild(c4);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  host.appendChild(table);
+
+  if (msg) msg.textContent = "";
+}
+
+function loadGiveaway() {
+  var host = L("givBoard");
+  if (!host) return;
+
+  fetch(SB_GIV_URL + "?select=*&order=created_at.asc", {
+    headers: { "apikey": SB_GIV_KEY, "Authorization": "Bearer " + SB_GIV_KEY }
+  }).then(function (res) {
+    if (!res.ok) throw new Error("(" + res.status + ")");
+    return res.json();
+  }).then(function (rows) {
+    renderGiveaway(rows);
+  }).catch(function (err) {
+    var p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Could not read the giveaway entries right now " + err.message +
+      ". The page will try again on its own.";
+    host.innerHTML = "";
+    host.appendChild(p);
+    if (msg) msg.textContent = "";
+  });
+}
+
+loadGiveaway();
+setInterval(loadGiveaway, 20000);
+
 setInterval(function () { load(false); }, 30000);
 </script>
 </body>
