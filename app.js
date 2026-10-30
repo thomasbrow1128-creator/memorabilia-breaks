@@ -369,6 +369,15 @@ function setTab(tabId) {
   $("saved").textContent = "";
 }
 
+/* Live updates for the stored giveaway entries. Defined in this file when
+   sb-client.js does not provide it, so the boards can never fail to boot
+   because one name is missing. */
+if (typeof sbWatchGiveaway !== "function" && typeof sbWatchTable === "function") {
+  window.sbWatchGiveaway = function (onChange) {
+    return sbWatchTable("realtime:giveaway_entries", "giveaway_entries", onChange);
+  };
+}
+
 /* ---------- the tiles ---------- */
 
 function buildTile(t) {
@@ -1714,7 +1723,19 @@ document.addEventListener("DOMContentLoaded", function () {
   /* the stored giveaway entries are read once at startup and watched, so
      a name entered on another device shows in the draw here */
   gwLoad().then(function () { refreshBoards(); });
-  sbWatchGiveaway(function () { gwLoad().then(function () { refreshBoards(); }); });
+  /* Live updates for the stored entries.
+
+     This used to call sbWatchGiveaway() expecting it to exist in
+     sb-client.js. It did not, so the call threw on the very first line of
+     boot and killed everything after it: the tabs and toolbar drew, then
+     the page stopped dead and no tiles appeared. A missing watcher must
+     never be able to do that, so the watcher is defined HERE if it is not
+     already there, and a plain refresh is used as the fallback. */
+  if (typeof sbWatchGiveaway === "function") {
+    sbWatchGiveaway(function () { gwLoad().then(function () { refreshBoards(); }); });
+  } else {
+    setInterval(function () { gwLoad().then(function () { refreshBoards(); }); }, 15000);
+  }
   setInterval(function () { loadEntries(); }, 30000);
 
   $("filter").addEventListener("input", function (e) { applyFilter(e.target.value); });
