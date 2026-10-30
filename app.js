@@ -5,33 +5,33 @@
 
    THE BOARD IS SHARED. Who is on which box lives in the database, not
    in this browser, so a name typed on your phone appears on your laptop
-   and on every screen looking at the board - about a second later, with
-   nothing to reload.
+   and on every screen looking at the board.
 
    ONE PERSON PER BOX. The database holds a unique index on the box
    name, so two people tapping the same box at the same moment cannot
-   both win it. The second one is refused and told so.
+   both win it.
 
    THE GREY IS ONLY VISUAL. A filled box stays fully usable: click it
    anywhere and the edit panel opens, so the name can be renamed or
-   removed. Removing it clears the grey and frees the box.
+   removed.
 
-   WINNERS. A name entered as  buyer$item  logs a win on the winners
-   page: the part before the $ is the username, the part after is the
-   item won, and the box itself shows only the buyer.
+   WINNERS. A name entered as  buyer$item  logs a win. The part before
+   the $ is the username, the part after is the item won, and the box
+   itself shows only the buyer.
+
+   A FAILED WIN LOG IS NEVER SILENT. This used to swallow the error, so
+   a name would appear on the board while the win quietly never
+   recorded. Now the message line says what happened, every time.
 
    The winners log is append-only from here. Nothing on any board can
    remove a line from it. Only its own Clear winners button does.
    --------------------------------------------------------------- */
 
 const BACKEND_ENDPOINT = "";
-
-/* the old browser store, read once to carry names into the database */
 const OLD_STORE_KEY = "memorabilia-breaks-usernames-v1";
 
 /* Compact mode squashes a tab so every box fits one screen. Only for
-   boards whose cards are already small. Pairs is NOT compact: its cards
-   need their own room, so it uses the normal .board-small card layout. */
+   boards whose cards are already small. Pairs is NOT compact. */
 const COMPACT_TABS = {};
 
 const $ = (id) => document.getElementById(id);
@@ -39,6 +39,8 @@ const $ = (id) => document.getElementById(id);
 let entries = [];
 let currentTab = "teams";
 let liveMath = false;
+let undoSnapshot = null;
+let undoTimer = null;
 
 function tileFor(targetId) {
   const tiles = document.querySelectorAll(".tile");
@@ -81,7 +83,7 @@ async function loadEntries() {
     liveMath = true;
   } catch (e) {
     liveMath = false;
-    /* keep whatever we already have rather than blanking the board */
+    /* keep what we have rather than blanking the board */
   }
   refreshBoards();
   renderEntries();
@@ -266,8 +268,6 @@ function buildTile(t) {
       return;
     }
 
-    /* a rename updates that box's winner line in place; it never
-       DELETES a line - from the boards, the log is append-only */
     if (typeof updateWinFor === "function") updateWinFor(e.target, next);
 
     closePanel();
@@ -457,10 +457,17 @@ function refreshBoards() {
 
 /* ---------- writing ---------- */
 
+/* Add a name to a box.
+
+   THE WIN LOG IS NO LONGER SILENT. If the name saves but the win does
+   not record, that is said out loud. It used to be swallowed, so a box
+   could show a name while the Winners page stayed empty and nothing
+   explained why. */
 async function addUser(targetId, rawName) {
   const username = normalizeName(rawName);
   const tile = tileFor(targetId);
   const input = tile ? tile.querySelector(".addbar input") : null;
+  const note = $("saved");
 
   if (!username) {
     if (input) input.focus();
@@ -468,41 +475,55 @@ async function addUser(targetId, rawName) {
   }
 
   if (usersOn(targetId).length) {
-    $("saved").textContent = targetId + " is already taken. Remove that name first.";
+    note.textContent = targetId + " is already taken. Remove that name first.";
     return;
   }
 
-  $("saved").textContent = "Saving...";
+  note.textContent = "Saving...";
 
   let saved = null;
   try {
     saved = await sbAddEntry(username, targetId);
   } catch (err) {
-    $("saved").textContent = err.message;
+    note.textContent = err.message;
     return;
   }
   if (!saved) {
-    $("saved").textContent = "That name did not save. Try again.";
+    note.textContent = "That name did not save. Try again.";
     return;
   }
 
   entries.push(saved);
 
   /* an entry naming an item with a "$" is logged on the winners page */
+  const parts = typeof splitEntry === "function"
+    ? splitEntry(username)
+    : { username: username, item: "" };
+
   let logged = null;
-  if (typeof recordWin === "function") {
-    try { logged = await recordWin(targetId, username); }
-    catch (err) { logged = null; }
+  let logError = "";
+
+  if (parts.item && typeof recordWin === "function") {
+    try {
+      logged = await recordWin(targetId, username);
+    } catch (err) {
+      logError = err && err.message ? err.message : "unknown error";
+    }
   }
 
   refreshBoards();
   renderEntries();
+  if (typeof renderWinners === "function") renderWinners();
 
   if (logged) {
-    $("saved").textContent = "Added @" + logged.username + " to " + targetId +
+    note.textContent = "Added @" + logged.username + " to " + targetId +
       " - win logged: " + logged.item;
+  } else if (parts.item && logError) {
+    /* the name is on the box, the win did NOT record - say so */
+    note.textContent = "Added @" + buyerOnly(username) + " to " + targetId +
+      " BUT the win did not log: " + logError;
   } else {
-    $("saved").textContent = "Added @" + buyerOnly(username) + " to " + targetId;
+    note.textContent = "Added @" + buyerOnly(username) + " to " + targetId;
   }
 }
 
@@ -532,15 +553,12 @@ async function resetBoard(boardId) {
     return;
   }
 
-  /* NOTE: nothing here touches the winners log. */
   closeAllPanels(null);
   await loadEntries();
   if (typeof renderWinners === "function") renderWinners();
-  showUndo("Cleared " + undone + " from " + board.label + " - the winners log is unchanged."
-    .replace("undone", doomed.length));
+  showUndo("Cleared " + doomed.length + " from " + board.label +
+    " - the winners log is unchanged.");
 }
-
-let undone = 0;
 
 /* ---------- the list of names ---------- */
 
@@ -651,7 +669,6 @@ function startRowEdit(tr, entry) {
       return;
     }
 
-    /* same rule: update the line, never delete it */
     if (typeof updateWinFor === "function") updateWinFor(entry.target, next);
 
     refreshBoards();
@@ -738,9 +755,6 @@ function applyFilter(q) {
   $("count").textContent = shown === total ? total + " shown" : shown + " of " + total + " shown";
 }
 
-let undoSnapshot = null;
-let undoTimer = null;
-
 function showUndo(message) {
   $("undotext").textContent = message;
   $("undobar").classList.add("show");
@@ -753,12 +767,8 @@ function hideUndo() {
   undoSnapshot = null;
 }
 
-/* ---------- carrying names over from the old browser store ----------
+/* ---------- carrying names over from the old browser store ---------- */
 
-   The previous version kept the board in localStorage. Anything still
-   there is pushed up to the shared database once, then the local copy
-   is cleared so it never doubles up. Skips anything already in the
-   database, so it is safe to run more than once. */
 async function importLocalEntries() {
   let pending = [];
   try {
@@ -810,7 +820,6 @@ document.addEventListener("DOMContentLoaded", function () {
   buildTabs();
   setTab(BOARDS[0].id);
 
-  /* read the shared board, then carry over anything from the old store */
   loadEntries().then(function () {
     return importLocalEntries();
   }).then(function (moved) {
@@ -820,10 +829,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  /* follow the board: a name typed on another device lands here */
   sbWatchEntries(function () { loadEntries(); });
-
-  /* a safety net if a network blocks websockets */
   setInterval(function () { loadEntries(); }, 30000);
 
   $("filter").addEventListener("input", function (e) { applyFilter(e.target.value); });
@@ -840,7 +846,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
 
     undoSnapshot = entries.slice();
-    undone = undoSnapshot.length;
 
     try {
       await sbClearAllEntries();
@@ -849,10 +854,9 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    /* NOTE: the winners log is deliberately NOT touched here either. */
     closeAllPanels(null);
     await loadEntries();
-    showUndo("Hid all " + undone + " names - the winners log is unchanged.");
+    showUndo("Hid all " + undoSnapshot.length + " names - the winners log is unchanged.");
   });
 
   $("undobtn").addEventListener("click", async function () {
