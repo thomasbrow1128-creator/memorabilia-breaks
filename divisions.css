@@ -1,1 +1,110 @@
-@@D@@
+/* ============================================================
+   MEMORABILIA BREAKS - two overrides on top of casino.css.
+
+   Loaded AFTER casino.css, so a handful of rules can restyle two
+   boards without touching the rest of the theme.
+
+   1. THE DIVISIONS BOARD as cards, matching Teams and Pairs.
+   2. THE GIVEAWAY BOARD, a generated board of draw entries.
+
+   Every selector is scoped, so nothing here can affect the Teams or
+   Pairs boards. Small on purpose: short files upload reliably.
+   ============================================================ */
+
+/* ============================================================
+   1. THE DIVISIONS BOARD - cards, like the other two boards
+   ============================================================ */
+
+.board.board-medium{grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px}
+@media(max-width:1080px){ .board.board-medium{grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px} }
+@media(max-width:900px){ .board.board-medium{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media(max-width:640px){ .board.board-medium{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media(max-width:420px){ .board.board-medium{grid-template-columns:minmax(0,1fr)} }
+
+.board-medium .tile{
+  flex-direction:column; flex-wrap:nowrap; align-items:stretch;
+  border-radius:11px; min-height:0; overflow:hidden;
+  background:linear-gradient(180deg, #17406a 0%, #102c4c 44%, #0a1d34 78%, #061324 100%);
+  border:1px solid rgba(165,205,240,.5);
+  box-shadow:0 0 0 1px rgba(0,0,0,.8), 0 4px 14px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.16);
+}
+.board-medium .tile .eb{
+  position:relative; flex:2 1 auto; min-height:54px;
+  width:auto; align-self:auto; border-right:0;
+  display:grid; place-items:center; overflow:hidden;
+  border-bottom:1px solid rgba(0,0,0,.55);
+  box-shadow:inset 0 0 30px rgba(0,0,0,.4);
+}
+.board-medium .tile .eb::before{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.16) 0%, transparent 34%,
+    rgba(0,0,0,.34) 100%);
+}
+.board-medium .tile .eb::after{
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.22) 0%,
+    rgba(255,255,255,.04) 30%, transparent 52%);
+}
+.board-medium .tile .eb .initials{
+  position:relative; z-index:3;
+  font-size:clamp(13px,1.5vw,19px);
+  font-weight:900; letter-spacing:.06em; line-height:1.2;
+  color:#fff; text-align:center; padding:0 8px;
+  text-shadow:0 2px 8px rgba(0,0,0,.95), 0 0 20px rgba(255,255,255,.35);
+  overflow-wrap:normal; word-break:keep-all; hyphens:none; white-space:nowrap;
+}
+.board-medium .tile .buyer{
+  flex:0 0 auto; text-align:center; padding:2px 6px 3px;
+  background:linear-gradient(180deg, rgba(0,0,0,.34), rgba(0,0,0,.16));
+  border-top:1px solid rgba(255,255,255,.07);
+}
+.board-medium .tile .buyer .buylbl{font-size:6px; letter-spacing:.2em; color:#93aec9}
+.board-medium .tile .buyer .buyname,
+.board-medium .tile .buyer .buyname-btn{font-size:10.5px; text-align:center; letter-spacing:.03em}
+.board-medium .tile .buyer .buyopen{font-size:6px; padding:0 5px; margin-top:1px; letter-spacing:.12em}
+.board-medium .tile .addbar{
+  flex:0 0 auto; padding:3px 4px; gap:4px;
+  background:rgba(0,0,0,.42);
+  border-top:1px solid rgba(160,205,240,.16);
+}
+.board-medium .tile .addbar input{padding:3px 6px; font-size:10px; border-radius:5px}
+.board-medium .tile .addbar button{padding:0 6px; font-size:12px; border-radius:5px}
+.board-medium .tile .badge{top:2px; right:2px; font-size:6.5px; padding:0 3px; min-width:11px}
+.board-medium .chipeditor{padding:6px; gap:5px}
+.board-medium .chipeditor input{font-size:12px; padding:6px 8px}
+.board-medium .cesave, .board-medium .cedel, .board-medium .cecancel{
+  padding:5px 8px; font-size:9px;
+}
+
+/* ============================================================
+   2. THE GIVEAWAY BOARD
+
+   A generated board: one tile per entry in the draw, nothing to type
+   into and nothing to edit. Names arrive from the Teams and Pairs
+   boards by themselves, so this screen is read-only.
+   ============================================================ */
+
+.board.givetiles{grid-template-columns:repeat(6,minmax(0,1fr)); gap:9px}
+
+/* a tile in the draw: flatter and quieter than a pickable box, because
+   there is nothing to click. It reads as a list, not a control. */
+.givetile{
+  cursor:default; min-height:0;
+  background:linear-gradient(180deg, rgba(24,52,88,.9), rgba(6,16,30,.85));
+  border-color:rgba(150,205,245,.32);
+}
+.givetile:hover{transform:none; border-color:rgba(150,205,245,.32);
+  box-shadow:0 0 0 1px rgba(0,0,0,.85), 0 6px 18px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(255,255,255,.16)}
+.givetile .eb{width:44px}
+.givetile .eb .initials{font-size:13px}
+.givetile .buyer{padding:5px 9px}
+.givetile .buyer .buylbl{font-size:7px; letter-spacing:.18em}
+.givetile .buyer .buyname{font-size:12px}
+.givetile .badge{background:linear-gradient(180deg,#cfe0f2,#8fa6bd 44%,#5a7189)}
+
+@media(max-width:1080px){ .board.givetiles{grid-template-columns:repeat(5,minmax(0,1fr))} }
+@media(max-width:900px){ .board.givetiles{grid-template-columns:repeat(4,minmax(0,1fr))} }
+@media(max-width:640px){ .board.givetiles{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media(max-width:420px){ .board.givetiles{grid-template-columns:repeat(2,minmax(0,1fr))} }
