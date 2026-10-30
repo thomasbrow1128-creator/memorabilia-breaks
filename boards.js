@@ -1,17 +1,17 @@
 /* ============================================================
    Memorabilia Breaks - BOARD DEFINITIONS
 
-   This file defines the boards. Everything else - the tabs, the grids,
-   the headings, the counters, the Reset buttons - is generated from the
-   lists below.
+   The boards, and nothing else. Everything the page draws - the tabs,
+   the grids, the headings, the counters, the Reset buttons - is
+   generated from the lists below.
 
    A board:
      {
-       id:    "shirts",        // unique, no spaces
-       label: "Shirts",        // the section heading
-       tab:   "Shirts",        // the tab button
-       size:  "small",         // "small" | "medium" | "large"
-       boxes: [ ... ]          // the boxes on it
+       id:    "pairs",           // unique, no spaces
+       label: "Pick your Pairs", // the section heading
+       tab:   "Pick your Pairs", // the tab button
+       size:  "small",           // "small" | "medium" | "large"
+       boxes: [ ... ]            // the boxes on it
      }
 
    size sets the layout:
@@ -26,11 +26,12 @@
    must be unique across every board.
 
    `stacksWith` on a board: other board ids to draw underneath it on the
-   same tab.
+   same tab. Pairs stacks Divisions.
 
    `derived: true` marks a board with no boxes of its own. Its tiles are
    worked out from the other boards, and it may also take hand-typed
-   entries. The Giveaway board is one. */
+   entries. The Giveaway board is one.
+   ============================================================ */
 
 /* ---------- helpers ---------- */
 
@@ -140,37 +141,22 @@ const PAIR_BOXES = PAIR_SPECS.map(function (spec) {
 
 /* ---------- THE GIVEAWAY ----------
 
-   A spin-wheel board. Every tile is one chance in the draw, so a person
-   with three entries gets three tiles.
+   A spin-wheel board whose tiles are one per entry. Nobody types on it
+   except to add an entry by hand.
 
-   ENTRIES ARRIVE TWO WAYS.
+   AN ENTRY IS EARNED ON TWO BOARDS:
 
-     1. Earned, from the two boards that feed it:
-          Teams board  - every name entered earns ONE giveaway entry.
-          Pairs board  - EVERY TWO SEPARATE PAIRS earn ONE entry, so
-                         2 boxes = 1 entry, 4 = 2, 6 = 3, and a single
-                         box earns NOTHING.
-        The DIVISIONS board feeds nothing. It is deliberately absent
-        from GIVEAWAY_SOURCES, so a name typed there never enters.
+     Teams  - every name entered earns ONE giveaway entry.
+     Pairs  - EVERY TWO SEPARATE PAIRS earn ONE entry, so 2 boxes = 1
+              entry, 4 = 2, 6 = 3, and a single box earns NOTHING.
+     Divisions - feeds nothing at all, by design.
 
-     2. Typed by hand, straight onto the giveaway board itself. Each one
-        is a single extra entry, however many times it is typed.
+   WHICH BOARD A ROW BELONGS TO IS DECIDED BY ITS NAME, looked up in the
+   two sets below. That is what stops a Divisions row leaking into the
+   draw, and what stops a single Pairs box being miscounted as a team -
+   which would hand out one entry for one pair.
+   ============================================================ */
 
-   The earned tiles are worked out, never stored, so renaming or
-   removing somebody on Teams or Pairs updates this board by itself.
-   The hand-typed ones ARE stored, so they survive a reload and reach
-   every device. */
-
-const GIVEAWAY_SOURCES = ["teams", "pairs"];
-
-/* The exact box names on each feeding board, as sets.
-
-   Which board a row belongs to is decided by LOOKING ITS NAME UP IN
-   THESE, never by trusting a board field. A row whose name is in neither
-   set earns nothing, so the Divisions board cannot leak into the draw
-   however its rows happen to be stored - and a single Pairs box can
-   never be miscounted as a team, which would hand out one entry for one
-   pair instead of one entry for two. */
 const TEAM_BOX_SET = {};
 TEAM_BOXES.forEach(function (b) { TEAM_BOX_SET[b.name] = true; });
 
@@ -178,7 +164,7 @@ const PAIR_BOX_SET = {};
 PAIR_BOXES.forEach(function (b) { PAIR_BOX_SET[b.name] = true; });
 
 /* Which board a stored name belongs to, or "" for neither.
-   Pairs is checked first, so a name on both would count as a pair. */
+   Pairs is checked first, so a name on both counts as a pair. */
 function giveawayBoardOf(name) {
   const n = String(name || "");
   if (PAIR_BOX_SET[n]) return "pairs";
@@ -217,7 +203,7 @@ const BOARDS = [
   { id: "teams",     label: "Teams",           tab: "Teams",           size: "large",  boxes: TEAM_BOXES },
   { id: "divisions", label: "Divisions",       tab: "Divisions",       size: "medium", boxes: DIVISION_BOXES },
   { id: "pairs",     label: "Pick your Pairs", tab: "Pick your Pairs", size: "small",  boxes: PAIR_BOXES,
-    stacksWith: ["divisions"] },
+    stacksWith: ["divisions"], resetLabel: "Pick your Pairs" },
   { id: "giveaway",  label: "Giveaway",        tab: "Giveaway",        size: "small",  boxes: [],
     derived: true, manual: true }
 ];
@@ -279,43 +265,57 @@ function targetLabel(name) {
   return name;
 }
 
-/* ---------- self-check ---------- */
+/* ---------- self-check ----------
+
+   Runs once at startup and REPORTS, never throws. A board with no boxes
+   is only a problem when it is not derived, and every check is wrapped so
+   a bad definition cannot stop the page from drawing. */
 function checkBoards() {
   const problems = [];
   const seenIds = {};
   const seenNames = {};
 
-  BOARDS.forEach(function (b) {
-    if (!b.id) problems.push("A board has no id.");
-    if (seenIds[b.id]) problems.push("Two boards share the id " + b.id);
-    seenIds[b.id] = true;
+  try {
+    BOARDS.forEach(function (b) {
+      if (!b.id) { problems.push("A board has no id."); return; }
+      if (seenIds[b.id]) problems.push("Two boards share the id " + b.id);
+      seenIds[b.id] = true;
 
-    if (!b.label) problems.push("Board " + b.id + " has no label.");
-    if (["small", "medium", "large"].indexOf(b.size) === -1) {
-      problems.push("Board " + b.id + " has a bad size: " + b.size);
-    }
-    if (!b.boxes || !b.boxes.length) {
-      if (!b.derived) problems.push("Board " + b.id + " has no boxes.");
-      return;
-    }
-
-    b.boxes.forEach(function (box) {
-      if (!box.name) { problems.push("A box on " + b.id + " has no name."); return; }
-      if (seenNames[box.name]) {
-        problems.push("Two boxes share the name " + box.name);
+      if (!b.label) problems.push("Board " + b.id + " has no label.");
+      if (["small", "medium", "large"].indexOf(b.size) === -1) {
+        problems.push("Board " + b.id + " has a bad size: " + b.size);
       }
-      seenNames[box.name] = true;
-    });
 
-    (b.stacksWith || []).forEach(function (extra) {
-      if (!boardById(extra)) {
-        problems.push("Board " + b.id + " stacks a board that does not exist: " + extra);
+      const boxes = b.boxes || [];
+      if (!boxes.length) {
+        /* a derived board legitimately has none */
+        if (!b.derived) problems.push("Board " + b.id + " has no boxes.");
+        return;
       }
+
+      boxes.forEach(function (box) {
+        if (!box || !box.name) {
+          problems.push("A box on " + b.id + " has no name.");
+          return;
+        }
+        if (seenNames[box.name]) {
+          problems.push("Two boxes share the name " + box.name);
+        }
+        seenNames[box.name] = true;
+      });
+
+      (b.stacksWith || []).forEach(function (extra) {
+        if (!boardById(extra)) {
+          problems.push("Board " + b.id + " stacks a board that does not exist: " + extra);
+        }
+      });
     });
-  });
+  } catch (err) {
+    problems.push("The board list could not be checked: " + (err && err.message));
+  }
 
   if (problems.length) {
-    console.error("Board problems: " + problems.join(" | "));
+    try { console.error("Board problems: " + problems.join(" | ")); } catch (e) {}
   }
   return problems;
 }
