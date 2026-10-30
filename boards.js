@@ -1,9 +1,9 @@
 /* ============================================================
-   Memorabilia Breaks — BOARD DEFINITIONS
+   Memorabilia Breaks - BOARD DEFINITIONS
 
-   This file defines the boards. Everything else — the tabs, the
-   grids, the headings, the counters, the Reset buttons — is
-   generated from the lists below.
+   This file defines the boards. Everything else - the tabs, the grids,
+   the headings, the counters, the Reset buttons - is generated from the
+   lists below.
 
    A board:
      {
@@ -15,31 +15,30 @@
      }
 
    size sets the layout:
-     "large"  — 8 across, square tiles   (the 32 teams)
-     "medium" — full-width rows          (the 8 divisions)
-     "small"  — full-width rows          (the 16 pairs)
+     "large"  - 8 across, square tiles   (the 32 teams)
+     "medium" - card grid                (the 8 divisions)
+     "small"  - card grid                (the 16 pairs)
 
    A box:
      { name: "Bills", abbr: "BUF", color: "#00338D", bar: "#C60C30" }
 
-   `name` is the key: it is what gets stored with each username, and
-   it must be unique across every board.
+   `name` is the key: it is what gets stored with each username, and it
+   must be unique across every board.
 
-   `abbr` is what shows in the colour block. If you leave it off,
-   one is derived from the name.
+   `abbr` is what shows in the colour block. If you leave it off, one is
+   derived from the name.
 
-   `image` is optional. If set, the tile loads that file and falls
-   back to `abbr` when the file is missing.
+   `image` is optional. If set, the tile loads that file and falls back
+   to `abbr` when the file is missing.
 
-   `stacksWith` on a board: other board ids to draw underneath it
-   on the same tab.
-   ============================================================ */
+   `stacksWith` on a board: other board ids to draw underneath it on the
+   same tab.
+
+   `derived: true` marks a board with no boxes of its own. Its tiles are
+   worked out from the other boards. The Giveaway board is one. */
 
 /* ---------- helpers ---------- */
 
-/* A team's official code, looked up from teams.js by abbreviation OR
-   by nickname. Used to build the pair codes so a pair can never
-   disagree with the teams board. */
 function teamCode(abbrOrNick) {
   const wanted = String(abbrOrNick).toUpperCase();
   let found = null;
@@ -53,8 +52,6 @@ function teamCode(abbrOrNick) {
   return found ? found.abbr : wanted;
 }
 
-/* The two colours for a box: an explicit pair first, else the colours
-   of the team it names. */
 function boxColors(box) {
   if (box.color && box.bar) return [box.color, box.bar];
   const wanted = String(box.ref || box.name).toLowerCase();
@@ -71,7 +68,6 @@ function boxColors(box) {
   return found ? found.colors : ["#2b303c", "#e8ecf3"];
 }
 
-/* The short code for a box, derived from the name when not given. */
 function boxAbbr(box) {
   if (box.abbr) return box.abbr;
   const parts = String(box.name).split(",");
@@ -115,8 +111,6 @@ const DIVISION_BOXES = DIVISIONS.map(function (d) {
   };
 });
 
-/* The 16 pairs, in board order. Each names its two clubs by their
-   official codes; the colour comes from the first club. */
 const PAIR_SPECS = [
   ["Cowboys, Jags",      "DAL", "JAX"],
   ["Chiefs, Cardinals",  "KC",  "ARI"],
@@ -149,13 +143,42 @@ const PAIR_BOXES = PAIR_SPECS.map(function (spec) {
   };
 });
 
+/* ---------- THE GIVEAWAY ----------
+
+   A spin-wheel board. Every tile is one chance in the draw, so a person
+   with three entries gets three tiles.
+
+   THE TILES ARE WORKED OUT, NOT STORED. Nobody types on this board and
+   there is no second list to keep. The names come from the two boards
+   that feed it, counted fresh whenever the page draws:
+
+     Teams board  - every name entered earns ONE giveaway entry.
+     Pairs board  - every TWO names entered earn ONE giveaway entry,
+                    so 4 on that board = 2 entries, 6 = 3, 5 = 2.
+
+   The DIVISIONS board feeds nothing. A name typed there never enters
+   the draw. It is deliberately absent from GIVEAWAY_SOURCES.
+
+   Because the tiles are derived, renaming or removing somebody on the
+   Teams or Pairs board updates the giveaway by itself. */
+
+const GIVEAWAY_SOURCES = ["teams", "pairs"];
+
+/* How many entries a number of names on one board earns. */
+function giveawayRate(boardId, howMany) {
+  if (boardId === "pairs") return Math.floor(howMany / 2);
+  return howMany;
+}
+
 /* ---------- the boards ---------- */
 
 const BOARDS = [
   { id: "teams",     label: "Teams",           tab: "Teams",           size: "large",  boxes: TEAM_BOXES },
   { id: "divisions", label: "Divisions",       tab: "Divisions",       size: "medium", boxes: DIVISION_BOXES },
   { id: "pairs",     label: "Pick your Pairs", tab: "Pick your Pairs", size: "small",  boxes: PAIR_BOXES,
-    stacksWith: ["divisions"] }
+    stacksWith: ["divisions"] },
+  { id: "giveaway",  label: "Giveaway",        tab: "Giveaway",        size: "small",  boxes: [],
+    derived: true }
 ];
 
 /* ---------- lookups used by the page ---------- */
@@ -166,8 +189,6 @@ function boardById(id) {
   return found;
 }
 
-/* The boards drawn on one tab: the tab's own board plus anything it
-   stacks underneath. */
 function boardsOnTab(id) {
   const primary = boardById(id);
   if (!primary) return [];
@@ -179,7 +200,6 @@ function boardsOnTab(id) {
   return out;
 }
 
-/* One box, shaped the way the page needs it. */
 function targetFromBox(box, boardId) {
   return {
     id: box.name,
@@ -191,7 +211,6 @@ function targetFromBox(box, boardId) {
   };
 }
 
-/* Every box on a tab, flattened. */
 function targetsOnTab(id) {
   const out = [];
   boardsOnTab(id).forEach(function (b) {
@@ -213,14 +232,11 @@ function targetByName(name) {
   return found;
 }
 
-/* The text shown for a stored target name. */
 function targetLabel(name) {
   return name;
 }
 
-/* ---------- self-check ----------
-   Runs on load. Reports anything malformed instead of drawing a
-   half-broken board. */
+/* ---------- self-check ---------- */
 function checkBoards() {
   const problems = [];
   const seenIds = {};
@@ -236,7 +252,7 @@ function checkBoards() {
       problems.push("Board " + b.id + " has a bad size: " + b.size);
     }
     if (!b.boxes || !b.boxes.length) {
-      problems.push("Board " + b.id + " has no boxes.");
+      if (!b.derived) problems.push("Board " + b.id + " has no boxes.");
       return;
     }
 
