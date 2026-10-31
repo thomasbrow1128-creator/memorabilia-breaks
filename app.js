@@ -170,19 +170,73 @@ async function gwEarnFor(targetId, username) {
   const boardId = giveawayBoardOf(targetId);
   if (!boardId) return;                       /* divisions, or unknown */
 
-  const mine = entries.filter(function (e) {
-    return buyerOnly(e.username) === name && giveawayBoardOf(e.target) === boardId;
-  }).length;
+  /* COUNT FROM THE DATABASE, NOT FROM WHAT THIS PAGE HAS LOADED.
+
+     This is the bug that made entries stop. The old version counted the
+     boxes this page could see in `entries` and compared that with the
+     stored rows; when the two fell out of step - a name added on another
+     device, a row written while `entries` was stale - the arithmetic came
+     out at zero and the entry was never written. The board row saved, the
+     giveaway silently did not, and nothing said so.
+
+     So the count is now read from the database directly, fresh, at the
+     moment the entry is earned. */
+  let mine = 0;
+  let stored = 0;
+  try {
+    const url = SB_WIN_URL + "/rest/v1/entries?select=username,target";
+    const res = await fetch(url, {
+      headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      mine = rows.filter(function (r) {
+        return buyerOnly(r.username) === name && giveawayBoardOf(r.target) === boardId;
+      }).length;
+    }
+
+    const grewl = SB_GIVEAWAY_URL + "?select=username,source";
+    const gres = await fetch(grewl, {
+      headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY }
+    });
+    if (gres.ok) {
+      const grows = await gres.json();
+      stored = grows.filter(function (r) {
+        return buyerOnly(r.username) === name && r.source === boardId;
+      }).length;
+    }
+  } catch (e) {
+    /* fall through and try to write anyway - better an extra entry than none */
+  }
 
   const owed = giveawayRate(boardId, mine);
-  const have = gwStoredCount(name);
-  const heldByOtherBoard = giveawayRows.filter(function (r) {
-    return r.username === name && r.source === boardId;
-  }).length;
+  let missing = owed - stored;
 
-  const missing = owed - heldByOtherBoard;
+  /* If the board count could not be read at all, still give the entry that
+     this very box earns: one for a Team box, and for a Pairs box only when
+     it makes a pair. A miscount must never mean a lost entry. */
+  if (missing <= 0 && boardId === "teams") missing = Math.max(0, 1 - stored);
+  if (missing <= 0 && boardId === "pairs" && mine % 2 === 0 && stored < mine / 2) {
+    missing = 1;
+  }
+
+  const written = [];
+  const failed = [];
   for (let i = 0; i < missing; i++) {
-    await gwAdd(name, boardId);
+    try {
+      const row = await gwAdd(name, boardId);
+      if (row) written.push(row.id);
+    } catch (err) {
+      failed.push(err && err.message ? err.message : "unknown error");
+    }
+  }
+
+  if (written.length) await gwLoad();
+
+  /* A FAILURE IS NEVER SILENT. The name is on the board either way, so this
+     says plainly whether the entry went with it. */
+  if (failed.length) {
+    throw new Error(failed.join(", "));
   }
 }
 
