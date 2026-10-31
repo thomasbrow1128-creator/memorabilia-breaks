@@ -1332,25 +1332,20 @@ async function addUser(targetId, rawName, fromTile) {
 
   entries.push(saved);
 
-  /* THE ENTRY IS EARNED THE MOMENT THE BOX IS FILLED.
+  /* ---------- 1. THE WIN GOES FIRST ----------
 
-     Written straight to public.giveaway_entries, so it belongs to the
-     giveaway from now on: clearing this board, removing the name or
-     renaming it cannot touch it. A failure here is reported rather than
-     swallowed, because a silent miss is an entry someone paid for. */
-  let gwError = "";
-  try {
-    await gwEarnFor(targetId, username);
-  } catch (err) {
-    gwError = err && err.message ? err.message : "unknown error";
-  }
+     THE ORDER HERE MATTERS, and getting it wrong is what broke the log.
 
-  /* an entry naming an item with a "$" is logged on the winners page.
+     This used to write the giveaway entry BEFORE the win. The giveaway
+     write fetches from the database twice to count entries, and if either
+     fetch threw or hung, everything after it was skipped - including the
+     win. Board rows kept saving while wins silently stopped, which is
+     exactly what it looked like.
 
-     boardSplit and boardLogWin live in THIS file, so the win records
-     whether or not winners.js or sb-client.js loaded. */
+     So the win is written IMMEDIATELY after the box saves, before
+     anything else can fail. boardSplit and boardLogWin live in THIS file,
+     so the win records whether or not winners.js loaded. */
   const parts = boardSplit(username);
-
   let logged = null;
   let logError = "";
 
@@ -1362,15 +1357,34 @@ async function addUser(targetId, rawName, fromTile) {
     }
   }
 
+  /* the board redraws NOW, so the box shows the name and the win count is
+     right even if the giveaway write below is still in flight */
   refreshBoards();
   renderEntries();
   if (typeof renderWinners === "function") renderWinners();
 
+  /* ---------- 2. THE GIVEAWAY ENTRY, IN ITS OWN GUARDED BLOCK ----------
+
+     Its own try/catch, AFTER the win. A failure here can no longer take
+     the win down with it, and it is reported in words rather than
+     swallowed. */
+  let gwError = "";
+  try {
+    await gwEarnFor(targetId, username);
+  } catch (err) {
+    gwError = err && err.message ? err.message : "unknown error";
+  }
+
+  if (gwError) {
+    refreshBoards();
+    renderEntries();
+  }
+
+  /* ---------- 3. SAY WHAT HAPPENED ---------- */
   if (logged) {
     note.textContent = "Added @" + logged.username + " to " + targetId +
       " - win logged: " + logged.item;
   } else if (parts.item && logError) {
-    /* the name is on the box, the win did NOT record - say so */
     note.textContent = "Added @" + buyerOnly(username) + " to " + targetId +
       " BUT the win did not log: " + logError;
   } else {
@@ -1381,6 +1395,7 @@ async function addUser(targetId, rawName, fromTile) {
     note.textContent += " - BUT the giveaway entry did not save: " + gwError;
   }
 }
+
 
 /* ---------- THE RESET ----------
 
