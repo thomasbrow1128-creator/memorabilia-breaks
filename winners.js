@@ -1,48 +1,69 @@
 /* ============================================================
    MEMORABILIA BREAKS - WINNERS
 
-   The win log. Every item won, captured automatically from the boards,
-   with a tracking number typed in on each line, plus the control that
-   starts a new run.
+   A log of every item won, captured automatically from the boards, with
+   a tracking number typed in on each line.
 
-   WHERE THE DATA LIVES. In a shared Supabase database, not in this
-   browser. Enter a win on your phone and it is on your laptop, and on
-   the customer page, about a second later.
+   HOW THE WIN LOG WORKS. When a name is entered into a board box in the
+   form
 
-   NO SIGN-IN ANYWHERE. Every action on this page works for whoever
-   opens it: logging a win, typing a tracking number, deleting a line,
-   clearing the whole log, and starting a new run. The database's rules
-   let anyone read and anyone write.
+       buyer$item
 
-   That is a deliberate trade. It removes every bit of friction during a
-   break - a win lands whether or not anyone is signed in, on any device.
-   It also means anyone who finds this page can empty the log. Two habits
-   cover that: keep this address to yourself, and press Download winners
-   after each break so you hold a copy nothing can touch.
+   everything BEFORE the "$" becomes the winner's username, and
+   everything AFTER it becomes the item won. Both are recorded here with
+   the date and time, and the box itself shows only the buyer's name.
 
-   THE CURRENT RUN. The customer page shows two leaderboards: the Current
-   Run board, which counts only wins since a certain moment, and the
-   All-Time board, which counts everything. The marker that decides where
-   the current run begins belongs to this page.
-
-   STARTING A NEW RUN MOVES ONE TIMESTAMP. It deletes nothing, so the
-   all-time board is untouched and no customer loses their history. Only
-   the current-run board goes back to zero.
+   A plain name with no "$" is just an entry: it still holds the box,
+   but nothing is written to the winners log, because no item is named.
 
    THE LOG IS APPEND-ONLY FROM THE BOARDS. Nothing done on a board can
-   remove a line - not Reset board, not Hide all, not removing a name,
-   not a rename (a rename UPDATES the line in place).
+   remove a line from this page:
+     - Reset board            -> log untouched
+     - Hide all               -> log untouched
+     - removing one name      -> log untouched
+     - renaming a name        -> the line is UPDATED in place
+   The ONLY way a line leaves is the Clear winners button on this page.
+
+   TRACKING NUMBERS. Each winner line carries its own small tracking
+   field, right beside the win. Type a number there and it is saved on
+   that line. A tracking number is part of the win's own row, not a
+   separate list.
    ============================================================ */
 
-let wins = [];
-let undoWinsSnapshot = null;
+const WINNERS_KEY = "memorabilia-breaks-winners-v1";
+
+let winners = [];
+let undoWinnersSnapshot = null;
 let winnersUndoTimer = null;
-let sbReady = false;
-let runStarted = null;
 
-const W = (id) => document.getElementById(id);
-const OLD_WINNERS_KEY = "memorabilia-breaks-winners-v1";
+/* ---------- storage ---------- */
 
+function loadWinners() {
+  try {
+    winners = JSON.parse(localStorage.getItem(WINNERS_KEY) || "[]");
+    if (!Array.isArray(winners)) winners = [];
+  } catch (e) {
+    winners = [];
+  }
+}
+
+function saveWinners() {
+  try {
+    localStorage.setItem(WINNERS_KEY, JSON.stringify(winners));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/* Split an entry into its two parts.
+
+   "alex$jersey"   -> { username: "alex",   item: "jersey" }
+   "alex"          -> { username: "alex",   item: "" }        no item
+   "alex$"         -> { username: "alex",   item: "" }        no item
+   "$jersey"       -> { username: "",       item: "jersey" }  no buyer
+
+   Only the FIRST "$" splits, so an item may itself contain one. */
 function splitEntry(raw) {
   const text = String(raw == null ? "" : raw).trim().replace(/^@/, "");
   const at = text.indexOf("$");
@@ -53,132 +74,82 @@ function splitEntry(raw) {
   };
 }
 
-/* ---------- reading ---------- */
+/* ---------- the win log ---------- */
 
-async function loadWins() {
-  try {
-    wins = await sbListWins();
-    runStarted = await sbRunStarted();
-    sbReady = true;
-  } catch (e) {
-    sbReady = false;
-    wins = [];
-  }
-  renderWinners();
-  paintRun();
-}
-
-/* ---------- writing ---------- */
-
-/* Record a win. Called when a name is entered that names an item.
-
-   No sign-in, no gate: the database lets anyone add a win, which is what
-   lets the $ command work from any device. */
-async function recordWin(target, rawEntry) {
+/* Record a win. Called when a name is entered that names an item. */
+function recordWin(target, rawEntry) {
   const parts = splitEntry(rawEntry);
+
+  /* nothing to log unless an item was actually named */
   if (!parts.item) return null;
 
-  const saved = await sbAddWin({
+  const when = new Date();
+  const win = {
+    id: "w" + Date.now() + Math.random().toString(36).slice(2, 7),
     username: parts.username || "(no name)",
     item: parts.item,
-    team: target,
-    tracking: ""
-  });
+    target: target,
+    tracking: "",
+    at: when.toISOString()
+  };
 
-  if (saved) {
-    wins.unshift(saved);
-    renderWinners();
-  }
-  return saved;
+  winners.unshift(win);
+  saveWinners();
+  renderWinners();
+  return win;
 }
 
-/* A rename updates that box's winner line IN PLACE.
+/* Update the winner line for a box after a rename, IN PLACE.
 
-   A rename never deletes a line - the log is append-only from the
-   boards. This rewrites username and item on the existing row and leaves
-   its id, date, time and tracking number untouched. */
-async function updateWinFor(target, rawEntry) {
+   A rename must never delete a line — the log is append-only from the
+   boards. So this rewrites the username and item on the existing line
+   and leaves its id, date, time and tracking number untouched. */
+function updateWinFor(target, rawEntry) {
   const parts = splitEntry(rawEntry);
-  const hit = wins.filter(function (x) { return x.team === target; })[0];
+  const hit = winners.filter(function (x) { return x.target === target; })[0];
 
   if (!hit) {
     if (parts.item) return recordWin(target, rawEntry);
     return null;
   }
 
-  try {
-    const saved = await sbUpdateWin(hit.id, {
-      username: parts.username || "(no name)",
-      item: parts.item
-    });
-    if (saved) {
-      hit.username = saved.username;
-      hit.item = saved.item;
-      renderWinners();
-    }
-  } catch (e) { /* the rename stays on the board; the log keeps its old text */ }
+  hit.username = parts.username || "(no name)";
+  hit.item = parts.item;
+  saveWinners();
+  renderWinners();
   return hit;
 }
 
-/* ---------- the current run ---------- */
+/* Remove the log entry for a box, if there is one.
 
-function paintRun() {
-  const el = W("runBegan");
-  if (!el) return;
-  if (!runStarted) {
-    el.textContent = "not set yet";
-    return;
-  }
-  const d = new Date(runStarted);
-  el.textContent = isNaN(d) ? "-" : d.toLocaleDateString() + " " + d.toLocaleTimeString();
-}
-
-async function startNewRun() {
-  const note = W("saved");
-  const btn = W("newRun");
-
-  const line1 = "Start a new run?";
-  const line2 = "The Current Run board on the customer page goes back to zero." +
-    String.fromCharCode(10) +
-    "Nothing is deleted, and the All-Time board is not touched.";
-  if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
-
-  if (btn) btn.disabled = true;
-  if (note) note.textContent = "Starting a new run...";
-
-  try {
-    const when = await sbStartNewRun();
-    runStarted = when || new Date().toISOString();
-    paintRun();
-    if (note) note.textContent = "New run started. The all-time board is unchanged.";
-  } catch (e) {
-    if (note) note.textContent = "Could not start a new run: " + e.message;
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+   NOTE: nothing on a board calls this any more. The log is append-only
+   from the boards, so this exists only for internal use. */
+function dropWinFor(target) {
+  const before = winners.length;
+  winners = winners.filter(function (w) { return w.target !== target; });
+  if (winners.length !== before) saveWinners();
 }
 
 /* ---------- the page ---------- */
 
 function renderWinners() {
-  const host = W("winners");
+  const host = document.getElementById("winners");
   if (!host) return;
 
-  const count = W("winnerCount");
+  const count = document.getElementById("winnerCount");
   if (count) {
-    count.textContent = wins.length
-      ? "(" + wins.length + (wins.length === 1 ? " win" : " wins") + ")"
+    count.textContent = winners.length
+      ? "(" + winners.length + (winners.length === 1 ? " win" : " wins") + ")"
       : "";
   }
 
   host.innerHTML = "";
 
-  if (!wins.length) {
+  if (!winners.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = sbReady
-      ? "No winners yet. Enter a name on any board as  buyer$item  and it is logged here automatically."
-      : "Could not reach the ledger. Check the connection, then press Refresh.";
+    p.textContent = "No winners yet. Enter a name on any board as  buyer$item  "
+      + "and it is logged here automatically.";
     host.appendChild(p);
     return;
   }
@@ -187,13 +158,13 @@ function renderWinners() {
   table.className = "winnersTable";
   const thead = document.createElement("thead");
   thead.innerHTML = "<tr><th>Date</th><th>Time</th><th>Username</th>"
-    + "<th>Item won</th><th>Team</th><th>Tracking number</th><th></th></tr>";
+    + "<th>Item won</th><th>Box</th><th>Tracking number</th><th></th></tr>";
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
 
-  wins.forEach(function (w) {
-    const when = new Date(w.won_at);
+  winners.forEach(function (w) {
+    const when = new Date(w.at);
     const good = !isNaN(when);
 
     const tr = document.createElement("tr");
@@ -201,28 +172,33 @@ function renderWinners() {
     tr.appendChild(textCell(good ? when.toLocaleDateString() : "-"));
     tr.appendChild(textCell(good ? when.toLocaleTimeString() : "-"));
 
+    /* username */
     const tdUser = document.createElement("td");
     const nameBtn = document.createElement("button");
     nameBtn.type = "button";
     nameBtn.className = "nameedit";
     nameBtn.textContent = "@" + w.username;
     nameBtn.title = "Click to change the username";
-    nameBtn.addEventListener("click", function () { editWin(tr, w, "username"); });
+    nameBtn.addEventListener("click", function () { editWinner(tr, w, "username"); });
     tdUser.appendChild(nameBtn);
     tr.appendChild(tdUser);
 
+    /* item */
     const tdItem = document.createElement("td");
     const itemBtn = document.createElement("button");
     itemBtn.type = "button";
     itemBtn.className = "nameedit";
     itemBtn.textContent = w.item;
     itemBtn.title = "Click to change the item";
-    itemBtn.addEventListener("click", function () { editWin(tr, w, "item"); });
+    itemBtn.addEventListener("click", function () { editWinner(tr, w, "item"); });
     tdItem.appendChild(itemBtn);
     tr.appendChild(tdItem);
 
-    tr.appendChild(textCell(w.team));
+    tr.appendChild(textCell(w.target));
 
+    /* ---- TRACKING, on the line itself ----
+       A small always-visible input. Type a number and it saves on that
+       win the moment you leave the field or press Enter. */
     const tdTrk = document.createElement("td");
     tdTrk.className = "trackcell";
 
@@ -235,22 +211,54 @@ function renderWinners() {
     trkInput.autocomplete = "off";
     trkInput.spellcheck = false;
 
+    /* ---------- SAVING A TRACKING NUMBER ----------
+
+       This used to write to localStorage and nothing else, which is why
+       the number vanished: the list reloads from the database a moment
+       later, the row comes back with an empty tracking field, and the box
+       wipes itself. The number was never sent anywhere.
+
+       It now writes to the wins table over sbUpdateWin(id, ...), which is
+       the same row the customer page reads, so the number is saved for
+       good and appears there too. The local copy is only kept in step
+       AFTER the database has accepted it. */
     async function saveTracking() {
       const next = trkInput.value.trim();
-      if (next === (w.tracking || "")) return;
+      if (next === (w.tracking || "")) return;   /* nothing changed */
+
+      const before = w.tracking || "";
+      w.tracking = next;                          /* show it straight away */
+
       try {
-        const saved = await sbUpdateWin(w.id, { tracking: next });
-        if (saved) { w.tracking = saved.tracking; flash(trkInput); }
-      } catch (e) {
-        trkInput.value = w.tracking || "";
-        const note = W("saved");
-        if (note) note.textContent = "Could not save that tracking number.";
+        if (typeof sbUpdateWin === "function" && w.id) {
+          await sbUpdateWin(w.id, { tracking: next });
+        } else {
+          throw new Error("the save helper is not loaded");
+        }
+      } catch (err) {
+        /* put it back and SAY SO - a number that looks saved but is not is
+           worse than one that visibly failed */
+        w.tracking = before;
+        trkInput.value = before;
+        const note = document.getElementById("saved");
+        if (note) {
+          note.textContent = "Could not save that tracking number: " +
+            (err && err.message ? err.message : "unknown error");
+        }
+        return;
       }
+
+      flash(trkInput);
+      const note2 = document.getElementById("saved");
+      if (note2) note2.textContent = "Tracking number saved for @" + w.username + ".";
     }
 
     trkInput.addEventListener("blur", saveTracking);
     trkInput.addEventListener("keydown", function (ev) {
-      if (ev.key === "Enter") { ev.preventDefault(); saveTracking(); trkInput.blur(); }
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        saveTracking().then(function () { trkInput.blur(); });
+      }
       if (ev.key === "Escape") {
         ev.preventDefault();
         trkInput.value = w.tracking || "";
@@ -261,21 +269,17 @@ function renderWinners() {
     tdTrk.appendChild(trkInput);
     tr.appendChild(tdTrk);
 
+    /* delete */
     const td = document.createElement("td");
     const del = document.createElement("button");
     del.type = "button";
     del.className = "del";
     del.textContent = "Delete";
     del.title = "Remove only this logged win";
-    del.addEventListener("click", async function () {
-      try {
-        await sbDeleteWin(w.id);
-        wins = wins.filter(function (x) { return x.id !== w.id; });
-        renderWinners();
-      } catch (e) {
-        const note = W("saved");
-        if (note) note.textContent = "Could not delete that line.";
-      }
+    del.addEventListener("click", function () {
+      winners = winners.filter(function (x) { return x.id !== w.id; });
+      saveWinners();
+      renderWinners();
     });
     td.appendChild(del);
     tr.appendChild(td);
@@ -287,19 +291,15 @@ function renderWinners() {
   host.appendChild(table);
 }
 
+/* a brief highlight so a saved tracking number is visibly acknowledged */
 function flash(el) {
   if (!el) return;
   el.classList.add("saved");
   setTimeout(function () { el.classList.remove("saved"); }, 900);
 }
 
-function textCell(text) {
-  const td = document.createElement("td");
-  td.textContent = text;
-  return td;
-}
-
-function editWin(tr, win, field) {
+/* rename one field of a logged win, in place */
+function editWinner(tr, win, field) {
   if (tr.dataset.editing === "1") return;
   tr.dataset.editing = "1";
 
@@ -329,15 +329,11 @@ function editWin(tr, win, field) {
   td.appendChild(save);
   td.appendChild(cancel);
 
-  async function commit() {
+  function commit() {
     const next = input.value.trim();
     if (!next) { input.focus(); return; }
-    const patch = {};
-    patch[field] = next;
-    try {
-      const saved = await sbUpdateWin(win.id, patch);
-      if (saved) win[field] = saved[field];
-    } catch (e) { /* leaves the old text in place */ }
+    win[field] = next;
+    saveWinners();
     renderWinners();
   }
 
@@ -354,39 +350,30 @@ function editWin(tr, win, field) {
 
 /* ---------- export ---------- */
 
-function csvEscape(v) {
-  const Q = String.fromCharCode(34), C = String.fromCharCode(44), N = String.fromCharCode(10);
-  const s = String(v == null ? "" : v);
-  if (s.indexOf(Q) !== -1 || s.indexOf(C) !== -1 || s.indexOf(N) !== -1) {
-    return Q + s.split(Q).join(Q + Q) + Q;
-  }
-  return s;
-}
-
 function downloadWinnersCsv() {
-  const note = W("saved");
-  if (!wins.length) {
-    if (note) note.textContent = "Nothing to export yet.";
+  const saved = document.getElementById("saved");
+  if (!winners.length) {
+    if (saved) saved.textContent = "Nothing to export yet.";
     return;
   }
 
-  const N = String.fromCharCode(10);
-  const rows = ["date,time,username,item_won,team,tracking_number"];
+  const NEWLINE = String.fromCharCode(10);
+  const rows = ["date,time,username,item_won,box,tracking_number"];
 
-  wins.slice().reverse().forEach(function (w) {
-    const when = new Date(w.won_at);
+  winners.slice().reverse().forEach(function (w) {
+    const when = new Date(w.at);
     const good = !isNaN(when);
     rows.push([
       csvEscape(good ? when.toLocaleDateString() : ""),
       csvEscape(good ? when.toLocaleTimeString() : ""),
       csvEscape(w.username),
       csvEscape(w.item),
-      csvEscape(w.team),
+      csvEscape(w.target),
       csvEscape(w.tracking || "")
     ].join(","));
   });
 
-  const blob = new Blob([rows.join(N)], { type: "text/csv;charset=utf-8" });
+  const blob = new Blob([rows.join(NEWLINE)], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "memorabilia-breaks-winners.csv";
@@ -396,34 +383,25 @@ function downloadWinnersCsv() {
   URL.revokeObjectURL(a.href);
 }
 
-/* ---------- clear, open to anyone ---------- */
+/* clear the whole winners log, with undo.
 
-async function clearWinners() {
-  const note = W("saved");
-  if (!wins.length) return;
-
-  const line1 = "Remove all " + wins.length + " logged wins?";
-  const line2 = "This clears the shared ledger too - customers will no longer see these items.";
+   THIS IS THE ONLY THING THAT EMPTIES THE WINNERS LIST. */
+function clearWinners() {
+  if (!winners.length) return;
+  const line1 = "Remove all " + winners.length + " logged wins?";
+  const line2 = "This clears the winners list only. The boards are not touched.";
   if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
 
-  undoWinsSnapshot = wins.slice();
-
-  try {
-    for (let i = 0; i < undoWinsSnapshot.length; i++) {
-      await sbDeleteWin(undoWinsSnapshot[i].id);
-    }
-    wins = [];
-    renderWinners();
-    showWinnersUndo("Cleared " + undoWinsSnapshot.length + " logged wins.");
-  } catch (e) {
-    if (note) note.textContent = "Could not clear every line. Press Refresh to see what remains.";
-    await loadWins();
-  }
+  undoWinnersSnapshot = winners.slice();
+  winners = [];
+  saveWinners();
+  renderWinners();
+  showWinnersUndo("Cleared " + undoWinnersSnapshot.length + " logged wins.");
 }
 
 function showWinnersUndo(message) {
-  const bar = W("winnerUndoBar");
-  const txt = W("winnerUndoText");
+  const bar = document.getElementById("winnerUndoBar");
+  const txt = document.getElementById("winnerUndoText");
   if (!bar || !txt) return;
   txt.textContent = message;
   bar.classList.add("show");
@@ -431,99 +409,30 @@ function showWinnersUndo(message) {
   winnersUndoTimer = setTimeout(function () { bar.classList.remove("show"); }, 14000);
 }
 
-/* ---------- anything left in this browser ---------- */
-
-async function importLocalWins() {
-  let pending = [];
-  try {
-    const raw = localStorage.getItem(OLD_WINNERS_KEY);
-    if (raw) {
-      const old = JSON.parse(raw);
-      if (Array.isArray(old)) pending = old;
-    }
-  } catch (e) {
-    return 0;
-  }
-
-  if (!pending.length) return 0;
-
-  let moved = 0;
-  for (let i = 0; i < pending.length; i++) {
-    const o = pending[i];
-    if (!o || !o.item) continue;
-
-    const dupe = wins.some(function (w) {
-      return w.username === o.username && w.item === o.item && w.team === o.target;
-    });
-    if (dupe) continue;
-
-    try {
-      const saved = await sbAddWin({
-        username: o.username || "(no name)",
-        item: o.item,
-        team: o.target || "-",
-        tracking: o.tracking || ""
-      });
-      if (saved) { wins.unshift(saved); moved++; }
-    } catch (e) { /* one bad row never stops the rest */ }
-  }
-
-  try { localStorage.removeItem(OLD_WINNERS_KEY); } catch (e) {}
-  renderWinners();
-  return moved;
-}
-
-/* ---------- start ---------- */
-
 function initWinners() {
-  paintRun();
+  loadWinners();
+  renderWinners();
 
-  const csv = W("winnerCsv");
+  const csv = document.getElementById("winnerCsv");
   if (csv) csv.addEventListener("click", downloadWinnersCsv);
 
-  const clear = W("winnerClear");
+  const clear = document.getElementById("winnerClear");
   if (clear) clear.addEventListener("click", clearWinners);
 
-  const newRun = W("newRun");
-  if (newRun) newRun.addEventListener("click", startNewRun);
-
-  const refresh = W("winnerRefresh");
-  if (refresh) refresh.addEventListener("click", async function () {
-    await loadWins();
-    const note = W("saved");
-    if (note) note.textContent = "Ledger refreshed.";
-  });
-
-  const undo = W("winnerUndoBtn");
-  if (undo) undo.addEventListener("click", async function () {
-    if (!undoWinsSnapshot) return;
-    const bar = W("winnerUndoBar");
-    if (bar) bar.classList.remove("show");
-    const back = undoWinsSnapshot;
-    undoWinsSnapshot = null;
-    for (let i = 0; i < back.length; i++) {
-      const o = back[i];
-      try {
-        const saved = await sbAddWin({
-          username: o.username, item: o.item, team: o.team, tracking: o.tracking || ""
-        });
-        if (saved) wins.unshift(saved);
-      } catch (e) { /* keep going */ }
-    }
+  const undo = document.getElementById("winnerUndoBtn");
+  if (undo) undo.addEventListener("click", function () {
+    if (!undoWinnersSnapshot) return;
+    winners = undoWinnersSnapshot;
+    undoWinnersSnapshot = null;
+    saveWinners();
     renderWinners();
-  });
-
-  const close = W("winnerUndoClose");
-  if (close) close.addEventListener("click", function () {
-    const bar = W("winnerUndoBar");
+    const bar = document.getElementById("winnerUndoBar");
     if (bar) bar.classList.remove("show");
   });
 
-  loadWins().then(function () { return importLocalWins(); });
-
-  /* a win, a rename, or a tracking number typed anywhere lands here */
-  sbWatchWins(function () { loadWins(); });
-
-  /* a new run started on another device lands here as well */
-  sbWatchRun(function () { loadWins(); });
+  const close = document.getElementById("winnerUndoClose");
+  if (close) close.addEventListener("click", function () {
+    const bar = document.getElementById("winnerUndoBar");
+    if (bar) bar.classList.remove("show");
+  });
 }
