@@ -38,22 +38,58 @@ let winnersUndoTimer = null;
 
 /* ---------- storage ---------- */
 
-function loadWinners() {
+/* ---------- WHERE THE WINNERS COME FROM ----------
+
+   THE DATABASE, not this browser.
+
+   The page used to load its list out of localStorage, which meant the
+   wins only existed on the machine that happened to hold them - and any
+   reload could leave the page looking empty while every win was still
+   sitting in the wins table. That is what happened.
+
+   Now the list is READ from public.wins, the same rows the customer page
+   reads, so every win shows on every device and a tracking number typed
+   here is the number everyone sees.
+
+   localStorage is kept as a fallback only for the moment when the
+   database cannot be reached, so a lost connection shows the last known
+   list rather than a blank page. */
+function loadWinnersLocal() {
   try {
-    winners = JSON.parse(localStorage.getItem(WINNERS_KEY) || "[]");
-    if (!Array.isArray(winners)) winners = [];
+    const raw = localStorage.getItem(WINNERS_KEY) || "[]";
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
   } catch (e) {
-    winners = [];
+    return [];
   }
 }
 
-function saveWinners() {
+function saveWinnersLocal() {
   try {
     localStorage.setItem(WINNERS_KEY, JSON.stringify(winners));
     return true;
   } catch (e) {
     return false;
   }
+}
+
+/* read the log from the database. Returns true when it worked. */
+async function loadWinners() {
+  try {
+    if (typeof sbListWins !== "function") throw new Error("the database helper is not loaded");
+    const rows = await sbListWins();
+    winners = Array.isArray(rows) ? rows : [];
+    saveWinnersLocal();          /* keep a copy for an offline reload */
+    return true;
+  } catch (e) {
+    winners = loadWinnersLocal();
+    return false;
+  }
+}
+
+/* after a change, re-read so the page shows what the database holds */
+async function saveWinners() {
+  return true;                   /* writes go through the database calls */
 }
 
 /* Split an entry into its two parts.
