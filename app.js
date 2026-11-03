@@ -164,25 +164,35 @@ function gwStoredCount(username) {
             entries are written, so filling a box twice cannot double
             an entry. */
 async function gwEarnFor(targetId, username) {
-  const name = buyerOnly(username);
+  const name = personKey(username);
   if (!name) return;
 
   const boardId = giveawayBoardOf(targetId);
   if (!boardId) return;                       /* divisions, or unknown */
 
-  /* COUNT FROM THE DATABASE, NOT FROM WHAT THIS PAGE HAS LOADED.
+  /* ---------- HOW MANY ENTRIES THIS PERSON IS OWED ----------
 
-     This is the bug that made entries stop. The old version counted the
-     boxes this page could see in `entries` and compared that with the
-     stored rows; when the two fell out of step - a name added on another
-     device, a row written while `entries` was stale - the arithmetic came
-     out at zero and the entry was never written. The board row saved, the
-     giveaway silently did not, and nothing said so.
+     THE RULE: every time a person's Pairs boxes reach TWO, they earn one
+     more entry - every time, for every break, with nothing blocking it.
 
-     So the count is now read from the database directly, fresh, at the
-     moment the entry is earned. */
-  let mine = 0;
-  let stored = 0;
+     Counting the whole board against the total already stored was wrong:
+     once somebody held one entry, their next two boxes came out as
+     "1 owed - 1 stored = 0" and nothing was written. That is why entries
+     only ever appeared once per person.
+
+     So the count is per PAIR OF BOXES, matched by the PERSON - the part
+     before any $ - and never capped by what is already stored.
+
+       pairs - floor(boxes / 2), so 2 boxes = 1 entry, 4 = 2, 6 = 3
+       teams - one entry per box
+
+     The stored rows are then written until the person holds that many
+     FOR THIS RUN, so a later break earns again rather than being blocked
+     by an older entry. */
+  let boxes = 0;
+  let storedThisRun = 0;
+  const runId = await gwRunId();
+
   try {
     const url = SB_WIN_URL + "/rest/v1/entries?select=username,target";
     const res = await fetch(url, {
@@ -190,54 +200,92 @@ async function gwEarnFor(targetId, username) {
     });
     if (res.ok) {
       const rows = await res.json();
-      mine = rows.filter(function (r) {
-        return buyerOnly(r.username) === name && giveawayBoardOf(r.target) === boardId;
+      boxes = rows.filter(function (r) {
+        return personKey(r.username) === name && giveawayBoardOf(r.target) === boardId;
       }).length;
     }
+  } catch (e) { /* fall through - a miscount must not lose an entry */ }
 
-    const grewl = SB_GIVEAWAY_URL + "?select=username,source";
-    const gres = await fetch(grewl, {
-      headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY }
-    });
+  try {
+    const gres = await fetch(
+      SB_GIVEAWAY_URL + "?select=username,source,run_id",
+      { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+    );
     if (gres.ok) {
       const grows = await gres.json();
-      stored = grows.filter(function (r) {
-        return buyerOnly(r.username) === name && r.source === boardId;
+      storedThisRun = grows.filter(function (r) {
+        return personKey(r.username) === name &&
+          r.source === boardId &&
+          (r.run_id || "legacy") === runId;
       }).length;
     }
-  } catch (e) {
-    /* fall through and try to write anyway - better an extra entry than none */
-  }
+  } catch (e) { /* fall through */ }
 
-  const owed = giveawayRate(boardId, mine);
-  let missing = owed - stored;
+  const owed = giveawayRate(boardId, boxes);
+  let missing = owed - storedThisRun;
 
-  /* If the board count could not be read at all, still give the entry that
-     this very box earns: one for a Team box, and for a Pairs box only when
-     it makes a pair. A miscount must never mean a lost entry. */
-  if (missing <= 0 && boardId === "teams") missing = Math.max(0, 1 - stored);
-  if (missing <= 0 && boardId === "pairs" && mine % 2 === 0 && stored < mine / 2) {
+  /* This box alone still earns its entry even if a count failed: one for a
+     Team box, and for a Pairs box only when it completes a pair. */
+  if (missing <= 0 && boardId === "teams") missing = 1;
+  if (missing <= 0 && boardId === "pairs" && boxes > 0 && boxes % 2 === 0 && storedThisRun < owed) {
     missing = 1;
   }
 
-  const written = [];
   const failed = [];
   for (let i = 0; i < missing; i++) {
     try {
-      const row = await gwAdd(name, boardId);
-      if (row) written.push(row.id);
+      await gwAddPerson(name, boardId, runId);
     } catch (err) {
       failed.push(err && err.message ? err.message : "unknown error");
     }
   }
 
-  if (written.length) await gwLoad();
+  if (!failed.length) await gwLoad();
+  if (failed.length) throw new Error(failed.join(", "));
+}
 
-  /* A FAILURE IS NEVER SILENT. The name is on the board either way, so this
-     says plainly whether the entry went with it. */
-  if (failed.length) {
-    throw new Error(failed.join(", "));
+/* THE RUN THIS BREAK BELONGS TO.
+
+   board_state.run_started moves when Start new run is pressed on the
+   Winners page, so it doubles as the break marker. An entry earned now is
+   stamped with it; entries from an earlier break keep their own stamp and
+   are never deleted or counted against this one. */
+async function gwRunId() {
+  try {
+    const res = await fetch(
+      SB_WIN_URL + "/rest/v1/board_state?id=eq.1&select=run_started",
+      { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+    );
+    if (!res.ok) return "legacy";
+    const rows = await res.json();
+    const t = rows && rows[0] && rows[0].run_started;
+    return t ? String(t) : "legacy";
+  } catch (e) {
+    return "legacy";
   }
+}
+
+/* write one entry, stamped with the run. Uses the DISPLAY name, so the
+   customer page shows "DAVID ZYC" and not "DAVID ZYC$JD5". */
+async function gwAddPerson(name, source, runId) {
+  const res = await fetch(SB_GIVEAWAY_URL, {
+    method: "POST",
+    headers: {
+      "apikey": SB_WIN_KEY,
+      "Authorization": "Bearer " + SB_WIN_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation"
+    },
+    body: JSON.stringify({ username: personName(name), source: source, run_id: runId || "legacy" })
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(function () { return ""; });
+    throw new Error("Could not save the giveaway entry (" + res.status + ") " + txt);
+  }
+  const rows = await res.json();
+  const row = rows[0] || null;
+  if (row) giveawayRows.push(row);
+  return row;
 }
 
 async function gwSyncFromBoards() {
@@ -285,6 +333,39 @@ function tileFor(targetId) {
 function normalizeName(raw) {
   return (raw || "").trim().replace(/^@/, "");
 }
+
+/* ---------- WHO IS THIS PERSON? ----------
+
+   ONE RULE, USED EVERYWHERE A NAME IS READ.
+
+   A box typed as  buyer$item  names the BUYER before the $ and the ITEM
+   won after it. That is the whole convention. So the person on a box is
+   whatever comes BEFORE the first $, upper-cased, with the spaces tidied.
+
+   This is the fix for both faults at once:
+
+     PAIRS COUNTING - "DAVID ZYC" and "DAVID ZYC$JD5" were two different
+     people, so neither ever reached the two boxes that earn an entry and
+     the entry was never written.
+
+     WIN LOGGING   - the win was written with the buyer as "DAVID ZYC$JD5"
+     and the item as "JD5", so it reached the Winners page as a name that
+     matched nobody.
+
+   With this, both read the same person, and a $ still sends its item to
+   the Winners page. */
+function personKey(raw) {
+  const text = String(raw == null ? "" : raw).trim().replace(/^@/, "");
+  const before = text.split("$")[0];
+  return before.trim().toUpperCase();
+}
+
+/* the name as it should be DISPLAYED - the buyer part, in its own case */
+function personName(raw) {
+  const text = String(raw == null ? "" : raw).trim().replace(/^@/, "");
+  return text.split("$")[0].trim();
+}
+
 
 /* ---------- THE $ SPLIT, AND THE WIN WRITE ----------
 
@@ -1233,9 +1314,14 @@ function refreshBoardCounts() {
 
 /* Fill the gold PURCHASER plate with the buyer's name only. An item
    entered after a "$" is logged on the winners page, not shown here. */
+/* The name shown on a tile and in the entries list.
+
+   The BUYER part only: a box typed as "david zyc$JD5" shows "david zyc",
+   and the $item still goes to the Winners page. Showing the raw string
+   was part of the same fault - it made one person look like two. */
 function buyerOnly(raw) {
   const parts = boardSplit(raw);
-  return parts.username || raw;
+  return parts.username || String(raw == null ? "" : raw);
 }
 
 function paintBuyerPlate(tile, list) {
