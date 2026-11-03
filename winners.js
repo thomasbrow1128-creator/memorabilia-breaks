@@ -266,10 +266,35 @@ function renderWinners() {
       w.tracking = next;                          /* show it straight away */
 
       try {
-        if (typeof sbUpdateWin === "function" && w.id) {
-          await sbUpdateWin(w.id, { tracking: next });
-        } else {
-          throw new Error("the save helper is not loaded");
+        /* WRITTEN WITH THE PUBLISHABLE KEY, NOT THE SIGN-IN ONE.
+
+           sbUpdateWin demands a signed-in session - and this page has no
+           sign-in at all, so it threw "Not signed in" on every attempt and
+           the number was discarded. That is why tracking never stuck.
+
+           The wins table's policy allows anyone with the link to write, so
+           the same key the board and the giveaway already use works here. */
+        if (!w.id) throw new Error("that win has no row id to save to");
+        const res = await fetch(
+          SB_URL + "/rest/v1/wins?id=eq." + encodeURIComponent(w.id),
+          {
+            method: "PATCH",
+            headers: {
+              "apikey": SB_KEY,
+              "Authorization": "Bearer " + SB_KEY,
+              "Content-Type": "application/json",
+              "Prefer": "return=representation"
+            },
+            body: JSON.stringify({ tracking: next })
+          }
+        );
+        if (!res.ok) {
+          const txt = await res.text().catch(function () { return ""; });
+          throw new Error("(" + res.status + ") " + txt);
+        }
+        const rows = await res.json();
+        if (!rows || !rows.length) {
+          throw new Error("the row was not found - it may have been deleted");
         }
       } catch (err) {
         /* put it back and SAY SO - a number that looks saved but is not is
