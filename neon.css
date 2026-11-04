@@ -542,53 +542,61 @@ button.ghost:hover::before{
 }
 
 /* ============================================================
-   THE PAIRS TILES - bigger logos, on a transparent plate
+   THE PAIRS TILES - bigger logos, on the team's colour plate
 
-   KEY SIZES, and the only three numbers worth tuning:
-     .eb  min-height   122px   the band the logo sits in
-     .teamlogo max-height 108px  the logo itself
-     .teamlogo max-width   98%   how far it may span the card
+   THE PLATE IS BACK. app.js paints each .eb with that box's team
+   colour as an inline style, and this block used to cancel it with
+   background:transparent !important - which is why the Pairs tiles
+   lost the colour band the Teams board still has.
+
+   Nothing cancels it now. The colour app.js sets is left alone, and
+   the band is a little taller and full width so the bigger logo has
+   room to sit on it.
+
+   Two rules keep the plate from being a flat block of colour:
+     - .eb::after re-draws the same top-down sheen the Teams board
+       uses, so the band reads as lit glass rather than paint
+     - .teamlogo keeps a drop shadow so the logo separates from it
    ============================================================ */
 
+/* the emblem band: full width, taller, team colour intact */
 .board-small .tile .eb,
 .board-medium .tile .eb{
   width:100%;
   min-height:122px;
   padding:10px 6px;
-  background:transparent !important;
   border-right:0;
-  border-bottom:1px solid rgba(0,0,0,.45);
+  border-bottom:1px solid rgba(0,0,0,.55);
   overflow:visible;
-  box-shadow:none;
+  /* the plate itself, kept from the Teams board:
+     inset light along the top, shadow inside the band */
+  box-shadow:
+    inset 0 0 34px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.18);
 }
 
+/* the lit sheen, matching .tile .eb::after on the Teams board */
 .board-small .tile .eb::after,
 .board-medium .tile .eb::after{
-  background:none;
+  background:linear-gradient(180deg,
+    rgba(255,255,255,.30) 0%, rgba(255,255,255,.06) 34%, transparent 56%);
 }
 
+/* the logo, sitting on the plate */
 .teamlogo{
   display:block;
   margin:0 auto;
   width:auto;
   height:auto;
-  max-width:98%;
-  max-height:108px;
+  max-width:94%;
+  max-height:104px;
   object-fit:contain;
   background:transparent;
-  filter:drop-shadow(0 3px 10px rgba(0,0,0,.62));
+  filter:drop-shadow(0 3px 9px rgba(0,0,0,.6));
 }
 
-.tile.taken .eb{background:transparent !important}
-.tile.taken .teamlogo{opacity:.88}
-
-.board-small .tile,
-.board-medium .tile{
-  background:
-    radial-gradient(ellipse 96% 58% at 50% 0%, rgba(255,255,255,.06), transparent 72%),
-    linear-gradient(180deg,
-      rgba(30,24,74,.95) 0%, rgba(14,16,48,.94) 48%, rgba(6,8,26,.95) 100%);
-}
+/* a taken box keeps its colour plate and its logo */
+.tile.taken .teamlogo{opacity:.9}
 
 .board-small .tile .buyer,
 .board-medium .tile .buyer{
@@ -599,5 +607,5 @@ button.ghost:hover::before{
 @media(max-width:760px){
   .board-small .tile .eb,
   .board-medium .tile .eb{min-height:100px; padding:9px 5px}
-  .teamlogo{max-height:86px; max-width:96%}
+  .teamlogo{max-height:84px; max-width:92%}
 }
