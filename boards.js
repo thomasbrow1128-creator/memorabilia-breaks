@@ -86,6 +86,26 @@ function emblemPath(city, nick) {
   return "logos/" + slug + ".png";
 }
 
+/* THE SAME PATH RULE, FROM ONE NAME.
+
+   Pairs and Divisions do not have a city and nickname - their names are
+   "Bills, Jets" and "AFC East" - so emblemPath could not be used for them
+   and they never got an image at all. That is why only the Teams board
+   showed logos.
+
+   This builds the same kind of filename from whatever the box is called:
+     "Bills, Jets"  -> logos/bills-jets.png
+     "AFC East"     -> logos/afc-east.png
+   The comma becomes a dash, so the name has to be written the same way
+   when the file is named. */
+function emblemPathFromName(name) {
+  const slug = String(name || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return "logos/" + slug + ".png";
+}
+
 /* ---------- the box lists ---------- */
 
 const TEAM_BOXES = TEAMS.map(function (t) {
@@ -103,7 +123,8 @@ const DIVISION_BOXES = DIVISIONS.map(function (d) {
     name: d.name,
     abbr: d.name.replace(/[^A-Za-z]/g, "").toUpperCase(),
     color: d.teams[0].colors[0],
-    bar: d.teams[0].colors[1]
+    bar: d.teams[0].colors[1],
+    image: emblemPathFromName(d.name)
   };
 });
 
@@ -135,7 +156,8 @@ const PAIR_BOXES = PAIR_SPECS.map(function (spec) {
     name: name,
     abbr: codeA + ", " + codeB,
     color: colours[0],
-    bar: colours[1]
+    bar: colours[1],
+    image: emblemPathFromName(name)
   };
 });
 
