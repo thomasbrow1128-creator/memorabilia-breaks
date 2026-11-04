@@ -540,3 +540,84 @@ button.ghost:hover::before{
 @media (prefers-reduced-motion:reduce){
   .podiumCard.p1,.wheelhub{animation:none !important}
 }
+
+/* ============================================================
+   THE PAIRS TILES - bigger logos, on a transparent plate
+
+   Appended last on purpose. neon.css is the last stylesheet the page
+   loads, so these rules are the final word on the Pairs boxes.
+
+   WHY THIS IS NEEDED. Nothing in any stylesheet sized .teamlogo, so
+   the pair images rendered at their intrinsic size inside a 60px
+   column. .eb also painted itself with the first team's colour and
+   laid a white sheen over the top, which is what made the logos look
+   small, washed out, and sat on a plate instead of floating.
+
+   WHAT CHANGES:
+     - .eb becomes the full width of the card, and taller
+     - its inline team colour is dropped, so the tile shows through
+     - .eb::after (the sheen) is switched off for these two boards
+     - .teamlogo is sized to fit, kept transparent, and given a
+       soft drop shadow so it reads on the dark card
+   ============================================================ */
+
+/* the emblem area becomes the whole top of the card */
+.board-small .tile .eb,
+.board-medium .tile .eb{
+  width:100%;
+  min-height:112px;
+  padding:12px 8px;
+  /* app.js sets an inline background colour on this element; an inline
+     style beats a stylesheet rule, so !important is required here */
+  background:transparent !important;
+  border-right:0;
+  border-bottom:1px solid rgba(0,0,0,.45);
+  overflow:visible;
+  box-shadow:none;
+}
+
+/* remove the white sheen that was washing the logos out.
+   must come after this file's own .tile .eb::after rule above. */
+.board-small .tile .eb::after,
+.board-medium .tile .eb::after{
+  background:none;
+}
+
+/* the logo itself */
+.teamlogo{
+  display:block;
+  margin:0 auto;
+  width:auto;
+  height:auto;
+  max-width:94%;
+  max-height:96px;
+  object-fit:contain;
+  background:transparent;
+  filter:drop-shadow(0 3px 9px rgba(0,0,0,.6));
+}
+
+/* a taken box keeps its logo visible too */
+.tile.taken .eb{background:transparent !important}
+.tile.taken .teamlogo{opacity:.85}
+
+/* a soft glow behind each pair, so the cards still read as cards */
+.board-small .tile,
+.board-medium .tile{
+  background:
+    radial-gradient(ellipse 96% 58% at 50% 0%, rgba(255,255,255,.06), transparent 72%),
+    linear-gradient(180deg,
+      rgba(30,24,74,.95) 0%, rgba(14,16,48,.94) 48%, rgba(6,8,26,.95) 100%);
+}
+
+/* the pair name under the logo stays readable at the new height */
+.board-small .tile .buyer,
+.board-medium .tile .buyer{
+  border-top:1px solid rgba(120,160,255,.14);
+}
+
+/* on a phone the cards are narrower, so the logo gets less room */
+@media(max-width:760px){
+  .board-small .tile .eb,
+  .board-medium .tile .eb{min-height:92px; padding:10px 6px}
+  .teamlogo{max-height:76px; max-width:90%}
+}
