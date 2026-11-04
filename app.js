@@ -712,6 +712,21 @@ function buildTile(t) {
     closePanel();
   });
 
+  /* THE LOGO ITSELF IS THE TARGET.
+
+     Clicking the emblem must do the obvious thing: if the box is free, put
+     the cursor in its field so a name can be typed; if it is taken, open the
+     edit panel. The whole plate is the click target, not just the strip at
+     the bottom, so the logo reads as the button. */
+  function plateClick(ev) {
+    if (ev.target.closest && ev.target.closest(".addbar")) return;
+    if (usersOn(t.id).length) { openPanel(); return; }
+    const box = tile.querySelector(".addbar input");
+    if (box) box.focus();
+  }
+  eb.addEventListener("click", plateClick);
+  buyer.addEventListener("click", plateClick);
+
   tile.addEventListener("click", function (ev) {
     if (!panel.hidden) return;
     if (ev.target.closest && ev.target.closest(".addbar")) return;
