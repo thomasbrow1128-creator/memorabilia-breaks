@@ -222,14 +222,16 @@ async function gwEarnFor(targetId, username) {
   } catch (e) { /* fall through */ }
 
   const owed = giveawayRate(boardId, boxes);
-  let missing = owed - storedThisRun;
+  /* EARNED, BUT NOT INVENTED. An entry is written the moment a box is
+     FILLED, and only for what the box genuinely earns.
 
-  /* This box alone still earns its entry even if a count failed: one for a
-     Team box, and for a Pairs box only when it completes a pair. */
-  if (missing <= 0 && boardId === "teams") missing = 1;
-  if (missing <= 0 && boardId === "pairs" && boxes > 0 && boxes % 2 === 0 && storedThisRun < owed) {
-    missing = 1;
-  }
+     The old code forced one through whenever it could not see the row it
+     expected (the two "missing = 1" lines below). A count that came back
+     short - an error, a slow read, a box counted before its row landed -
+     was read as proof an entry was owed, so a fresh row was written for
+     someone who already had one. A recount could therefore ADD an entry
+     no box had earned. Nothing is forced now. */
+  const missing = Math.max(0, owed - storedThisRun);
 
   const failed = [];
   for (let i = 0; i < missing; i++) {
@@ -288,6 +290,8 @@ async function gwAddPerson(name, source, runId) {
   return row;
 }
 
+let giveawaySyncReport = {};
+
 async function gwSyncFromBoards() {
   if (gwSyncing) return;
   gwSyncing = true;
@@ -302,16 +306,12 @@ async function gwSyncFromBoards() {
       perPerson[name][boardId] += 1;
     });
 
-    Object.keys(perPerson).forEach(function (name) {
-      const c = perPerson[name];
-      const owed = giveawayRate("teams", c.teams) + giveawayRate("pairs", c.pairs);
-      const have = gwStoredCount(name);
-      if (owed <= have) return;
-      const missing = owed - have;
-      for (let i = 0; i < missing; i++) {
-        gwAdd(name, "earned").catch(function () {});
-      }
-    });
+    /* THIS SWEEP NO LONGER WRITES. It used to add any entry a person
+       looked short of, on a timer - the second way a name appeared with
+       no order and no typing. An entry is now written only in gwEarnFor,
+       at the moment a box is filled. This still counts, so the numbers
+       stay right, but it creates nothing. */
+    giveawaySyncReport = perPerson;
   } finally {
     gwSyncing = false;
   }
@@ -1887,15 +1887,10 @@ async function importLocalEntries() {
     if (already) continue;
 
     /* DO NOT WRITE THESE TO THE DATABASE.
-
-       This is old data left in THIS browser by an earlier version of the
-       site. It cannot tell a new entry from an old one, so on a cleared
-       board it replayed every name straight back onto it - which is the
-       "old names came back by themselves" fault.
-
-       ONLY TWO THINGS may put a name on a box: a manual entry, or a
-       newly placed order. This loop is neither, so it now only counts
-       what it drops. The old list is still cleared further down. */
+       Old data left in THIS browser by an earlier version of the site.
+       It cannot tell a new entry from an old one, so on a cleared board
+       it replayed every name back onto it. ONLY TWO THINGS may put a
+       name on a box: a manual entry, or a newly placed order. */
     moved++;
   }
 
@@ -1998,21 +1993,14 @@ document.addEventListener("DOMContentLoaded", function () {
     undoSnapshot = null;
     hideUndo();
 
-    /* PUT THE NAMES BACK WITHOUT RE-ADDING THEM AS NEW ROWS.
-
-       Undo used to rebuild each row with sbAddEntry, which meant a
-       restored name arrived looking exactly like a hand-typed entry -
-       and a box cleared after the snapshot came back filled. That break
-       of "once cleared, it stays clear" is what this replaces.
-
-       The names are put back into the page's own list and re-rendered,
-       so the board visibly returns to how it looked a moment ago, while
-       the database keeps only what was genuinely entered: a manual
-       entry, or a newly placed order. Nothing is written here. */
+    /* The names return on this screen only. Rebuilding them as rows made a
+       restored name look like a fresh hand-typed entry, so a box cleared
+       after the snapshot came back filled - that breaks "once cleared, it
+       stays clear". Nothing is written here. */
     const put = back.length;
     await loadEntries();
-    $("saved").textContent = "Restored " + put + " names on this screen. "
-      + "Nothing was added back to the board - clear a box and it stays clear.";
+    $("saved").textContent = "Restored " + put + " names on this screen.";
   });
   $("undoclose").addEventListener("click", hideUndo);
 });
+
