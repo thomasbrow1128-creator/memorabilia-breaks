@@ -83,7 +83,7 @@ function emblemPath(city, nick) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return "logos/" + slug + ".svg";
+  return "logos/" + slug + ".png";
 }
 
 /* ---------- the box lists ---------- */

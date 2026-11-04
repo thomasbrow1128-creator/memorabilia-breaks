@@ -540,14 +540,30 @@ function buildTile(t) {
   badge.style.display = "none";
   tile.appendChild(badge);
 
+  /* THE BOX SHOWS THE TEAM'S LOGO, NOT ITS INITIALS.
+
+     t.image comes from boards.js, which builds logos/<city>-<nickname>.png
+     for every box. The team colour stays behind it so a logo that has not
+     been uploaded yet still leaves a coloured plate rather than a hole.
+
+     If the file is missing, the img simply fails to load and the initials
+     are NOT used - the coloured box stands on its own. Nothing falls back
+     to letters. */
   const eb = document.createElement("div");
   eb.className = "eb";
   eb.style.background = t.colors[0];
 
-  const initials = document.createElement("span");
-  initials.className = "initials";
-  initials.textContent = t.abbr;
-  eb.appendChild(initials);
+  if (t.image) {
+    const logo = document.createElement("img");
+    logo.className = "teamlogo";
+    logo.src = t.image;
+    logo.alt = t.name;
+    logo.loading = "lazy";
+    logo.decoding = "async";
+    /* a missing file leaves the plate clean - no broken-image icon */
+    logo.addEventListener("error", function () { logo.remove(); });
+    eb.appendChild(logo);
+  }
   tile.appendChild(eb);
 
   eb.title = "Click to enter a username for " + t.name;
@@ -1357,6 +1373,12 @@ function refreshBoards() {
     badge.textContent = list.length;
     badge.style.display = list.length ? "" : "none";
 
+    /* A TAKEN SPOT GREYS OUT, LOGO AND ALL.
+
+       The .taken class desaturates and dims the whole tile, so an occupied
+       box reads as occupied instantly without hiding who holds it. The
+       logo is included in the effect, which is the point - the colour is
+       what tells you it is free. */
     const taken = list.length > 0;
     tile.classList.toggle("taken", taken);
 
