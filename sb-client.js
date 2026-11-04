@@ -222,7 +222,64 @@ async function sbRenameEntry(id, username) {
   return rows[0] || null;
 }
 
+/* ---------- WHEN A BOX WAS CLEARED ----------
+
+   THE GATE'S OTHER HALF. tiktok-order refuses an order older than the
+   last time the box was cleared - but only if that clear was written
+   down. This writes it down.
+
+   WHY THIS EXISTS. The function already read public.box_clears, and
+   that table was EMPTY, so every comparison was against nothing and an
+   old order was accepted on any free box. Recording the clear is what
+   gives the comparison something to work against.
+
+   ONE ROW PER BOX, keyed on target: the newest clear wins, so the
+   table stays small however often a box is filled and emptied.
+
+   Written BEFORE the delete. If the stamp fails, the name stays on the
+   board and can be removed again; the other order would leave a box
+   looking free to the gate while the function still held no clear time
+   for it - which is the bug being fixed. */
+async function sbMarkCleared(targets) {
+  var list = (targets || []).filter(function (t) { return !!t; });
+  if (!list.length) return;
+  try {
+    await fetch(SB_URL + "/rest/v1/box_clears", {
+      method: "POST",
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+      },
+      body: JSON.stringify(list.map(function (t) {
+        return { target: t, cleared_at: new Date().toISOString() };
+      }))
+    });
+  } catch (e) {
+    /* a failed stamp must not stop the name coming off the board */
+  }
+}
+
 async function sbRemoveEntry(id) {
+  /* FIND THE BOX FIRST. The caller passes the row's id, and the gate keys
+     on the box NAME, so the name has to be read while the row is still
+     there. Without this the clear would be recorded against an id the
+     function never looks at - the same as not recording it. */
+  var target = "";
+  try {
+    var look = await fetch(
+      SB_URL + "/rest/v1/entries?id=eq." + encodeURIComponent(id) + "&select=target",
+      { headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY } }
+    );
+    if (look.ok) {
+      var rows = await look.json();
+      target = (rows && rows[0] && rows[0].target) || "";
+    }
+  } catch (e) {}
+
+  if (target) await sbMarkCleared([target]);   /* stamp before the row goes */
+
   var res = await fetch(SB_URL + "/rest/v1/entries?id=eq." + encodeURIComponent(id), {
     method: "DELETE",
     headers: { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY }
@@ -233,6 +290,9 @@ async function sbRemoveEntry(id) {
 /* Free every box on one board. */
 async function sbClearTargets(names) {
   if (!names.length) return;
+
+  await sbMarkCleared(names);   /* stamp every box before any row goes */
+
   var list = names.map(function (n) { return encodeURIComponent(n); }).join(",");
   var res = await fetch(SB_URL + "/rest/v1/entries?target=in.(" + list + ")", {
     method: "DELETE",
@@ -321,3 +381,4 @@ function sbWatchRun(onChange) {
 function sbWatchEntries(onChange) {
   return sbWatchTable("realtime:entries", "entries", onChange);
 }
+
