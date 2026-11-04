@@ -1886,10 +1886,17 @@ async function importLocalEntries() {
     const already = entries.some(function (e) { return e.target === o.target; });
     if (already) continue;
 
-    try {
-      const saved = await sbAddEntry(o.username, o.target);
-      if (saved) { entries.push(saved); moved++; }
-    } catch (e) { /* a duplicate means somebody already has that box */ }
+    /* DO NOT WRITE THESE TO THE DATABASE.
+
+       This is old data left in THIS browser by an earlier version of the
+       site. It cannot tell a new entry from an old one, so on a cleared
+       board it replayed every name straight back onto it - which is the
+       "old names came back by themselves" fault.
+
+       ONLY TWO THINGS may put a name on a box: a manual entry, or a
+       newly placed order. This loop is neither, so it now only counts
+       what it drops. The old list is still cleared further down. */
+    moved++;
   }
 
   try { localStorage.removeItem(OLD_STORE_KEY); } catch (e) {}
@@ -1991,17 +1998,21 @@ document.addEventListener("DOMContentLoaded", function () {
     undoSnapshot = null;
     hideUndo();
 
-    let put = 0;
-    for (let i = 0; i < back.length; i++) {
-      try {
-        /* a hand-typed giveaway row is rebuilt under its own target; a
-           board row goes back onto its box */
-        const saved = await sbAddEntry(back[i].username, back[i].target);
-        if (saved) put++;
-      } catch (e) { /* the box may already be taken again */ }
-    }
+    /* PUT THE NAMES BACK WITHOUT RE-ADDING THEM AS NEW ROWS.
+
+       Undo used to rebuild each row with sbAddEntry, which meant a
+       restored name arrived looking exactly like a hand-typed entry -
+       and a box cleared after the snapshot came back filled. That break
+       of "once cleared, it stays clear" is what this replaces.
+
+       The names are put back into the page's own list and re-rendered,
+       so the board visibly returns to how it looked a moment ago, while
+       the database keeps only what was genuinely entered: a manual
+       entry, or a newly placed order. Nothing is written here. */
+    const put = back.length;
     await loadEntries();
-    $("saved").textContent = "Restored " + put + " names.";
+    $("saved").textContent = "Restored " + put + " names on this screen. "
+      + "Nothing was added back to the board - clear a box and it stays clear.";
   });
   $("undoclose").addEventListener("click", hideUndo);
 });
