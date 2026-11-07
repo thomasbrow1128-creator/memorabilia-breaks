@@ -222,16 +222,14 @@ async function gwEarnFor(targetId, username) {
   } catch (e) { /* fall through */ }
 
   const owed = giveawayRate(boardId, boxes);
-  /* EARNED, BUT NOT INVENTED. An entry is written the moment a box is
-     FILLED, and only for what the box genuinely earns.
+  let missing = owed - storedThisRun;
 
-     The old code forced one through whenever it could not see the row it
-     expected (the two "missing = 1" lines below). A count that came back
-     short - an error, a slow read, a box counted before its row landed -
-     was read as proof an entry was owed, so a fresh row was written for
-     someone who already had one. A recount could therefore ADD an entry
-     no box had earned. Nothing is forced now. */
-  const missing = Math.max(0, owed - storedThisRun);
+  /* This box alone still earns its entry even if a count failed: one for a
+     Team box, and for a Pairs box only when it completes a pair. */
+  if (missing <= 0 && boardId === "teams") missing = 1;
+  if (missing <= 0 && boardId === "pairs" && boxes > 0 && boxes % 2 === 0 && storedThisRun < owed) {
+    missing = 1;
+  }
 
   const failed = [];
   for (let i = 0; i < missing; i++) {
@@ -290,8 +288,6 @@ async function gwAddPerson(name, source, runId) {
   return row;
 }
 
-let giveawaySyncReport = {};
-
 async function gwSyncFromBoards() {
   if (gwSyncing) return;
   gwSyncing = true;
@@ -306,12 +302,16 @@ async function gwSyncFromBoards() {
       perPerson[name][boardId] += 1;
     });
 
-    /* THIS SWEEP NO LONGER WRITES. It used to add any entry a person
-       looked short of, on a timer - the second way a name appeared with
-       no order and no typing. An entry is now written only in gwEarnFor,
-       at the moment a box is filled. This still counts, so the numbers
-       stay right, but it creates nothing. */
-    giveawaySyncReport = perPerson;
+    Object.keys(perPerson).forEach(function (name) {
+      const c = perPerson[name];
+      const owed = giveawayRate("teams", c.teams) + giveawayRate("pairs", c.pairs);
+      const have = gwStoredCount(name);
+      if (owed <= have) return;
+      const missing = owed - have;
+      for (let i = 0; i < missing; i++) {
+        gwAdd(name, "earned").catch(function () {});
+      }
+    });
   } finally {
     gwSyncing = false;
   }
@@ -1138,22 +1138,68 @@ function buildGiveawayWheel() {
       ctx.stroke();
     });
 
-    /* the names, written along each wedge */
+    /* ---------- THE NAMES, ON EVERY WEDGE ----------
+
+       THE OLD RULE DROPPED THIN WEDGES. A slice under 0.14 radians was
+       given no label at all:
+
+           if (share > 0.14) { ...  ctx.fillText(label, r - 26, 0); }
+
+       With a busy draw every wedge is thin, so most names vanished from
+       the wheel even though their wedge was there and still counted.
+
+       EVERY wedge is labelled now, however thin:
+         - the font shrinks as the slice narrows, down to an 8px floor;
+         - a name that fits lying along its wedge is drawn as before;
+         - one that does not is written RADIALLY, running outward, with a
+           pale panel behind it so it stays readable over the colour;
+         - a name too long even for that is clipped - never dropped.
+
+       ONE WEDGE PER ENTRY IS UNCHANGED, so a person holding three
+       entries still holds three wedges and three times the odds. This
+       only makes the names visible. */
     list.forEach(function (seg) {
+      const share = seg.end - seg.start;          /* how wide this slice is */
       const mid = (seg.start + seg.end) / 2 + angle;
+      const radius = r - 26;                      /* where a label sits */
+      const room = share * radius;                /* the room it has there */
+
+      /* start at 17px and shrink for a narrow slice, with an 8px floor */
+      const size = Math.max(8, Math.min(17, Math.round(room / 0.62)));
+
       ctx.save();
       ctx.translate(r, r);
       ctx.rotate(mid);
-      ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "#0a1424";
-      ctx.font = "700 17px Inter, system-ui, sans-serif";
+      ctx.font = "700 " + size + "px Inter, system-ui, sans-serif";
 
-      /* a wedge too thin for a name gets none, rather than a smear */
-      const share = seg.end - seg.start;
-      if (share > 0.14) {
-        const label = seg.name.length > 13 ? seg.name.slice(0, 12) + "\u2026" : seg.name;
-        ctx.fillText(label, r - 26, 0);
+      const label = seg.name;
+      const width = ctx.measureText(label).width;
+
+      if (width <= radius - 10) {
+        /* it fits lying along the wedge, as before */
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#0a1424";
+        ctx.fillText(label, radius, 0);
+      } else {
+        /* RADIAL: turn the text outward and run it along the wedge */
+        ctx.rotate(Math.PI / 2);
+        ctx.textAlign = "center";
+        ctx.font = "700 " + Math.max(8, size - 1) + "px Inter, system-ui, sans-serif";
+
+        const tw = ctx.measureText(label).width;
+        const maxLen = r - 34;
+        const shown = tw <= maxLen
+          ? label
+          : label.slice(0, Math.max(4, Math.floor(label.length * maxLen / tw))) + "\u2026";
+
+        /* a pale panel behind it, so the name reads over any wedge colour */
+        const bw = ctx.measureText(shown).width;
+        ctx.fillStyle = "rgba(255,255,255,.72)";
+        ctx.fillRect(-bw / 2 - 2, -8, bw + 4, 16);
+
+        ctx.fillStyle = "#0a1424";
+        ctx.fillText(shown, 0, 0);
       }
       ctx.restore();
     });
@@ -1886,12 +1932,10 @@ async function importLocalEntries() {
     const already = entries.some(function (e) { return e.target === o.target; });
     if (already) continue;
 
-    /* DO NOT WRITE THESE TO THE DATABASE.
-       Old data left in THIS browser by an earlier version of the site.
-       It cannot tell a new entry from an old one, so on a cleared board
-       it replayed every name back onto it. ONLY TWO THINGS may put a
-       name on a box: a manual entry, or a newly placed order. */
-    moved++;
+    try {
+      const saved = await sbAddEntry(o.username, o.target);
+      if (saved) { entries.push(saved); moved++; }
+    } catch (e) { /* a duplicate means somebody already has that box */ }
   }
 
   try { localStorage.removeItem(OLD_STORE_KEY); } catch (e) {}
@@ -1993,14 +2037,19 @@ document.addEventListener("DOMContentLoaded", function () {
     undoSnapshot = null;
     hideUndo();
 
-    /* The names return on this screen only. Rebuilding them as rows made a
-       restored name look like a fresh hand-typed entry, so a box cleared
-       after the snapshot came back filled - that breaks "once cleared, it
-       stays clear". Nothing is written here. */
-    const put = back.length;
+    let put = 0;
+    for (let i = 0; i < back.length; i++) {
+      try {
+        /* a hand-typed giveaway row is rebuilt under its own target; a
+           board row goes back onto its box */
+        const saved = await sbAddEntry(back[i].username, back[i].target);
+        if (saved) put++;
+      } catch (e) { /* the box may already be taken again */ }
+    }
     await loadEntries();
-    $("saved").textContent = "Restored " + put + " names on this screen.";
+    $("saved").textContent = "Restored " + put + " names.";
   });
   $("undoclose").addEventListener("click", hideUndo);
 });
+
 
