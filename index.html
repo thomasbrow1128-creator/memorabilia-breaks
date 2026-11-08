@@ -18,12 +18,13 @@
    ?v= makes each one a different URL, so a changed file is a new
    download everywhere.
 
-   BUMPED to 7 for the strongest neon.css yet: the Pairs logo rules now
-   match the specificity of divisions.css, which was capping every logo
-   at 82px and huddling the pair in the middle. The banner above each
-   pair is 132px tall and the logos fill it edge to edge. */
+   BUMPED to 8 so the newest neon.css is fetched. That file now holds
+   two things: the Pairs logo rules that match divisions.css's
+   specificity (it was capping every logo at 82px and huddling the pair
+   in the middle), and the card-height fix that stops the name field
+   being clipped once the logo band grew taller. */
 (function () {
-  var files = ["casino.css?v=7", "divisions.css?v=7", "neon.css?v=7"];
+  var files = ["casino.css?v=8", "divisions.css?v=8", "neon.css?v=8"];
   for (var i = 0; i < files.length; i++) {
     var link = document.createElement("link");
     link.rel = "stylesheet";
@@ -233,12 +234,12 @@
      ?v= makes each one a different URL, so a changed file is a new
      download everywhere. BUMP THIS NUMBER WHENEVER A SCRIPT CHANGES.
 
-     BUMPED to 7 alongside the stylesheets, so app.js is refetched too. -->
-<script src="teams.js?v=7"></script>
-<script src="boards.js?v=7"></script>
-<script src="sb-client.js?v=7"></script>
-<script src="winners.js?v=7"></script>
-<script src="app.js?v=7"></script>
+     BUMPED to 8 alongside the stylesheets, so everything is refetched. -->
+<script src="teams.js?v=8"></script>
+<script src="boards.js?v=8"></script>
+<script src="sb-client.js?v=8"></script>
+<script src="winners.js?v=8"></script>
+<script src="app.js?v=8"></script>
 
 <script>
 (function () {
@@ -292,5 +293,3 @@
 </script>
 </body>
 </html>
-
-
