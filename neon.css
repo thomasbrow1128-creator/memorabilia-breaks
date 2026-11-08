@@ -637,3 +637,46 @@ button.ghost:hover::before{
   .board-medium .tile .eb .teamlogo,
   .tile .eb .teamlogo{max-height:96px !important}
 }
+
+
+/* ============================================================
+   THE PAIRS CARD MUST GROW WITH ITS CONTENTS
+
+   THE FAULT. The logo band was given a fixed 132px, and casino.css
+   sizes the Pairs tile from its own rules. Adding a taller band on top
+   of a PURCHASER row and an input bar pushed the add-bar past the
+   bottom of the card, so the name field was clipped - which is what
+   the board showed.
+
+   THE FIX. The tile is told to grow to fit whatever is inside it, and
+   the band stops dictating the total height. Nothing about the logos
+   changes: they stay big, spread apart, on the colour plate.
+   ============================================================ */
+
+.board-small .tile{
+  height:auto !important;
+  min-height:0 !important;
+  overflow:visible !important;
+}
+
+.board-small .tile .eb{
+  flex:0 0 auto !important;
+  min-height:132px;
+  height:auto !important;
+}
+
+/* the name row and the input bar keep their own space, never squeezed */
+.board-small .tile .buyer{
+  flex:0 0 auto !important;
+}
+.board-small .tile .addbar{
+  flex:0 0 auto !important;
+  width:100%;
+}
+
+/* the field itself must not be clipped by a rounded tile edge */
+.board-small .tile .addbar input{
+  min-height:34px;
+  box-sizing:border-box;
+}
+
