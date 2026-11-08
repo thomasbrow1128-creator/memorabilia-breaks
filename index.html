@@ -8,9 +8,21 @@
 <script>
 /* THE STYLESHEETS, LOADED IN ORDER. casino.css is the whole theme;
    divisions.css restyles the Divisions board into cards and nothing
-   else. A plain <link> starts downloading at once. */
+   else. A plain <link> starts downloading at once.
+
+   THE ?v= NUMBER MUST GO UP EVERY TIME A FILE BELOW CHANGES.
+
+   These were plain filenames, so when the CSS changed the browser kept
+   serving the copy already in its cache - and so did GitHub's CDN.
+   Uploading a new neon.css changed nothing, because the URL had not.
+   ?v= makes each one a different URL, so a changed file is a new
+   download everywhere.
+
+   BUMPED 5 -> 6 for the new neon.css (bigger Pairs logos, spread apart,
+   on the team-colour plate) and the new app.js (wheel labels on every
+   wedge, and no invented entries). */
 (function () {
-  var files = ["casino.css?v=5", "divisions.css?v=5", "neon.css?v=5"];
+  var files = ["casino.css?v=6", "divisions.css?v=6", "neon.css?v=6"];
   for (var i = 0; i < files.length; i++) {
     var link = document.createElement("link");
     link.rel = "stylesheet";
@@ -218,12 +230,14 @@
      Uploading a new app.js changed nothing, because the URL had not.
 
      ?v= makes each one a different URL, so a changed file is a new
-     download everywhere. BUMP THIS NUMBER WHENEVER A SCRIPT CHANGES. -->
-<script src="teams.js?v=5"></script>
-<script src="boards.js?v=5"></script>
-<script src="sb-client.js?v=5"></script>
-<script src="winners.js?v=5"></script>
-<script src="app.js?v=5"></script>
+     download everywhere. BUMP THIS NUMBER WHENEVER A SCRIPT CHANGES.
+
+     BUMPED 5 -> 6 alongside the stylesheets, for the new app.js. -->
+<script src="teams.js?v=6"></script>
+<script src="boards.js?v=6"></script>
+<script src="sb-client.js?v=6"></script>
+<script src="winners.js?v=6"></script>
+<script src="app.js?v=6"></script>
 
 <script>
 (function () {
@@ -277,3 +291,4 @@
 </script>
 </body>
 </html>
+
