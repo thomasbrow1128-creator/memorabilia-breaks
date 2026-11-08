@@ -560,7 +560,8 @@ button.ghost:hover::before{
 /* the logo band: full width, taller, colour intact */
 .board-small .tile .eb,
 .board-medium .tile .eb{
-  width:100%;
+  width:100% !important;
+  flex:0 0 100% !important;
   min-height:132px;
   padding:8px 14px;
   border-right:0;
@@ -590,16 +591,30 @@ button.ghost:hover::before{
     rgba(255,255,255,.30) 0%, rgba(255,255,255,.06) 34%, transparent 56%);
 }
 
-/* THE LOGO PAIR, SPREAD WIDE.
-   max-width is pushed to the full band so the two logos sit further
-   apart; the height grows with it so they stay large. */
-.teamlogo{
+/* THE LOGO PAIR, BIG AND SPREAD WIDE.
+
+   WHY THE EARLIER VERSIONS DID NOTHING. divisions.css caps the logo:
+
+       .tile .eb .teamlogo{ width:78%; max-width:82px; max-height:82px }
+       .board-medium .tile .eb .teamlogo{ width:76%; max-width:66px; max-height:66px }
+
+   .tile .eb .teamlogo is MORE SPECIFIC than a plain .teamlogo, so it
+   won whatever came later in this file - the logo stayed at 82px and
+   huddled in the middle. These selectors match that specificity and add
+   a class, and !important settles the four size properties outright.
+
+   THE TWO NUMBERS TO TUNE:
+     max-height  118px   how tall the logos are
+     width       100%    how far apart they sit (full band = furthest) */
+.board-small .tile .eb .teamlogo,
+.board-medium .tile .eb .teamlogo,
+.tile .eb .teamlogo{
   display:block;
   margin:0 auto;
-  width:100%;
-  height:auto;
-  max-width:100%;
-  max-height:118px;
+  width:100% !important;
+  height:auto !important;
+  max-width:100% !important;
+  max-height:118px !important;
   object-fit:contain;
   object-position:center;
   background:transparent;
@@ -618,6 +633,7 @@ button.ghost:hover::before{
 @media(max-width:760px){
   .board-small .tile .eb,
   .board-medium .tile .eb{min-height:112px; padding:7px 10px}
-  .teamlogo{max-height:96px}
+  .board-small .tile .eb .teamlogo,
+  .board-medium .tile .eb .teamlogo,
+  .tile .eb .teamlogo{max-height:96px !important}
 }
-
