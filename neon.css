@@ -680,3 +680,48 @@ button.ghost:hover::before{
   box-sizing:border-box;
 }
 
+
+/* ============================================================
+   THE SPIN HUB - the TKS mark on the axle
+
+   The hub carries the transparent TKS mark, laid on a gold disc so it
+   reads as a seal rather than a logo dropped on top. The whole hub is
+   still the SPIN button. --spin-glow is set by app.js while the wheel
+   turns, so the halo brightens as it slows.
+   ============================================================ */
+
+.wheelhub{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  padding:0;
+}
+
+.wheelhubimg{
+  width:74%;
+  height:74%;
+  object-fit:contain;
+  display:block;
+  pointer-events:none;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,.75));
+}
+
+.wheelhubword{
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.12em;
+  color:#2a1e03;
+}
+
+/* the halo pulses brighter as the wheel slows */
+.wheelholder{
+  position:relative;
+  transition:box-shadow .25s linear;
+}
+.wheelholder.spinning{
+  box-shadow:
+    0 0 calc(60px + var(--spin-glow, 0) * 70px) rgba(140,80,255,.55),
+    0 0 calc(120px + var(--spin-glow, 0) * 90px) rgba(60,120,255,.40),
+    0 0 calc(40px + var(--spin-glow, 0) * 60px) rgba(255,205,90,.45);
+}
