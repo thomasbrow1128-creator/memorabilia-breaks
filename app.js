@@ -1077,29 +1077,74 @@ function buildGiveawayAddBar() {
 async function resetGiveaway() {
   const note = $("saved");
 
-  if (!giveawayRows.length) {
+  /* ---------- COUNT FROM THE DATABASE, NOT FROM MEMORY ----------
+
+     THE OLD FIRST LINE WAS THE BUG:
+
+         if (!giveawayRows.length) { ... "already empty" ... return; }
+
+     giveawayRows is filled by gwLoad(), which runs at startup and on a
+     timer. Press the button before that has landed - a fresh load, a
+     slow connection - and the array is still empty while the board on
+     screen plainly shows hundreds of entries. The function then said
+     "already empty" and did nothing, which is exactly what a dead
+     button looks like.
+
+     So the count is read fresh here, at the moment of the press. */
+  note.textContent = "Reading the draw\u2026";
+  await gwLoad();
+
+  let live = [];
+  try {
+    const res = await fetch(
+      SB_GIVEAWAY_URL + "?select=id",
+      { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+    );
+    if (!res.ok) throw new Error("(" + res.status + ")");
+    live = await res.json();
+  } catch (err) {
+    note.textContent = "Could not read the draw: " +
+      (err && err.message ? err.message : "unknown error");
+    return;
+  }
+
+  if (!live.length) {
     note.textContent = "The giveaway is already empty.";
     return;
   }
 
-  if (!confirm("Remove all " + giveawayRows.length + " entries from the giveaway?" +
+  if (!confirm("Remove all " + live.length + " entries from the giveaway?" +
     String.fromCharCode(10, 10) +
-    "The boards are not touched. This is the ONLY way an entry leaves the draw.")) return;
+    "The boards are not touched. This is the ONLY way an entry leaves the draw.")) {
+    note.textContent = "";
+    return;
+  }
 
-  /* EVERY ROW GOES - earned on Teams or Pairs, and hand-added alike.
+  /* ---------- ONE REQUEST, NOT ONE PER ROW ----------
 
-     The old version deleted only rows where source === "manual", so a
-     draw full of earned entries made the button look dead. This is now
-     the one and only thing that takes an entry out. */
-  const doomed = giveawayRows.slice();
-  const stuck = [];
+     This used to delete each row on its own, so a draw of 257 entries
+     meant 257 sequential requests: many seconds of a button that gave
+     no sign of life, and a partial failure if the connection blinked
+     halfway. PostgREST can delete the lot in a single call, and the
+     message says so while it runs. */
+  note.textContent = "Removing " + live.length + " entries from the draw\u2026";
 
-  for (let i = 0; i < doomed.length; i++) {
-    try {
-      await gwDeleteRow(doomed[i].id);
-    } catch (err) {
-      stuck.push(err.message);
+  try {
+    const res = await fetch(SB_GIVEAWAY_URL + "?id=not.is.null", {
+      method: "DELETE",
+      headers: {
+        "apikey": SB_WIN_KEY,
+        "Authorization": "Bearer " + SB_WIN_KEY
+      }
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(function () { return ""; });
+      throw new Error("(" + res.status + ") " + txt);
     }
+  } catch (err) {
+    note.textContent = "Could not clear the draw: " +
+      (err && err.message ? err.message : "unknown error");
+    return;
   }
 
   await gwLoad();
@@ -1107,11 +1152,8 @@ async function resetGiveaway() {
   renderEntries();
   if (typeof renderWinners === "function") renderWinners();
 
-  note.textContent = stuck.length
-    ? "Could not remove " + stuck.length + " of " + doomed.length + " entries: " + stuck.join(", ")
-    : "Took all " + doomed.length + " entries out of the draw.";
+  note.textContent = "Took all " + live.length + " entries out of the draw.";
 }
-
 /* ---------- THE SPIN WHEEL ----------
 
    A real wheel, drawn on a canvas. One wedge per entry in the draw, so
