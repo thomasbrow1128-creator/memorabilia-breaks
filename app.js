@@ -559,23 +559,25 @@ function setTab(tabId) {
 
     $("boardTitle").textContent = "History";
     $("boardSub").textContent = "Every board written down when it was reset, newest first.";
-    $("filter").disabled = true;
     $("filter").value = "";
 
-    /* the toolbar belongs to the typed boards, so it stands down here */
-    $("resetBoard").disabled = true;
-    $("exportCsv").disabled = true;
-    $("clearAll").disabled = true;
+    /* THE TOOLBAR IS LEFT ALONE HERE.
 
+       This used to disable Reset board, Download CSV and Hide all while
+       the History tab was open and re-enable them on the way out - and
+       that is what greyed out the Reset Giveaway button for good. The
+       giveaway carries its OWN button on the board heading, plus the
+       toolbar one; only the toolbar one was being disabled, so the two
+       could disagree and one stayed dead after a visit to History.
+
+       Nothing is disabled now. The toolbar buttons already stand down by
+       themselves where they do not apply - the toolbar Reset says so in
+       words on a stacked tab, and History has no boxes to draw so there
+       is nothing there to reset anyway. */
     $("saved").textContent = "";
     historyLoad().then(function () { renderHistory(); });
     return;
   }
-
-  $("filter").disabled = false;
-  $("resetBoard").disabled = false;
-  $("exportCsv").disabled = false;
-  $("clearAll").disabled = false;
 
   currentTab = boardById(tabId) ? tabId : BOARDS[0].id;
   const board = boardById(currentTab);
@@ -1402,6 +1404,17 @@ function buildGiveawayWheel() {
 
 function renderBoards() {
   const host = $("boards");
+
+  /* A BUTTON LEFT DISABLED BY ANOTHER TAB IS CLEARED HERE.
+
+     A disabled flag survives a redraw unless something clears it, so a
+     button switched off on one tab stayed grey on the next. Every board
+     draw now starts from a clean slate. */
+  ["resetBoard", "exportCsv", "clearAll", "filter"].forEach(function (id) {
+    const el = $(id);
+    if (el) el.disabled = false;
+  });
+
   const boards = boardsOnTab(currentTab);
   const stacked = boards.length > 1;
 
