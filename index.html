@@ -18,13 +18,16 @@
    ?v= makes each one a different URL, so a changed file is a new
    download everywhere.
 
-   BUMPED to 11 so the newest app.js is fetched. That file now carries
-   the HISTORY tab: every board reset is written down before it clears,
-   and History lists each one, openable to show who sat on which box.
-   A history line can only be deleted from that page.
-   winners.js is unchanged since v9. neon.css is unchanged since v8. */
+   BUMPED to 12 so the newest app.js AND neon.css are fetched.
+
+   app.js now carries: the HISTORY tab (every board reset is written down
+   before it clears, and History lists each one); the GIVEAWAY wheel with
+   the TKS mark in the hub, a side arrow whose point marks the winner,
+   labels that never cross the middle, and a livelier spin.
+
+   neon.css carries the hub-mark styling and the spin glow. */
 (function () {
-  var files = ["casino.css?v=11", "divisions.css?v=11", "neon.css?v=11"];
+  var files = ["casino.css?v=12", "divisions.css?v=12", "neon.css?v=12"];
   for (var i = 0; i < files.length; i++) {
     var link = document.createElement("link");
     link.rel = "stylesheet";
@@ -234,12 +237,12 @@
      ?v= makes each one a different URL, so a changed file is a new
      download everywhere. BUMP THIS NUMBER WHENEVER A SCRIPT CHANGES.
 
-     BUMPED to 11 so app.js is refetched with the rest. -->
-<script src="teams.js?v=11"></script>
-<script src="boards.js?v=11"></script>
-<script src="sb-client.js?v=11"></script>
-<script src="winners.js?v=11"></script>
-<script src="app.js?v=11"></script>
+     BUMPED to 12 so app.js is refetched with the rest. -->
+<script src="teams.js?v=12"></script>
+<script src="boards.js?v=12"></script>
+<script src="sb-client.js?v=12"></script>
+<script src="winners.js?v=12"></script>
+<script src="app.js?v=12"></script>
 
 <script>
 (function () {
@@ -293,5 +296,3 @@
 </script>
 </body>
 </html>
-
-
