@@ -1401,37 +1401,40 @@ function buildGiveawayWheel() {
 
     /* ---------- THE POINTER ----------
 
-       AN ARROW ON THE RIGHT SIDE OF THE WHEEL, its POINT aimed inward at
-       the rim. The point is the marker: whichever wedge it touches is
-       the winner. There is no separate dot or bead, because a marker
-       that is not the point is exactly what confuses people.
+       IT SITS AT THE TOP, because that is where the winner is READ.
 
-       It sits at 3 o'clock, which is 0 radians - and winnerAt() reads
-       the wedge at that angle, so the arrow and the result always agree.
+       windowAt() resolves the winning wedge from the angle at 12 o'clock
+       (-90 degrees). The arrow was drawn at 3 o'clock, so it appeared to
+       mark a different slot from the one the code chose. Point and result
+       disagreed on screen even though the maths was right.
 
-       Drawn AFTER the rim and the dome, so nothing can cover it. */
-    const px = r + (r - 2);          /* the right-hand rim */
-    const tipX = px - 40;            /* how far the point reaches in */
-    const backX = px + 30;           /* how far the body sits out */
-    const halfH = 30;                /* how tall the arrow is */
+       A gold arrow hangs at the top, its POINT aimed DOWN into the rim.
+       The point is the marker - there is no dot, because a marker that is
+       not the point is what confuses people.
+
+       Drawn after the rim and the dome, so nothing covers it, and it does
+       not rotate: it marks the fixed slot the wheel stops under. */
+    const tipY = r - 2 + 38;        /* how far the point reaches in */
+    const backY = r - 2 - 34;       /* how far the body sits out */
+    const halfW = 30;               /* how wide the arrow is */
 
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,.8)";
     ctx.shadowBlur = 18;
-    ctx.shadowOffsetX = 4;
+    ctx.shadowOffsetY = 5;
 
     ctx.beginPath();
-    ctx.moveTo(tipX, r);                       /* the point, at the rim */
-    ctx.lineTo(backX, r - halfH);              /* top back corner */
-    ctx.lineTo(backX - 12, r - 13);
-    ctx.lineTo(backX - 12, r + 13);            /* the tail notch */
-    ctx.lineTo(backX, r + halfH);              /* bottom back corner */
+    ctx.moveTo(r, tipY);                        /* the point, at the rim */
+    ctx.lineTo(r - halfW, backY);               /* left back corner */
+    ctx.lineTo(r - 13, backY + 12);
+    ctx.lineTo(r + 13, backY + 12);             /* the tail notch */
+    ctx.lineTo(r + halfW, backY);               /* right back corner */
     ctx.closePath();
 
-    const ag = ctx.createLinearGradient(backX, r - halfH, tipX, r + halfH);
+    const ag = ctx.createLinearGradient(r - halfW, backY, r + halfW, tipY);
     ag.addColorStop(0, "#8a6410");
-    ag.addColorStop(0.34, "#ffe89a");
-    ag.addColorStop(0.66, "#e8bf5c");
+    ag.addColorStop(0.32, "#ffe89a");
+    ag.addColorStop(0.64, "#e8bf5c");
     ag.addColorStop(1, "#a3760a");
     ctx.fillStyle = ag;
     ctx.fill();
@@ -1439,11 +1442,11 @@ function buildGiveawayWheel() {
 
     /* a bright edge, so the shape reads against the gold rim */
     ctx.beginPath();
-    ctx.moveTo(tipX, r);
-    ctx.lineTo(backX, r - halfH);
-    ctx.lineTo(backX - 12, r - 13);
-    ctx.lineTo(backX - 12, r + 13);
-    ctx.lineTo(backX, r + halfH);
+    ctx.moveTo(r, tipY);
+    ctx.lineTo(r - halfW, backY);
+    ctx.lineTo(r - 13, backY + 12);
+    ctx.lineTo(r + 13, backY + 12);
+    ctx.lineTo(r + halfW, backY);
     ctx.closePath();
     ctx.strokeStyle = "rgba(255,248,215,.95)";
     ctx.lineWidth = 2.5;
