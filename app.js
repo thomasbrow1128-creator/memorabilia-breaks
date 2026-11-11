@@ -1513,10 +1513,36 @@ function refreshBoardCounts() {
       (n ? " - " + n + (n === 1 ? " name" : " names") : "");
   });
 
+  /* ---------- ENABLING A RESET BUTTON ----------
+
+     THE GIVEAWAY WAS ALWAYS DISABLED. countOnBoard() counts rows in
+     public.entries whose target is a BOX on that board. The giveaway is
+     a derived board with no boxes at all - its entries live in
+     giveaway_entries - so the count came back 0 every time, and this
+     line switched the button off with 257 entries sitting in the draw.
+
+     A board counts its boxes. The giveaway counts its DRAW. */
   document.querySelectorAll("[data-reset-for]").forEach(function (el) {
-    const n = countOnBoard(el.dataset.resetFor);
+    const id = el.dataset.resetFor;
+    const board = boardById(id);
+
+    let n;
+    if (board && board.derived) {
+      /* no boxes to count - what matters is whether anyone is in the draw */
+      n = giveawayRows.length;
+    } else {
+      n = countOnBoard(id);
+    }
+
     el.disabled = n === 0;
     el.classList.toggle("hasnames", n > 0);
+
+    /* the giveaway explains what its button will do */
+    if (board && board.derived) {
+      el.title = n
+        ? "Take all " + n + " entries out of the draw. The boards are not touched."
+        : "The draw is empty.";
+    }
   });
 }
 
@@ -2351,5 +2377,3 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   $("undoclose").addEventListener("click", hideUndo);
 });
-
-
