@@ -1,3 +1,4 @@
+
 /* Memorabilia Breaks - one page, any number of boards.
 
    REQUIRES: teams.js, then boards.js, then sb-client.js, this file,
@@ -1166,9 +1167,17 @@ async function resetGiveaway() {
    The pointer sits at the top. The wheel spins, slows, and stops under
    it; the winner is the name whose wedge landed there. */
 
+/* THE WHEEL PALETTE.
+
+   Taken from the TKS Breakz mark: deep space navy and violet, the two
+   neon rails (blue and magenta), and brushed gold. Sixteen tones so
+   neighbouring wedges never repeat, which is what stops a busy wheel
+   reading as one muddy disc. */
 const WHEEL_COLOURS = [
-  "#c9a227", "#2f6fa8", "#a7412f", "#3f7d54",
-  "#6d4a9e", "#b0703a", "#2a7d84", "#8c2f57"
+  "#1d3f7a", "#8a1f6d", "#c9a227", "#17707d",
+  "#5a2a8f", "#a8412c", "#2f6fa8", "#b8860b",
+  "#3f2a6e", "#1f6b4a", "#9b1c4a", "#276bb5",
+  "#7a4a12", "#2a4f8a", "#6d2b7a", "#0f6f7a"
 ];
 
 function buildGiveawayWheel() {
@@ -1231,7 +1240,12 @@ function buildGiveawayWheel() {
 
     ctx.clearRect(0, 0, w, w);
 
-    /* the rim */
+    /* a rim of deep space behind everything, so the gold ring sits on it */
+    ctx.beginPath();
+    ctx.arc(r, r, r - 2, 0, Math.PI * 2);
+    ctx.fillStyle = "#0a1024";
+    ctx.fill();
+
     ctx.beginPath();
     ctx.arc(r, r, r - 6, 0, Math.PI * 2);
     ctx.fillStyle = "#0a1f3a";
@@ -1260,75 +1274,158 @@ function buildGiveawayWheel() {
 
     /* ---------- THE NAMES, ON EVERY WEDGE ----------
 
-       THE OLD RULE DROPPED THIN WEDGES. A slice under 0.14 radians was
-       given no label at all:
+       THE MIDDLE SMEAR. Names used to be written radially when they did
+       not fit their slice - turned outward and run from the hub to the
+       rim. On a busy wheel several long names did that at once and all
+       of them crossed the centre, stacking into an unreadable white
+       block in the middle of the wheel.
 
-           if (share > 0.14) { ...  ctx.fillText(label, r - 26, 0); }
+       NOTHING IS DRAWN THROUGH THE CENTRE NOW. Every label lies ALONG
+       its own wedge, at a radius where the slice is wide enough to hold
+       it:
+         - a wide slice keeps a full-size name out near the rim;
+         - a narrow one steps the name outward, where the slice is wider;
+         - the font shrinks to fit, with a 7px floor;
+         - and a name too long even then is trimmed with an ellipsis.
 
-       With a busy draw every wedge is thin, so most names vanished from
-       the wheel even though their wedge was there and still counted.
-
-       EVERY wedge is labelled now, however thin:
-         - the font shrinks as the slice narrows, down to an 8px floor;
-         - a name that fits lying along its wedge is drawn as before;
-         - one that does not is written RADIALLY, running outward, with a
-           pale panel behind it so it stays readable over the colour;
-         - a name too long even for that is clipped - never dropped.
-
-       ONE WEDGE PER ENTRY IS UNCHANGED, so a person holding three
-       entries still holds three wedges and three times the odds. This
-       only makes the names visible. */
+       A label never starts inside r*0.42, so the hub stays clear. */
     list.forEach(function (seg) {
-      const share = seg.end - seg.start;          /* how wide this slice is */
+      const share = seg.end - seg.start;          /* slice width, radians */
       const mid = (seg.start + seg.end) / 2 + angle;
-      const radius = r - 26;                      /* where a label sits */
-      const room = share * radius;                /* the room it has there */
 
-      /* start at 17px and shrink for a narrow slice, with an 8px floor */
-      const size = Math.max(8, Math.min(17, Math.round(room / 0.62)));
+      /* how far out the name has to sit for its slice to be wide enough */
+      const need = 22;                            /* px of height a line wants */
+      let radius = Math.min(r - 16, Math.max(r * 0.46, need / share));
 
+      /* the font follows the room available at that radius */
+      let size = Math.max(7, Math.min(16, Math.round(share * radius / 0.72)));
       ctx.save();
       ctx.translate(r, r);
       ctx.rotate(mid);
+      ctx.textAlign = "right";
       ctx.textBaseline = "middle";
-      ctx.font = "700 " + size + "px Inter, system-ui, sans-serif";
 
-      const label = seg.name;
-      const width = ctx.measureText(label).width;
+      let label = seg.name;
+      let font = "700 " + size + "px Inter, system-ui, sans-serif";
+      ctx.font = font;
 
-      if (width <= radius - 10) {
-        /* it fits lying along the wedge, as before */
-        ctx.textAlign = "right";
-        ctx.fillStyle = "#0a1424";
-        ctx.fillText(label, radius, 0);
-      } else {
-        /* RADIAL: turn the text outward and run it along the wedge */
-        ctx.rotate(Math.PI / 2);
-        ctx.textAlign = "center";
-        ctx.font = "700 " + Math.max(8, size - 1) + "px Inter, system-ui, sans-serif";
+      let width = ctx.measureText(label).width;
+      const room = radius - r * 0.42;             /* usable run of the label */
 
-        const tw = ctx.measureText(label).width;
-        const maxLen = r - 34;
-        const shown = tw <= maxLen
-          ? label
-          : label.slice(0, Math.max(4, Math.floor(label.length * maxLen / tw))) + "\u2026";
-
-        /* a pale panel behind it, so the name reads over any wedge colour */
-        const bw = ctx.measureText(shown).width;
-        ctx.fillStyle = "rgba(255,255,255,.72)";
-        ctx.fillRect(-bw / 2 - 2, -8, bw + 4, 16);
-
-        ctx.fillStyle = "#0a1424";
-        ctx.fillText(shown, 0, 0);
+      if (width > room) {
+        /* trim the name, never move it inward */
+        let cut = label.length;
+        while (cut > 3 && ctx.measureText(label.slice(0, cut) + "\u2026").width > room) cut--;
+        label = label.slice(0, cut) + "\u2026";
+        width = ctx.measureText(label).width;
       }
+
+      /* a soft dark shadow so the name reads on any wedge colour */
+      ctx.fillStyle = "rgba(0,0,0,.55)";
+      ctx.fillText(label, radius + 1, 1);
+      ctx.fillStyle = "#fdf6df";
+      ctx.fillText(label, radius, 0);
+
       ctx.restore();
     });
 
-    /* the rim again, on top, so wedges cannot spill past it */
+    /* ---------- THE RIM ----------
+
+       Two bands: a wide gold outer ring with a soft glow behind it, and
+       a thin bright inner line. That is the gold metal from the TKS mark,
+       and it is what makes the wheel read as part of the site rather than
+       a flat chart wheel. */
+    ctx.save();
+    ctx.shadowColor = "rgba(255,205,90,.55)";
+    ctx.shadowBlur = 26;
+
+    ctx.beginPath();
+    ctx.arc(r, r, r - 5, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(120,80,255,.35)";
+    ctx.lineWidth = 16;
+    ctx.stroke();
+
     ctx.beginPath();
     ctx.arc(r, r, r - 8, 0, Math.PI * 2);
-    ctx.strokeStyle = "#e6c24f";
-    ctx.lineWidth = 7;
+    const rim = ctx.createLinearGradient(0, 0, 0, w);
+    rim.addColorStop(0, "#fff3c4");
+    rim.addColorStop(0.42, "#e8bf5c");
+    rim.addColorStop(1, "#8a6410");
+    ctx.strokeStyle = rim;
+    ctx.lineWidth = 10;
+    ctx.stroke();
+    ctx.restore();
+
+    /* a thin neon line inside the gold, so the wedges sit in a lit ring */
+    ctx.beginPath();
+    ctx.arc(r, r, r - 15, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(63,208,255,.5)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    /* ---------- THE GLASS DOME ----------
+
+       A soft highlight across the top half, so the wheel looks lit from
+       above rather than painted flat. */
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(r, r, r - 17, 0, Math.PI * 2);
+    ctx.clip();
+    const dome = ctx.createLinearGradient(0, 0, 0, w);
+    dome.addColorStop(0, "rgba(255,255,255,.20)");
+    dome.addColorStop(0.45, "rgba(255,255,255,.05)");
+    dome.addColorStop(1, "rgba(0,0,0,.28)");
+    ctx.fillStyle = dome;
+    ctx.fillRect(0, 0, w, w);
+    ctx.restore();
+
+    /* ---------- THE POINTER ----------
+
+       A solid gold arrow hanging over the rim at the top, pointing DOWN
+       into the wheel. It is drawn on the canvas, after the rim and the
+       dome, so nothing can cover it - and it does not rotate with the
+       wheel, because it marks the fixed spot the winner stops under. */
+    const tipY = r - 2 + 34;                 /* how far the point reaches in */
+    const baseY = r - 2 - 46;                /* how far the body sits out */
+
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,.75)";
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetY = 5;
+
+    ctx.beginPath();
+    ctx.moveTo(r, tipY);
+    ctx.lineTo(r - 27, baseY);
+    ctx.lineTo(r - 13, baseY - 5);
+    ctx.lineTo(r + 13, baseY - 5);
+    ctx.lineTo(r + 27, baseY);
+    ctx.closePath();
+
+    const pg = ctx.createLinearGradient(r - 27, baseY, r + 27, tipY);
+    pg.addColorStop(0, "#8a6410");
+    pg.addColorStop(0.35, "#ffe89a");
+    pg.addColorStop(0.62, "#e8bf5c");
+    pg.addColorStop(1, "#8a6410");
+    ctx.fillStyle = pg;
+    ctx.fill();
+    ctx.restore();
+
+    /* a bright edge and a jewel, so the arrow reads at a glance */
+    ctx.beginPath();
+    ctx.moveTo(r, tipY);
+    ctx.lineTo(r - 27, baseY);
+    ctx.lineTo(r + 27, baseY);
+    ctx.closePath();
+    ctx.strokeStyle = "rgba(255,248,215,.9)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(r, baseY + 2, 7, 0, Math.PI * 2);
+    ctx.fillStyle = "#c026ff";
+    ctx.fill();
+    ctx.strokeStyle = "#ffe89a";
+    ctx.lineWidth = 2;
     ctx.stroke();
   }
 
