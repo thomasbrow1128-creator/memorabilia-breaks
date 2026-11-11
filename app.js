@@ -403,6 +403,51 @@ function boardSplit(raw) {
 
 /* Write one win straight to the database. Returns the saved row, or
    throws with a readable reason. */
+/* ---------- SAVING A BOARD TO HISTORY ----------
+
+   Every reset with a board's own Reset button writes the board down
+   BEFORE a single row is deleted, so the snapshot holds it exactly as it
+   stood when Reset was pressed.
+
+   One row in public.board_history per reset: which board, when, how many
+   people, and the whole board as JSON - each entry naming the BOX and the
+   NAME, which is what lets History show who sat on which team or pair.
+
+   A FAILED SAVE IS REPORTED, never swallowed. A reset that quietly lost
+   the night would be worse than one that refused to run. */
+async function saveBoardHistory(board, doomed) {
+  const snapshot = doomed.map(function (e) {
+    return { box: e.target, name: e.username };
+  });
+
+  try {
+    const res = await fetch(SB_WIN_URL + "/rest/v1/board_history", {
+      method: "POST",
+      headers: {
+        "apikey": SB_WIN_KEY,
+        "Authorization": "Bearer " + SB_WIN_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      },
+      body: JSON.stringify({
+        board_id: board.id,
+        board_label: board.label,
+        people: snapshot.length,
+        snapshot: snapshot
+      })
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(function () { return ""; });
+      throw new Error("(" + res.status + ") " + txt);
+    }
+  } catch (err) {
+    $("saved").textContent = "Could NOT save " + board.label +
+      " to History: " + (err && err.message ? err.message : "unknown error");
+    return false;
+  }
+  return true;
+}
+
 async function boardLogWin(target, username, item) {
   const res = await fetch(SB_WIN_URL + "/rest/v1/wins", {
     method: "POST",
@@ -913,32 +958,13 @@ function buildGiveawayTile(person) {
 
   tile.appendChild(buyer);
 
-  /* one press takes one hand-typed entry back off this person */
-  if (person.manualIds && person.manualIds.length) {
-    const bar = document.createElement("div");
-    bar.className = "addbar givemanual";
-    const del = document.createElement("button");
-    del.type = "button";
-    del.className = "cedel givedel";
-    del.textContent = "Remove";
-    del.title = "Take this hand-typed entry back out";
-    del.addEventListener("click", async function (ev) {
-      ev.stopPropagation();
-      const id = person.manualIds[0];
-      try {
-        await gwDeleteRow(id);
-      } catch (err) {
-        $("saved").textContent = "Could not remove that entry: " + err.message;
-        return;
-      }
-      entries = entries.filter(function (x) { return x.id !== id; });
-      renderBoards();
-      renderEntries();
-      $("saved").textContent = "Took one hand-typed entry off " + name + ".";
-    });
-    bar.appendChild(del);
-    tile.appendChild(bar);
-  }
+  /* NO PER-ENTRY REMOVE.
+
+     Each giveaway tile used to carry a Remove button for hand-typed
+     entries. That is now gone on purpose: Reset Giveaway is the one and
+     only thing that takes an entry out of the draw, so nobody can trim
+     the draw one tile at a time by mistake. The count and the source
+     line stay, so you can still see what each person holds. */
 
   return tile;
 }
@@ -1006,35 +1032,41 @@ function buildGiveawayAddBar() {
    and no other board is touched either. */
 async function resetGiveaway() {
   const note = $("saved");
-  const manual = giveawayRows.filter(function (r) { return r.source === "manual"; });
 
-  if (!manual.length) {
-    note.textContent = "No hand-added entries to take out.";
+  if (!giveawayRows.length) {
+    note.textContent = "The giveaway is already empty.";
     return;
   }
 
-  /* only the rows typed straight onto the giveaway go. Entries earned on
-     Teams or Pairs are a different source and are left alone. */
+  if (!confirm("Remove all " + giveawayRows.length + " entries from the giveaway?" +
+    String.fromCharCode(10, 10) +
+    "The boards are not touched. This is the ONLY way an entry leaves the draw.")) return;
+
+  /* EVERY ROW GOES - earned on Teams or Pairs, and hand-added alike.
+
+     The old version deleted only rows where source === "manual", so a
+     draw full of earned entries made the button look dead. This is now
+     the one and only thing that takes an entry out. */
+  const doomed = giveawayRows.slice();
   const stuck = [];
-  for (let i = 0; i < manual.length; i++) {
+
+  for (let i = 0; i < doomed.length; i++) {
     try {
-      await gwDeleteRow(manual[i].id);
+      await gwDeleteRow(doomed[i].id);
     } catch (err) {
       stuck.push(err.message);
     }
   }
 
   await gwLoad();
-  renderBoards();
+  refreshBoards();
   renderEntries();
   if (typeof renderWinners === "function") renderWinners();
 
   note.textContent = stuck.length
-    ? "Could not remove " + stuck.length + " of " + manual.length + " entries: " + stuck.join(", ")
-    : "Took " + manual.length + " hand-added entr" + (manual.length === 1 ? "y" : "ies") +
-      " out. Entries earned on Teams and Pairs are untouched.";
+    ? "Could not remove " + stuck.length + " of " + doomed.length + " entries: " + stuck.join(", ")
+    : "Took all " + doomed.length + " entries out of the draw.";
 }
-
 
 /* ---------- THE SPIN WHEEL ----------
 
@@ -1674,6 +1706,10 @@ async function resetBoard(boardId) {
     if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0 };
     perPerson[name][boardId] += 1;
   });
+  /* WRITE THE BOARD DOWN FIRST. History is the record of what was on
+     the board, so it has to be taken before anything goes. */
+  await saveBoardHistory(board, doomed);
+
   undoSnapshot = doomed.slice();
   $("saved").textContent = "Clearing " + doomed.length + " from " + board.label + "...";
 
