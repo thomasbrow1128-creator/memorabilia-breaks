@@ -523,6 +523,16 @@ function buildTabs() {
     btn.addEventListener("click", function () { setTab(b.id); });
     nav.appendChild(btn);
   });
+
+  /* HISTORY sits last, after the boards. It is not in BOARDS because it
+     has no boxes to draw - but it belongs on the same row of tabs. */
+  const hist = document.createElement("button");
+  hist.type = "button";
+  hist.dataset.viewBtn = "history";
+  hist.setAttribute("role", "tab");
+  hist.textContent = "History";
+  hist.addEventListener("click", function () { setTab("history"); });
+  nav.appendChild(hist);
 }
 
 function setCompact(on) {
@@ -533,6 +543,40 @@ function setCompact(on) {
 }
 
 function setTab(tabId) {
+  /* THE HISTORY TAB IS NOT A BOARD. It has no boxes, nothing to type on
+     and nothing to reset, so it is handled before the board lookups -
+     which would otherwise fall through to the first board and draw that
+     instead. */
+  if (tabId === "history") {
+    currentTab = "history";
+    setCompact(false);
+
+    document.querySelectorAll("[data-view-btn]").forEach(function (b) {
+      const on = b.dataset.viewBtn === "history";
+      b.className = on ? "on" : "";
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+
+    $("boardTitle").textContent = "History";
+    $("boardSub").textContent = "Every board written down when it was reset, newest first.";
+    $("filter").disabled = true;
+    $("filter").value = "";
+
+    /* the toolbar belongs to the typed boards, so it stands down here */
+    $("resetBoard").disabled = true;
+    $("exportCsv").disabled = true;
+    $("clearAll").disabled = true;
+
+    $("saved").textContent = "";
+    historyLoad().then(function () { renderHistory(); });
+    return;
+  }
+
+  $("filter").disabled = false;
+  $("resetBoard").disabled = false;
+  $("exportCsv").disabled = false;
+  $("clearAll").disabled = false;
+
   currentTab = boardById(tabId) ? tabId : BOARDS[0].id;
   const board = boardById(currentTab);
   const stack = boardsOnTab(currentTab);
@@ -1738,6 +1782,171 @@ async function resetBoard(boardId) {
 }
 
 
+
+/* ============================================================
+   THE HISTORY PAGE
+
+   Every reset with a board's own Reset button writes the board down
+   first: who was on which box, on which board, at what time. Nothing
+   else writes here, so this is the record of what each break held.
+
+   IT IS READ-ONLY FROM EVERYWHERE ELSE. The only way a line leaves is
+   the Delete button on this page.
+   ============================================================ */
+
+let historyRows = [];
+
+async function historyLoad() {
+  try {
+    const res = await fetch(
+      SB_WIN_URL + "/rest/v1/board_history?select=*&order=cleared_at.desc",
+      { headers: SB_HEADERS }
+    );
+    if (!res.ok) return historyRows;
+    historyRows = await res.json();
+  } catch (e) {
+    /* leave what we have rather than blanking the page */
+  }
+  return historyRows;
+}
+
+/* one saved reset, openable to show who sat where */
+function buildHistoryEntry(row) {
+  const wrap = document.createElement("div");
+  wrap.className = "histentry";
+
+  const head = document.createElement("button");
+  head.type = "button";
+  head.className = "histhead";
+
+  const when = new Date(row.cleared_at);
+  const good = !isNaN(when);
+
+  const title = document.createElement("span");
+  title.className = "histtitle";
+  title.textContent = row.board_label || row.board_id;
+  head.appendChild(title);
+
+  const count = document.createElement("span");
+  count.className = "histcount";
+  count.textContent = (row.people || 0) + ((row.people === 1) ? " name" : " names");
+  head.appendChild(count);
+
+  const stamp = document.createElement("span");
+  stamp.className = "histwhen";
+  stamp.textContent = good ? when.toLocaleString() : "-";
+  head.appendChild(stamp);
+
+  const chev = document.createElement("span");
+  chev.className = "histchev";
+  chev.textContent = "\u25B8";
+  head.appendChild(chev);
+
+  const body = document.createElement("div");
+  body.className = "histbody";
+  body.style.display = "none";
+
+  const list = Array.isArray(row.snapshot) ? row.snapshot : [];
+  if (!list.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "That reset saved no names - the board was empty.";
+    body.appendChild(p);
+  } else {
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    thead.innerHTML = "<tr><th>Box</th><th>Name</th></tr>";
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    list.forEach(function (item) {
+      const tr = document.createElement("tr");
+      tr.appendChild(textCell(item.box || "-"));
+      tr.appendChild(textCell(item.name || "-"));
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    body.appendChild(table);
+  }
+
+  head.addEventListener("click", function () {
+    const open = body.style.display !== "none";
+    body.style.display = open ? "none" : "";
+    chev.textContent = open ? "\u25B8" : "\u25BE";
+  });
+
+  wrap.appendChild(head);
+  wrap.appendChild(body);
+
+  /* ---------- DELETE, ONLY HERE ----------
+
+     Nothing else in the site can remove a history line: not a board
+     reset, not Hide all, not the winners page. This is the one place. */
+  const bar = document.createElement("div");
+  bar.className = "histbar";
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "del";
+  del.textContent = "Delete this reset";
+  del.title = "Remove this saved board from History";
+  del.addEventListener("click", async function (ev) {
+    ev.stopPropagation();
+    if (!confirm("Delete the saved \"" + (row.board_label || row.board_id) +
+      "\" from " + (good ? when.toLocaleString() : "that reset") + "?" +
+      String.fromCharCode(10, 10) + "The boards and the winners log are not touched.")) return;
+
+    del.disabled = true;
+    del.textContent = "Deleting\u2026";
+    try {
+      const res = await fetch(
+        SB_WIN_URL + "/rest/v1/board_history?id=eq." + encodeURIComponent(row.id),
+        { method: "DELETE", headers: SB_HEADERS }
+      );
+      if (!res.ok) {
+        const txt = await res.text().catch(function () { return ""; });
+        throw new Error("(" + res.status + ") " + txt);
+      }
+    } catch (err) {
+      del.disabled = false;
+      del.textContent = "Delete this reset";
+      $("saved").textContent = "Could not delete that saved board: " +
+        (err && err.message ? err.message : "unknown error");
+      return;
+    }
+    await historyLoad();
+    renderHistory();
+    $("saved").textContent = "Deleted that saved board from History.";
+  });
+  bar.appendChild(del);
+  wrap.appendChild(bar);
+
+  return wrap;
+}
+
+function renderHistory() {
+  const host = $("boards");
+  if (!host) return;
+  host.innerHTML = "";
+
+  const count = $("count");
+  if (count) {
+    count.textContent = historyRows.length
+      ? "(" + historyRows.length + (historyRows.length === 1 ? " saved board" : " saved boards") + ")"
+      : "";
+  }
+
+  if (!historyRows.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Nothing saved yet. Press the Reset button on a board and " +
+      "everything that was on it is written down here, with the time.";
+    host.appendChild(p);
+    return;
+  }
+
+  historyRows.forEach(function (row) {
+    host.appendChild(buildHistoryEntry(row));
+  });
+}
 
 /* ---------- the list of names ---------- */
 
