@@ -1,4 +1,3 @@
-
 /* Memorabilia Breaks - one page, any number of boards.
 
    REQUIRES: teams.js, then boards.js, then sb-client.js, this file,
@@ -1198,11 +1197,32 @@ function buildGiveawayWheel() {
   pointer.className = "wheelpointer";
   holder.appendChild(pointer);
 
+  /* ---------- THE HUB ----------
+
+     The transparent TKS mark sits at the centre of the wheel, and the
+     whole hub is the SPIN button. The mark is loaded from the repo root
+     and laid over a gold disc, so it reads as a seal on the axle rather
+     than a logo dropped on top.
+
+     If the file cannot load, the word SPIN stands in - the button still
+     works either way. */
   const hub = document.createElement("button");
   hub.type = "button";
   hub.className = "wheelhub";
-  hub.textContent = "SPIN";
   hub.title = "Spin the wheel to pick a winner";
+
+  const hubImg = document.createElement("img");
+  hubImg.className = "wheelhubimg";
+  hubImg.alt = "Spin";
+  hubImg.src = "tks-mark.svg";
+  hubImg.addEventListener("error", function () {
+    hubImg.remove();
+    const word = document.createElement("span");
+    word.className = "wheelhubword";
+    word.textContent = "SPIN";
+    hub.appendChild(word);
+  });
+  hub.appendChild(hubImg);
   holder.appendChild(hub);
 
   wrap.appendChild(holder);
@@ -1381,51 +1401,52 @@ function buildGiveawayWheel() {
 
     /* ---------- THE POINTER ----------
 
-       A solid gold arrow hanging over the rim at the top, pointing DOWN
-       into the wheel. It is drawn on the canvas, after the rim and the
-       dome, so nothing can cover it - and it does not rotate with the
-       wheel, because it marks the fixed spot the winner stops under. */
-    const tipY = r - 2 + 34;                 /* how far the point reaches in */
-    const baseY = r - 2 - 46;                /* how far the body sits out */
+       AN ARROW ON THE RIGHT SIDE OF THE WHEEL, its POINT aimed inward at
+       the rim. The point is the marker: whichever wedge it touches is
+       the winner. There is no separate dot or bead, because a marker
+       that is not the point is exactly what confuses people.
+
+       It sits at 3 o'clock, which is 0 radians - and winnerAt() reads
+       the wedge at that angle, so the arrow and the result always agree.
+
+       Drawn AFTER the rim and the dome, so nothing can cover it. */
+    const px = r + (r - 2);          /* the right-hand rim */
+    const tipX = px - 40;            /* how far the point reaches in */
+    const backX = px + 30;           /* how far the body sits out */
+    const halfH = 30;                /* how tall the arrow is */
 
     ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,.75)";
-    ctx.shadowBlur = 16;
-    ctx.shadowOffsetY = 5;
+    ctx.shadowColor = "rgba(0,0,0,.8)";
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetX = 4;
 
     ctx.beginPath();
-    ctx.moveTo(r, tipY);
-    ctx.lineTo(r - 27, baseY);
-    ctx.lineTo(r - 13, baseY - 5);
-    ctx.lineTo(r + 13, baseY - 5);
-    ctx.lineTo(r + 27, baseY);
+    ctx.moveTo(tipX, r);                       /* the point, at the rim */
+    ctx.lineTo(backX, r - halfH);              /* top back corner */
+    ctx.lineTo(backX - 12, r - 13);
+    ctx.lineTo(backX - 12, r + 13);            /* the tail notch */
+    ctx.lineTo(backX, r + halfH);              /* bottom back corner */
     ctx.closePath();
 
-    const pg = ctx.createLinearGradient(r - 27, baseY, r + 27, tipY);
-    pg.addColorStop(0, "#8a6410");
-    pg.addColorStop(0.35, "#ffe89a");
-    pg.addColorStop(0.62, "#e8bf5c");
-    pg.addColorStop(1, "#8a6410");
-    ctx.fillStyle = pg;
+    const ag = ctx.createLinearGradient(backX, r - halfH, tipX, r + halfH);
+    ag.addColorStop(0, "#8a6410");
+    ag.addColorStop(0.34, "#ffe89a");
+    ag.addColorStop(0.66, "#e8bf5c");
+    ag.addColorStop(1, "#a3760a");
+    ctx.fillStyle = ag;
     ctx.fill();
     ctx.restore();
 
-    /* a bright edge and a jewel, so the arrow reads at a glance */
+    /* a bright edge, so the shape reads against the gold rim */
     ctx.beginPath();
-    ctx.moveTo(r, tipY);
-    ctx.lineTo(r - 27, baseY);
-    ctx.lineTo(r + 27, baseY);
+    ctx.moveTo(tipX, r);
+    ctx.lineTo(backX, r - halfH);
+    ctx.lineTo(backX - 12, r - 13);
+    ctx.lineTo(backX - 12, r + 13);
+    ctx.lineTo(backX, r + halfH);
     ctx.closePath();
-    ctx.strokeStyle = "rgba(255,248,215,.9)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(r, baseY + 2, 7, 0, Math.PI * 2);
-    ctx.fillStyle = "#c026ff";
-    ctx.fill();
-    ctx.strokeStyle = "#ffe89a";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255,248,215,.95)";
+    ctx.lineWidth = 2.5;
     ctx.stroke();
   }
 
@@ -1456,37 +1477,107 @@ function buildGiveawayWheel() {
 
     spinning = true;
     hub.disabled = true;
+    holder.classList.add("spinning");
     result.textContent = "Spinning...";
     result.classList.remove("won");
 
     const TAU = Math.PI * 2;
-    const turns = 6 + Math.random() * 3;              /* full turns */
-    const land = Math.random() * TAU;                 /* where it stops */
+
+    /* ---------- A DRAW THAT FEELS LIKE A DRAW ----------
+
+       The old spin was one long ease-out: fast, then a slow crawl, and
+       nothing else happened. This one is built in four parts so there is
+       something to watch:
+
+         1. a hard LAUNCH - the wheel snaps into motion rather than
+            sliding away, so pressing the button feels like it did
+            something;
+         2. a long COAST at speed, with the wheel wobbling very slightly
+            as it turns, the way a real wheel does when it is not
+            perfectly balanced;
+         3. a DECAY through the last turns where it visibly slows and the
+            wobble deepens, so you can feel it deciding;
+         4. and a TICK - a small elastic bounce when it settles, plus a
+            pulse of light on the rim and the winner's name landing hard.
+
+       The wedge count does not change any of this: the wheel still
+       lands on a real entry, and winnerAt() still reads whatever the
+       side arrow is pointing at. */
+    const turns = 7 + Math.random() * 4;
+    const land = Math.random() * TAU;
     const from = angle;
     const to = from + turns * TAU + land;
+
+    const howLong = 6200;
     const started = performance.now();
-    const howLong = 5200;                             /* milliseconds */
+
+    /* where the wheel would stop if the finger came off right now */
+    function poseAt(t) {
+      /* 1 + 2. launch hard, then coast: quintic ease-out */
+      const coast = 1 - Math.pow(1 - t, 5);
+
+      /* the wobble: a small oscillation that grows as the wheel slows,
+         so the last turns visibly hunt for the slot */
+      const wobble = Math.sin(t * Math.PI * 22) *
+                     (t * t * 0.055) * (1 - t * 0.4);
+
+      /* 3. the last stretch settles instead of crawling forever */
+      const settle = t > 0.88
+        ? 1 + (1 - Math.cos((t - 0.88) / 0.12 * Math.PI)) * 0.006
+        : 1;
+
+      return { at: coast + wobble, settle: settle };
+    }
 
     function frame(now) {
       const t = Math.min((now - started) / howLong, 1);
-      /* ease out: fast at first, crawling at the end */
-      const eased = 1 - Math.pow(1 - t, 3);
-      angle = from + (to - from) * eased;
+      const pose = poseAt(t);
+
+      angle = from + (to - from) * pose.at;
       draw();
+
+      /* the rim pulses brighter the closer it gets to stopping */
+      holder.style.setProperty("--spin-glow", String(0.25 + t * 0.75));
+
       if (t < 1) {
         requestAnimationFrame(frame);
         return;
       }
-      angle = to % TAU;
 
-      const who = winnerAt(angle);
+      /* 4. land, then bounce once and settle */
+      angle = to % TAU;
+      holder.classList.remove("spinning");
+
+      const spun = to;
+      const bounceFrom = performance.now();
+      const bounceLong = 620;
+
+      function bounce(now2) {
+        const b = Math.min((now2 - bounceFrom) / bounceLong, 1);
+        /* a damped spring: overshoot, come back, stop */
+        const over = Math.sin(b * Math.PI * 1.5) * Math.exp(-b * 5.5) * 0.035;
+        angle = spun + over;
+        draw();
+        if (b < 1) { requestAnimationFrame(bounce); return; }
+
+        angle = spun % TAU;
+        draw();
+        announce(angle, list);
+      }
+      requestAnimationFrame(bounce);
+    }
+
+    function announce(a, list) {
+      const who = winnerAt(a);
       const held = list.filter(function (s) { return s.name === who; }).length;
       result.innerHTML = "Winner: <b>" + who + "</b>" +
         (held > 1 ? " (" + held + " entries)" : " (1 entry)");
       result.classList.add("won");
       spinning = false;
       hub.disabled = false;
+      holder.style.setProperty("--spin-glow", "0");
     }
+
     requestAnimationFrame(frame);
   }
 
