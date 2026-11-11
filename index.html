@@ -18,14 +18,14 @@
    ?v= makes each one a different URL, so a changed file is a new
    download everywhere.
 
-   BUMPED to 9 so the newest winners.js is fetched. That file now
-   watches the wins table, so a win appears without a page reload, and
-   its Delete button deletes the row for good instead of only hiding it
-   on screen. neon.css is unchanged since v8: it carries the Pairs logo
-   rules that beat divisions.css's 82px cap, and the card-height fix
-   that stops the name field being clipped. */
+   BUMPED to 10 so the newest app.js is fetched. That file now writes
+   a board to History before every reset, and its Reset Giveaway clears
+   every entry in the draw - the only thing that can remove one.
+   winners.js is unchanged since v9: it watches the wins table, and its
+   Delete button deletes the row for good. neon.css is unchanged since
+   v8: the Pairs logo rules, and the card-height fix. */
 (function () {
-  var files = ["casino.css?v=9", "divisions.css?v=9", "neon.css?v=9"];
+  var files = ["casino.css?v=10", "divisions.css?v=10", "neon.css?v=10"];
   for (var i = 0; i < files.length; i++) {
     var link = document.createElement("link");
     link.rel = "stylesheet";
@@ -235,12 +235,12 @@
      ?v= makes each one a different URL, so a changed file is a new
      download everywhere. BUMP THIS NUMBER WHENEVER A SCRIPT CHANGES.
 
-     BUMPED to 9 so winners.js is refetched with the rest. -->
-<script src="teams.js?v=9"></script>
-<script src="boards.js?v=9"></script>
-<script src="sb-client.js?v=9"></script>
-<script src="winners.js?v=9"></script>
-<script src="app.js?v=9"></script>
+     BUMPED to 10 so app.js is refetched with the rest. -->
+<script src="teams.js?v=10"></script>
+<script src="boards.js?v=10"></script>
+<script src="sb-client.js?v=10"></script>
+<script src="winners.js?v=10"></script>
+<script src="app.js?v=10"></script>
 
 <script>
 (function () {
@@ -294,3 +294,4 @@
 </script>
 </body>
 </html>
+
