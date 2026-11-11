@@ -22,12 +22,40 @@
      - Hide all               -> log untouched
      - removing one name      -> log untouched
      - renaming a name        -> the line is UPDATED in place
-   The ONLY way a line leaves is the Clear winners button on this page.
+   A line leaves this page in exactly two ways, both deliberate:
+     - the Delete button on that line
+     - the Clear winners button, which empties the lot
 
    TRACKING NUMBERS. Each winner line carries its own small tracking
    field, right beside the win. Type a number there and it is saved on
    that line. A tracking number is part of the win's own row, not a
    separate list.
+
+   ---------- TWO FAULTS THIS FILE USED TO HAVE ----------
+
+   1. A NEW WIN NEEDED A PAGE RELOAD TO APPEAR. The list was read once,
+      in initWinners(). Nothing watched the wins table, so a win written
+      by a board sat in the database while this page kept showing the
+      list it had read at load. Only a refresh re-read it.
+
+      There is now a watcher on the wins table, plus a slow poll as a
+      backstop for a dropped socket, so a win appears within a second or
+      two without anyone touching the page.
+
+   2. DELETE ONLY CHANGED THE SCREEN. The button removed the line from
+      the in-page array and called saveWinners(), which is a no-op that
+      just returns true. The row stayed in the database, so the next
+      reload brought it straight back.
+
+      It was worse than that. renderWinners() redraws the whole table
+      from the local array, so if that array was stale - the page had
+      been open a while, or another device had added or edited wins -
+      ANY redraw could hide rows that still existed. That is the "it
+      removes some entries by itself" fault.
+
+      Delete now sends a DELETE to the wins table, waits for it, and
+      re-reads. A win that is gone is gone everywhere; a win that is
+      still there comes back on the next read.
    ============================================================ */
 
 const WINNERS_KEY = "memorabilia-breaks-winners-v1";
@@ -35,6 +63,10 @@ const WINNERS_KEY = "memorabilia-breaks-winners-v1";
 let winners = [];
 let undoWinnersSnapshot = null;
 let winnersUndoTimer = null;
+
+/* the watcher and the backstop timer, kept so they are never doubled up */
+let winnersWatch = null;
+let winnersPoll = null;
 
 /* ---------- storage ---------- */
 
@@ -87,9 +119,18 @@ async function loadWinners() {
   }
 }
 
-/* after a change, re-read so the page shows what the database holds */
+/* A change has already been written to the database, so this only has to
+   put the screen back in step with it. It READS rather than rendering from
+   whatever the page happens to be holding.
+
+   THAT IS THE POINT. Rendering from the local array is what hid rows: a
+   stale list redrawn itself and lines that existed in the database
+   disappeared from the page until the next reload. Reading first means the
+   screen can only ever show what the database actually holds. */
 async function saveWinners() {
-  return true;                   /* writes go through the database calls */
+  await loadWinners();
+  renderWinners();
+  return true;
 }
 
 /* Split an entry into its two parts.
@@ -179,6 +220,16 @@ function renderWinners() {
       : "";
   }
 
+  /* remember what is being typed, so a redraw does not eat it.
+
+     THE WATCHER NOW REDRAWS ON ITS OWN, which it did not before. Without
+     this, a win arriving on another device would clear the tracking box
+     somebody was halfway through typing into. */
+  const typing = {};
+  host.querySelectorAll("input.trackinput").forEach(function (el, i) {
+    if (document.activeElement === el && el.value) typing[i] = el.value;
+  });
+
   host.innerHTML = "";
 
   if (!winners.length) {
@@ -199,7 +250,7 @@ function renderWinners() {
 
   const tbody = document.createElement("tbody");
 
-  winners.forEach(function (w) {
+  winners.forEach(function (w, rowIndex) {
     const when = new Date(w.at);
     const good = !isNaN(when);
 
@@ -241,7 +292,7 @@ function renderWinners() {
     const trkInput = document.createElement("input");
     trkInput.type = "text";
     trkInput.className = "trackinput";
-    trkInput.value = w.tracking || "";
+    trkInput.value = typing[rowIndex] !== undefined ? typing[rowIndex] : (w.tracking || "");
     trkInput.placeholder = "tracking #";
     trkInput.setAttribute("aria-label", "Tracking number for " + w.username);
     trkInput.autocomplete = "off";
@@ -254,10 +305,16 @@ function renderWinners() {
        later, the row comes back with an empty tracking field, and the box
        wipes itself. The number was never sent anywhere.
 
-       It now writes to the wins table over sbUpdateWin(id, ...), which is
-       the same row the customer page reads, so the number is saved for
-       good and appears there too. The local copy is only kept in step
-       AFTER the database has accepted it. */
+       It now writes to the wins table, the same row the customer page
+       reads, so the number is saved for good and appears there too. The
+       local copy is only kept in step AFTER the database has accepted it.
+
+       WRITTEN WITH THE PUBLISHABLE KEY, NOT THE SIGN-IN ONE. sbUpdateWin
+       demands a signed-in session, and this page has no sign-in at all -
+       it threw "Not signed in" on every attempt and the number was
+       discarded. That is why tracking never stuck. The wins table's policy
+       allows anyone with the link to write, so the same key the board
+       already uses works here. */
     async function saveTracking() {
       const next = trkInput.value.trim();
       if (next === (w.tracking || "")) return;   /* nothing changed */
@@ -266,14 +323,6 @@ function renderWinners() {
       w.tracking = next;                          /* show it straight away */
 
       try {
-        /* WRITTEN WITH THE PUBLISHABLE KEY, NOT THE SIGN-IN ONE.
-
-           sbUpdateWin demands a signed-in session - and this page has no
-           sign-in at all, so it threw "Not signed in" on every attempt and
-           the number was discarded. That is why tracking never stuck.
-
-           The wins table's policy allows anyone with the link to write, so
-           the same key the board and the giveaway already use works here. */
         if (!w.id) throw new Error("that win has no row id to save to");
         const res = await fetch(
           SB_URL + "/rest/v1/wins?id=eq." + encodeURIComponent(w.id),
@@ -330,17 +379,70 @@ function renderWinners() {
     tdTrk.appendChild(trkInput);
     tr.appendChild(tdTrk);
 
-    /* delete */
+    /* ---------- DELETE, FOR GOOD ----------
+
+       THIS USED TO ONLY CHANGE THE SCREEN. It removed the line from the
+       in-page array and called saveWinners(), which is a no-op returning
+       true - so the row stayed in public.wins and the next reload pulled
+       it straight back.
+
+       It now deletes the row itself, waits for the database to confirm,
+       and re-reads so the page shows what is really there. If the delete
+       fails, the line is put back and the reason is shown, rather than
+       leaving a button that looks like it worked. */
     const td = document.createElement("td");
     const del = document.createElement("button");
     del.type = "button";
     del.className = "del";
     del.textContent = "Delete";
-    del.title = "Remove only this logged win";
-    del.addEventListener("click", function () {
-      winners = winners.filter(function (x) { return x.id !== w.id; });
-      saveWinners();
-      renderWinners();
+    del.title = "Delete this win from the log";
+    del.addEventListener("click", async function () {
+      if (!w.id) {
+        const note = document.getElementById("saved");
+        if (note) note.textContent = "That line has no row id, so it cannot be deleted.";
+        return;
+      }
+      if (!confirm("Delete the win for @" + w.username + " (" + w.item + ")?\n\n"
+        + "This removes the row for everyone. The boards are not touched.")) return;
+
+      del.disabled = true;
+      del.textContent = "Deleting…";
+
+      try {
+        const res = await fetch(
+          SB_URL + "/rest/v1/wins?id=eq." + encodeURIComponent(w.id),
+          {
+            method: "DELETE",
+            headers: {
+              "apikey": SB_KEY,
+              "Authorization": "Bearer " + SB_KEY,
+              "Prefer": "return=representation"
+            }
+          }
+        );
+        if (!res.ok) {
+          const txt = await res.text().catch(function () { return ""; });
+          throw new Error("(" + res.status + ") " + txt);
+        }
+        const rows = await res.json().catch(function () { return null; });
+        if (Array.isArray(rows) && rows.length === 0) {
+          throw new Error("the row was not found - it may already have been deleted");
+        }
+      } catch (err) {
+        del.disabled = false;
+        del.textContent = "Delete";
+        const note = document.getElementById("saved");
+        if (note) {
+          note.textContent = "Could not delete that win: " +
+            (err && err.message ? err.message : "unknown error");
+        }
+        return;
+      }
+
+      /* gone for good - re-read so the page matches the database */
+      await saveWinners();
+      const ok = document.getElementById("saved");
+      if (ok) ok.textContent = "Deleted the win for @" + w.username + ".";
     });
     td.appendChild(del);
     tr.appendChild(td);
@@ -390,20 +492,60 @@ function editWinner(tr, win, field) {
   td.appendChild(save);
   td.appendChild(cancel);
 
-  function commit() {
+  /* A RENAME WRITES TO THE DATABASE TOO.
+
+     It used to change the in-page copy and call the no-op saveWinners(),
+     so a corrected spelling reverted on the next reload. This sends the
+     change to the row and re-reads. */
+  async function commit() {
     const next = input.value.trim();
     if (!next) { input.focus(); return; }
+
+    const before = win[field];
     win[field] = next;
-    saveWinners();
-    renderWinners();
+    tr.dataset.editing = "";
+
+    try {
+      if (!win.id) throw new Error("that win has no row id to save to");
+      const res = await fetch(
+        SB_URL + "/rest/v1/wins?id=eq." + encodeURIComponent(win.id),
+        {
+          method: "PATCH",
+          headers: {
+            "apikey": SB_KEY,
+            "Authorization": "Bearer " + SB_KEY,
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+          },
+          body: JSON.stringify({ [field]: next })
+        }
+      );
+      if (!res.ok) {
+        const txt = await res.text().catch(function () { return ""; });
+        throw new Error("(" + res.status + ") " + txt);
+      }
+    } catch (err) {
+      win[field] = before;               /* put it back, do not pretend */
+      const note = document.getElementById("saved");
+      if (note) {
+        note.textContent = "Could not save that change: " +
+          (err && err.message ? err.message : "unknown error");
+      }
+      renderWinners();
+      return;
+    }
+
+    await saveWinners();
+    const done = document.getElementById("saved");
+    if (done) done.textContent = "Saved the new " + field + ".";
   }
 
   save.addEventListener("click", commit);
   input.addEventListener("keydown", function (ev) {
     if (ev.key === "Enter") { ev.preventDefault(); commit(); }
-    if (ev.key === "Escape") { ev.preventDefault(); renderWinners(); }
+    if (ev.key === "Escape") { ev.preventDefault(); tr.dataset.editing = ""; renderWinners(); }
   });
-  cancel.addEventListener("click", function () { renderWinners(); });
+  cancel.addEventListener("click", function () { tr.dataset.editing = ""; renderWinners(); });
 
   input.focus();
   input.select();
@@ -446,20 +588,50 @@ function downloadWinnersCsv() {
 
 /* clear the whole winners log, with undo.
 
-   THIS IS THE ONLY THING THAT EMPTIES THE WINNERS LIST. */
-function clearWinners() {
+   THIS IS THE ONLY OTHER WAY A LINE LEAVES THIS PAGE. It now clears the
+   DATABASE, not just the screen, so the emptied list survives a reload. */
+async function clearWinners() {
   if (!winners.length) return;
   const line1 = "Remove all " + winners.length + " logged wins?";
-  const line2 = "This clears the winners list only. The boards are not touched.";
+  const line2 = "This clears the winners log itself, for everyone. The boards are not touched.";
   if (!confirm(line1 + String.fromCharCode(10, 10) + line2)) return;
 
   undoWinnersSnapshot = winners.slice();
-  winners = [];
-  saveWinners();
+
+  try {
+    const res = await fetch(SB_URL + "/rest/v1/wins?id=not.is.null", {
+      method: "DELETE",
+      headers: {
+        "apikey": SB_KEY,
+        "Authorization": "Bearer " + SB_KEY
+      }
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(function () { return ""; });
+      throw new Error("(" + res.status + ") " + txt);
+    }
+  } catch (err) {
+    undoWinnersSnapshot = null;
+    const note = document.getElementById("saved");
+    if (note) {
+      note.textContent = "Could not clear the winners log: " +
+        (err && err.message ? err.message : "unknown error");
+    }
+    return;
+  }
+
+  await loadWinners();
   renderWinners();
-  showWinnersUndo("Cleared " + undoWinnersSnapshot.length + " logged wins.");
+  showWinnersUndo("Cleared " + undoWinnersSnapshot.length + " logged wins. "
+    + "Undo puts them back on this screen only.");
 }
 
+/* Clear winners' undo restores the SCREEN, not the database.
+
+   The rows are genuinely deleted, so there is nothing to un-delete without
+   writing them all back as new rows with new ids. Rather than pretend, this
+   rebuilds the list in the page so the night's log can be read again, and
+   the message says so. Download the CSV before clearing if the log matters. */
 function showWinnersUndo(message) {
   const bar = document.getElementById("winnerUndoBar");
   const txt = document.getElementById("winnerUndoText");
@@ -470,30 +642,94 @@ function showWinnersUndo(message) {
   winnersUndoTimer = setTimeout(function () { bar.classList.remove("show"); }, 14000);
 }
 
+/* ---------- staying in step with the database ----------
+
+   A WIN NOW APPEARS WITHOUT A REFRESH.
+
+   The list used to be read once, at load, and never again - so a win
+   written by a board showed up only after somebody reloaded the page.
+
+   Two things keep it current:
+     - a realtime watcher on the wins table, which fires the moment a row
+       is inserted, updated or deleted anywhere, and
+     - a slow poll as a backstop, because a websocket can drop quietly on
+       a flaky connection and the page would then sit on a stale list.
+
+   Both call the same refresh, which re-reads and redraws. */
+async function refreshWinnersPage() {
+  await loadWinners();
+  renderWinners();
+}
+
+function startWinnersWatch() {
+  /* only once - initWinners can be called again by the page switcher */
+  if (winnersWatch) return;
+  try {
+    if (typeof sbWatchWins === "function") {
+      winnersWatch = sbWatchWins(function () {
+        refreshWinnersPage();
+      });
+    }
+  } catch (e) {
+    /* the poll below covers this */
+  }
+
+  if (!winnersPoll) {
+    winnersPoll = setInterval(refreshWinnersPage, 15000);
+  }
+}
+
 function initWinners() {
-  loadWinners();
+  loadWinners().then(function () {
+    renderWinners();
+  });
   renderWinners();
 
   const csv = document.getElementById("winnerCsv");
-  if (csv) csv.addEventListener("click", downloadWinnersCsv);
+  if (csv && !csv.dataset.wired) {
+    csv.dataset.wired = "1";
+    csv.addEventListener("click", downloadWinnersCsv);
+  }
 
   const clear = document.getElementById("winnerClear");
-  if (clear) clear.addEventListener("click", clearWinners);
+  if (clear && !clear.dataset.wired) {
+    clear.dataset.wired = "1";
+    clear.addEventListener("click", clearWinners);
+  }
+
+  const refresh = document.getElementById("winnerRefresh");
+  if (refresh && !refresh.dataset.wired) {
+    refresh.dataset.wired = "1";
+    refresh.addEventListener("click", function () {
+      refreshWinnersPage().then(function () {
+        const note = document.getElementById("saved");
+        if (note) note.textContent = "Winners refreshed.";
+      });
+    });
+  }
 
   const undo = document.getElementById("winnerUndoBtn");
-  if (undo) undo.addEventListener("click", function () {
-    if (!undoWinnersSnapshot) return;
-    winners = undoWinnersSnapshot;
-    undoWinnersSnapshot = null;
-    saveWinners();
-    renderWinners();
-    const bar = document.getElementById("winnerUndoBar");
-    if (bar) bar.classList.remove("show");
-  });
+  if (undo && !undo.dataset.wired) {
+    undo.dataset.wired = "1";
+    undo.addEventListener("click", function () {
+      if (!undoWinnersSnapshot) return;
+      winners = undoWinnersSnapshot;
+      undoWinnersSnapshot = null;
+      renderWinners();
+      const bar = document.getElementById("winnerUndoBar");
+      if (bar) bar.classList.remove("show");
+    });
+  }
 
   const close = document.getElementById("winnerUndoClose");
-  if (close) close.addEventListener("click", function () {
-    const bar = document.getElementById("winnerUndoBar");
-    if (bar) bar.classList.remove("show");
-  });
+  if (close && !close.dataset.wired) {
+    close.dataset.wired = "1";
+    close.addEventListener("click", function () {
+      const bar = document.getElementById("winnerUndoBar");
+      if (bar) bar.classList.remove("show");
+    });
+  }
+
+  startWinnersWatch();
 }
+
