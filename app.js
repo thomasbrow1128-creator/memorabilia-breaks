@@ -354,6 +354,35 @@ function normalizeName(raw) {
 
    With this, both read the same person, and a $ still sends its item to
    the Winners page. */
+/* ---------- WHICH BOARD A BOX BELONGS TO ----------
+
+   Called four times in this file - the entry earn, the giveaway count,
+   the winners tally, and the board reconcile - and it was missing from
+   the file entirely, so every call threw `giveawayBoardOf is not
+   defined`.
+
+   THAT IS THE TEAMS BUG. The Teams commit path reaches this call BEFORE
+   it reaches the win write, so a $item typed on the Teams board saved
+   the name and then died one step short of logging the win. The Pairs
+   board commits on its own path, past this call, which is why wins
+   worked there and not on Teams.
+
+   DIVISIONS ANSWER null FIRST, and that ordering matters: "afc-east"
+   contains a hyphen, so testing for a hyphen before testing for a
+   division would file every division box under Pairs. */
+function giveawayBoardOf(targetId) {
+  const id = String(targetId == null ? "" : targetId).trim().toLowerCase();
+  if (!id) return null;
+
+  /* divisions feed no giveaway - answered before any other test */
+  if (id.indexOf("afc") === 0 || id.indexOf("nfc") === 0) return null;
+
+  /* Pairs boxes are named "<a>-<b>"; Teams boxes are a single team */
+  if (id.indexOf("-") !== -1) return "pairs";
+
+  return "teams";
+}
+
 function personKey(raw) {
   const text = String(raw == null ? "" : raw).trim().replace(/^@/, "");
   const before = text.split("$")[0];
@@ -403,51 +432,6 @@ function boardSplit(raw) {
 
 /* Write one win straight to the database. Returns the saved row, or
    throws with a readable reason. */
-/* ---------- SAVING A BOARD TO HISTORY ----------
-
-   Every reset with a board's own Reset button writes the board down
-   BEFORE a single row is deleted, so the snapshot holds it exactly as it
-   stood when Reset was pressed.
-
-   One row in public.board_history per reset: which board, when, how many
-   people, and the whole board as JSON - each entry naming the BOX and the
-   NAME, which is what lets History show who sat on which team or pair.
-
-   A FAILED SAVE IS REPORTED, never swallowed. A reset that quietly lost
-   the night would be worse than one that refused to run. */
-async function saveBoardHistory(board, doomed) {
-  const snapshot = doomed.map(function (e) {
-    return { box: e.target, name: e.username };
-  });
-
-  try {
-    const res = await fetch(SB_WIN_URL + "/rest/v1/board_history", {
-      method: "POST",
-      headers: {
-        "apikey": SB_WIN_KEY,
-        "Authorization": "Bearer " + SB_WIN_KEY,
-        "Content-Type": "application/json",
-        "Prefer": "return=representation"
-      },
-      body: JSON.stringify({
-        board_id: board.id,
-        board_label: board.label,
-        people: snapshot.length,
-        snapshot: snapshot
-      })
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(function () { return ""; });
-      throw new Error("(" + res.status + ") " + txt);
-    }
-  } catch (err) {
-    $("saved").textContent = "Could NOT save " + board.label +
-      " to History: " + (err && err.message ? err.message : "unknown error");
-    return false;
-  }
-  return true;
-}
-
 async function boardLogWin(target, username, item) {
   const res = await fetch(SB_WIN_URL + "/rest/v1/wins", {
     method: "POST",
@@ -523,16 +507,6 @@ function buildTabs() {
     btn.addEventListener("click", function () { setTab(b.id); });
     nav.appendChild(btn);
   });
-
-  /* HISTORY sits last, after the boards. It is not in BOARDS because it
-     has no boxes to draw - but it belongs on the same row of tabs. */
-  const hist = document.createElement("button");
-  hist.type = "button";
-  hist.dataset.viewBtn = "history";
-  hist.setAttribute("role", "tab");
-  hist.textContent = "History";
-  hist.addEventListener("click", function () { setTab("history"); });
-  nav.appendChild(hist);
 }
 
 function setCompact(on) {
@@ -543,42 +517,6 @@ function setCompact(on) {
 }
 
 function setTab(tabId) {
-  /* THE HISTORY TAB IS NOT A BOARD. It has no boxes, nothing to type on
-     and nothing to reset, so it is handled before the board lookups -
-     which would otherwise fall through to the first board and draw that
-     instead. */
-  if (tabId === "history") {
-    currentTab = "history";
-    setCompact(false);
-
-    document.querySelectorAll("[data-view-btn]").forEach(function (b) {
-      const on = b.dataset.viewBtn === "history";
-      b.className = on ? "on" : "";
-      b.setAttribute("aria-selected", on ? "true" : "false");
-    });
-
-    $("boardTitle").textContent = "History";
-    $("boardSub").textContent = "Every board written down when it was reset, newest first.";
-    $("filter").value = "";
-
-    /* THE TOOLBAR IS LEFT ALONE HERE.
-
-       This used to disable Reset board, Download CSV and Hide all while
-       the History tab was open and re-enable them on the way out - and
-       that is what greyed out the Reset Giveaway button for good. The
-       giveaway carries its OWN button on the board heading, plus the
-       toolbar one; only the toolbar one was being disabled, so the two
-       could disagree and one stayed dead after a visit to History.
-
-       Nothing is disabled now. The toolbar buttons already stand down by
-       themselves where they do not apply - the toolbar Reset says so in
-       words on a stacked tab, and History has no boxes to draw so there
-       is nothing there to reset anyway. */
-    $("saved").textContent = "";
-    historyLoad().then(function () { renderHistory(); });
-    return;
-  }
-
   currentTab = boardById(tabId) ? tabId : BOARDS[0].id;
   const board = boardById(currentTab);
   const stack = boardsOnTab(currentTab);
@@ -1004,13 +942,32 @@ function buildGiveawayTile(person) {
 
   tile.appendChild(buyer);
 
-  /* NO PER-ENTRY REMOVE.
-
-     Each giveaway tile used to carry a Remove button for hand-typed
-     entries. That is now gone on purpose: Reset Giveaway is the one and
-     only thing that takes an entry out of the draw, so nobody can trim
-     the draw one tile at a time by mistake. The count and the source
-     line stay, so you can still see what each person holds. */
+  /* one press takes one hand-typed entry back off this person */
+  if (person.manualIds && person.manualIds.length) {
+    const bar = document.createElement("div");
+    bar.className = "addbar givemanual";
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "cedel givedel";
+    del.textContent = "Remove";
+    del.title = "Take this hand-typed entry back out";
+    del.addEventListener("click", async function (ev) {
+      ev.stopPropagation();
+      const id = person.manualIds[0];
+      try {
+        await gwDeleteRow(id);
+      } catch (err) {
+        $("saved").textContent = "Could not remove that entry: " + err.message;
+        return;
+      }
+      entries = entries.filter(function (x) { return x.id !== id; });
+      renderBoards();
+      renderEntries();
+      $("saved").textContent = "Took one hand-typed entry off " + name + ".";
+    });
+    bar.appendChild(del);
+    tile.appendChild(bar);
+  }
 
   return tile;
 }
@@ -1078,84 +1035,36 @@ function buildGiveawayAddBar() {
    and no other board is touched either. */
 async function resetGiveaway() {
   const note = $("saved");
+  const manual = giveawayRows.filter(function (r) { return r.source === "manual"; });
 
-  /* ---------- COUNT FROM THE DATABASE, NOT FROM MEMORY ----------
-
-     THE OLD FIRST LINE WAS THE BUG:
-
-         if (!giveawayRows.length) { ... "already empty" ... return; }
-
-     giveawayRows is filled by gwLoad(), which runs at startup and on a
-     timer. Press the button before that has landed - a fresh load, a
-     slow connection - and the array is still empty while the board on
-     screen plainly shows hundreds of entries. The function then said
-     "already empty" and did nothing, which is exactly what a dead
-     button looks like.
-
-     So the count is read fresh here, at the moment of the press. */
-  note.textContent = "Reading the draw\u2026";
-  await gwLoad();
-
-  let live = [];
-  try {
-    const res = await fetch(
-      SB_GIVEAWAY_URL + "?select=id",
-      { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
-    );
-    if (!res.ok) throw new Error("(" + res.status + ")");
-    live = await res.json();
-  } catch (err) {
-    note.textContent = "Could not read the draw: " +
-      (err && err.message ? err.message : "unknown error");
+  if (!manual.length) {
+    note.textContent = "No hand-added entries to take out.";
     return;
   }
 
-  if (!live.length) {
-    note.textContent = "The giveaway is already empty.";
-    return;
-  }
-
-  if (!confirm("Remove all " + live.length + " entries from the giveaway?" +
-    String.fromCharCode(10, 10) +
-    "The boards are not touched. This is the ONLY way an entry leaves the draw.")) {
-    note.textContent = "";
-    return;
-  }
-
-  /* ---------- ONE REQUEST, NOT ONE PER ROW ----------
-
-     This used to delete each row on its own, so a draw of 257 entries
-     meant 257 sequential requests: many seconds of a button that gave
-     no sign of life, and a partial failure if the connection blinked
-     halfway. PostgREST can delete the lot in a single call, and the
-     message says so while it runs. */
-  note.textContent = "Removing " + live.length + " entries from the draw\u2026";
-
-  try {
-    const res = await fetch(SB_GIVEAWAY_URL + "?id=not.is.null", {
-      method: "DELETE",
-      headers: {
-        "apikey": SB_WIN_KEY,
-        "Authorization": "Bearer " + SB_WIN_KEY
-      }
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(function () { return ""; });
-      throw new Error("(" + res.status + ") " + txt);
+  /* only the rows typed straight onto the giveaway go. Entries earned on
+     Teams or Pairs are a different source and are left alone. */
+  const stuck = [];
+  for (let i = 0; i < manual.length; i++) {
+    try {
+      await gwDeleteRow(manual[i].id);
+    } catch (err) {
+      stuck.push(err.message);
     }
-  } catch (err) {
-    note.textContent = "Could not clear the draw: " +
-      (err && err.message ? err.message : "unknown error");
-    return;
   }
 
   await gwLoad();
-  refreshBoards();
+  renderBoards();
   renderEntries();
   if (typeof renderWinners === "function") renderWinners();
 
-  note.textContent = "Took all " + live.length + " entries out of the draw.";
+  note.textContent = stuck.length
+    ? "Could not remove " + stuck.length + " of " + manual.length + " entries: " + stuck.join(", ")
+    : "Took " + manual.length + " hand-added entr" + (manual.length === 1 ? "y" : "ies") +
+      " out. Entries earned on Teams and Pairs are untouched.";
 }
+
+
 /* ---------- THE SPIN WHEEL ----------
 
    A real wheel, drawn on a canvas. One wedge per entry in the draw, so
@@ -1166,17 +1075,9 @@ async function resetGiveaway() {
    The pointer sits at the top. The wheel spins, slows, and stops under
    it; the winner is the name whose wedge landed there. */
 
-/* THE WHEEL PALETTE.
-
-   Taken from the TKS Breakz mark: deep space navy and violet, the two
-   neon rails (blue and magenta), and brushed gold. Sixteen tones so
-   neighbouring wedges never repeat, which is what stops a busy wheel
-   reading as one muddy disc. */
 const WHEEL_COLOURS = [
-  "#1d3f7a", "#8a1f6d", "#c9a227", "#17707d",
-  "#5a2a8f", "#a8412c", "#2f6fa8", "#b8860b",
-  "#3f2a6e", "#1f6b4a", "#9b1c4a", "#276bb5",
-  "#7a4a12", "#2a4f8a", "#6d2b7a", "#0f6f7a"
+  "#c9a227", "#2f6fa8", "#a7412f", "#3f7d54",
+  "#6d4a9e", "#b0703a", "#2a7d84", "#8c2f57"
 ];
 
 function buildGiveawayWheel() {
@@ -1197,32 +1098,11 @@ function buildGiveawayWheel() {
   pointer.className = "wheelpointer";
   holder.appendChild(pointer);
 
-  /* ---------- THE HUB ----------
-
-     The transparent TKS mark sits at the centre of the wheel, and the
-     whole hub is the SPIN button. The mark is loaded from the repo root
-     and laid over a gold disc, so it reads as a seal on the axle rather
-     than a logo dropped on top.
-
-     If the file cannot load, the word SPIN stands in - the button still
-     works either way. */
   const hub = document.createElement("button");
   hub.type = "button";
   hub.className = "wheelhub";
+  hub.textContent = "SPIN";
   hub.title = "Spin the wheel to pick a winner";
-
-  const hubImg = document.createElement("img");
-  hubImg.className = "wheelhubimg";
-  hubImg.alt = "Spin";
-  hubImg.src = "tks-mark.svg";
-  hubImg.addEventListener("error", function () {
-    hubImg.remove();
-    const word = document.createElement("span");
-    word.className = "wheelhubword";
-    word.textContent = "SPIN";
-    hub.appendChild(word);
-  });
-  hub.appendChild(hubImg);
   holder.appendChild(hub);
 
   wrap.appendChild(holder);
@@ -1260,12 +1140,7 @@ function buildGiveawayWheel() {
 
     ctx.clearRect(0, 0, w, w);
 
-    /* a rim of deep space behind everything, so the gold ring sits on it */
-    ctx.beginPath();
-    ctx.arc(r, r, r - 2, 0, Math.PI * 2);
-    ctx.fillStyle = "#0a1024";
-    ctx.fill();
-
+    /* the rim */
     ctx.beginPath();
     ctx.arc(r, r, r - 6, 0, Math.PI * 2);
     ctx.fillStyle = "#0a1f3a";
@@ -1292,164 +1167,31 @@ function buildGiveawayWheel() {
       ctx.stroke();
     });
 
-    /* ---------- THE NAMES, ON EVERY WEDGE ----------
-
-       THE MIDDLE SMEAR. Names used to be written radially when they did
-       not fit their slice - turned outward and run from the hub to the
-       rim. On a busy wheel several long names did that at once and all
-       of them crossed the centre, stacking into an unreadable white
-       block in the middle of the wheel.
-
-       NOTHING IS DRAWN THROUGH THE CENTRE NOW. Every label lies ALONG
-       its own wedge, at a radius where the slice is wide enough to hold
-       it:
-         - a wide slice keeps a full-size name out near the rim;
-         - a narrow one steps the name outward, where the slice is wider;
-         - the font shrinks to fit, with a 7px floor;
-         - and a name too long even then is trimmed with an ellipsis.
-
-       A label never starts inside r*0.42, so the hub stays clear. */
+    /* the names, written along each wedge */
     list.forEach(function (seg) {
-      const share = seg.end - seg.start;          /* slice width, radians */
       const mid = (seg.start + seg.end) / 2 + angle;
-
-      /* how far out the name has to sit for its slice to be wide enough */
-      const need = 22;                            /* px of height a line wants */
-      let radius = Math.min(r - 16, Math.max(r * 0.46, need / share));
-
-      /* the font follows the room available at that radius */
-      let size = Math.max(7, Math.min(16, Math.round(share * radius / 0.72)));
       ctx.save();
       ctx.translate(r, r);
       ctx.rotate(mid);
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
+      ctx.fillStyle = "#0a1424";
+      ctx.font = "700 17px Inter, system-ui, sans-serif";
 
-      let label = seg.name;
-      let font = "700 " + size + "px Inter, system-ui, sans-serif";
-      ctx.font = font;
-
-      let width = ctx.measureText(label).width;
-      const room = radius - r * 0.42;             /* usable run of the label */
-
-      if (width > room) {
-        /* trim the name, never move it inward */
-        let cut = label.length;
-        while (cut > 3 && ctx.measureText(label.slice(0, cut) + "\u2026").width > room) cut--;
-        label = label.slice(0, cut) + "\u2026";
-        width = ctx.measureText(label).width;
+      /* a wedge too thin for a name gets none, rather than a smear */
+      const share = seg.end - seg.start;
+      if (share > 0.14) {
+        const label = seg.name.length > 13 ? seg.name.slice(0, 12) + "\u2026" : seg.name;
+        ctx.fillText(label, r - 26, 0);
       }
-
-      /* a soft dark shadow so the name reads on any wedge colour */
-      ctx.fillStyle = "rgba(0,0,0,.55)";
-      ctx.fillText(label, radius + 1, 1);
-      ctx.fillStyle = "#fdf6df";
-      ctx.fillText(label, radius, 0);
-
       ctx.restore();
     });
 
-    /* ---------- THE RIM ----------
-
-       Two bands: a wide gold outer ring with a soft glow behind it, and
-       a thin bright inner line. That is the gold metal from the TKS mark,
-       and it is what makes the wheel read as part of the site rather than
-       a flat chart wheel. */
-    ctx.save();
-    ctx.shadowColor = "rgba(255,205,90,.55)";
-    ctx.shadowBlur = 26;
-
-    ctx.beginPath();
-    ctx.arc(r, r, r - 5, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(120,80,255,.35)";
-    ctx.lineWidth = 16;
-    ctx.stroke();
-
+    /* the rim again, on top, so wedges cannot spill past it */
     ctx.beginPath();
     ctx.arc(r, r, r - 8, 0, Math.PI * 2);
-    const rim = ctx.createLinearGradient(0, 0, 0, w);
-    rim.addColorStop(0, "#fff3c4");
-    rim.addColorStop(0.42, "#e8bf5c");
-    rim.addColorStop(1, "#8a6410");
-    ctx.strokeStyle = rim;
-    ctx.lineWidth = 10;
-    ctx.stroke();
-    ctx.restore();
-
-    /* a thin neon line inside the gold, so the wedges sit in a lit ring */
-    ctx.beginPath();
-    ctx.arc(r, r, r - 15, 0, Math.PI * 2);
-    ctx.strokeStyle = "rgba(63,208,255,.5)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    /* ---------- THE GLASS DOME ----------
-
-       A soft highlight across the top half, so the wheel looks lit from
-       above rather than painted flat. */
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(r, r, r - 17, 0, Math.PI * 2);
-    ctx.clip();
-    const dome = ctx.createLinearGradient(0, 0, 0, w);
-    dome.addColorStop(0, "rgba(255,255,255,.20)");
-    dome.addColorStop(0.45, "rgba(255,255,255,.05)");
-    dome.addColorStop(1, "rgba(0,0,0,.28)");
-    ctx.fillStyle = dome;
-    ctx.fillRect(0, 0, w, w);
-    ctx.restore();
-
-    /* ---------- THE POINTER ----------
-
-       IT SITS AT THE TOP, because that is where the winner is READ.
-
-       windowAt() resolves the winning wedge from the angle at 12 o'clock
-       (-90 degrees). The arrow was drawn at 3 o'clock, so it appeared to
-       mark a different slot from the one the code chose. Point and result
-       disagreed on screen even though the maths was right.
-
-       A gold arrow hangs at the top, its POINT aimed DOWN into the rim.
-       The point is the marker - there is no dot, because a marker that is
-       not the point is what confuses people.
-
-       Drawn after the rim and the dome, so nothing covers it, and it does
-       not rotate: it marks the fixed slot the wheel stops under. */
-    const tipY = r - 2 + 38;        /* how far the point reaches in */
-    const backY = r - 2 - 34;       /* how far the body sits out */
-    const halfW = 30;               /* how wide the arrow is */
-
-    ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,.8)";
-    ctx.shadowBlur = 18;
-    ctx.shadowOffsetY = 5;
-
-    ctx.beginPath();
-    ctx.moveTo(r, tipY);                        /* the point, at the rim */
-    ctx.lineTo(r - halfW, backY);               /* left back corner */
-    ctx.lineTo(r - 13, backY + 12);
-    ctx.lineTo(r + 13, backY + 12);             /* the tail notch */
-    ctx.lineTo(r + halfW, backY);               /* right back corner */
-    ctx.closePath();
-
-    const ag = ctx.createLinearGradient(r - halfW, backY, r + halfW, tipY);
-    ag.addColorStop(0, "#8a6410");
-    ag.addColorStop(0.32, "#ffe89a");
-    ag.addColorStop(0.64, "#e8bf5c");
-    ag.addColorStop(1, "#a3760a");
-    ctx.fillStyle = ag;
-    ctx.fill();
-    ctx.restore();
-
-    /* a bright edge, so the shape reads against the gold rim */
-    ctx.beginPath();
-    ctx.moveTo(r, tipY);
-    ctx.lineTo(r - halfW, backY);
-    ctx.lineTo(r - 13, backY + 12);
-    ctx.lineTo(r + 13, backY + 12);
-    ctx.lineTo(r + halfW, backY);
-    ctx.closePath();
-    ctx.strokeStyle = "rgba(255,248,215,.95)";
-    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = "#e6c24f";
+    ctx.lineWidth = 7;
     ctx.stroke();
   }
 
@@ -1480,107 +1222,37 @@ function buildGiveawayWheel() {
 
     spinning = true;
     hub.disabled = true;
-    holder.classList.add("spinning");
     result.textContent = "Spinning...";
     result.classList.remove("won");
 
     const TAU = Math.PI * 2;
-
-    /* ---------- A DRAW THAT FEELS LIKE A DRAW ----------
-
-       The old spin was one long ease-out: fast, then a slow crawl, and
-       nothing else happened. This one is built in four parts so there is
-       something to watch:
-
-         1. a hard LAUNCH - the wheel snaps into motion rather than
-            sliding away, so pressing the button feels like it did
-            something;
-         2. a long COAST at speed, with the wheel wobbling very slightly
-            as it turns, the way a real wheel does when it is not
-            perfectly balanced;
-         3. a DECAY through the last turns where it visibly slows and the
-            wobble deepens, so you can feel it deciding;
-         4. and a TICK - a small elastic bounce when it settles, plus a
-            pulse of light on the rim and the winner's name landing hard.
-
-       The wedge count does not change any of this: the wheel still
-       lands on a real entry, and winnerAt() still reads whatever the
-       side arrow is pointing at. */
-    const turns = 7 + Math.random() * 4;
-    const land = Math.random() * TAU;
+    const turns = 6 + Math.random() * 3;              /* full turns */
+    const land = Math.random() * TAU;                 /* where it stops */
     const from = angle;
     const to = from + turns * TAU + land;
-
-    const howLong = 6200;
     const started = performance.now();
-
-    /* where the wheel would stop if the finger came off right now */
-    function poseAt(t) {
-      /* 1 + 2. launch hard, then coast: quintic ease-out */
-      const coast = 1 - Math.pow(1 - t, 5);
-
-      /* the wobble: a small oscillation that grows as the wheel slows,
-         so the last turns visibly hunt for the slot */
-      const wobble = Math.sin(t * Math.PI * 22) *
-                     (t * t * 0.055) * (1 - t * 0.4);
-
-      /* 3. the last stretch settles instead of crawling forever */
-      const settle = t > 0.88
-        ? 1 + (1 - Math.cos((t - 0.88) / 0.12 * Math.PI)) * 0.006
-        : 1;
-
-      return { at: coast + wobble, settle: settle };
-    }
+    const howLong = 5200;                             /* milliseconds */
 
     function frame(now) {
       const t = Math.min((now - started) / howLong, 1);
-      const pose = poseAt(t);
-
-      angle = from + (to - from) * pose.at;
+      /* ease out: fast at first, crawling at the end */
+      const eased = 1 - Math.pow(1 - t, 3);
+      angle = from + (to - from) * eased;
       draw();
-
-      /* the rim pulses brighter the closer it gets to stopping */
-      holder.style.setProperty("--spin-glow", String(0.25 + t * 0.75));
-
       if (t < 1) {
         requestAnimationFrame(frame);
         return;
       }
-
-      /* 4. land, then bounce once and settle */
       angle = to % TAU;
-      holder.classList.remove("spinning");
 
-      const spun = to;
-      const bounceFrom = performance.now();
-      const bounceLong = 620;
-
-      function bounce(now2) {
-        const b = Math.min((now2 - bounceFrom) / bounceLong, 1);
-        /* a damped spring: overshoot, come back, stop */
-        const over = Math.sin(b * Math.PI * 1.5) * Math.exp(-b * 5.5) * 0.035;
-        angle = spun + over;
-        draw();
-        if (b < 1) { requestAnimationFrame(bounce); return; }
-
-        angle = spun % TAU;
-        draw();
-        announce(angle, list);
-      }
-      requestAnimationFrame(bounce);
-    }
-
-    function announce(a, list) {
-      const who = winnerAt(a);
+      const who = winnerAt(angle);
       const held = list.filter(function (s) { return s.name === who; }).length;
       result.innerHTML = "Winner: <b>" + who + "</b>" +
         (held > 1 ? " (" + held + " entries)" : " (1 entry)");
       result.classList.add("won");
       spinning = false;
       hub.disabled = false;
-      holder.style.setProperty("--spin-glow", "0");
     }
-
     requestAnimationFrame(frame);
   }
 
@@ -1595,17 +1267,6 @@ function buildGiveawayWheel() {
 
 function renderBoards() {
   const host = $("boards");
-
-  /* A BUTTON LEFT DISABLED BY ANOTHER TAB IS CLEARED HERE.
-
-     A disabled flag survives a redraw unless something clears it, so a
-     button switched off on one tab stayed grey on the next. Every board
-     draw now starts from a clean slate. */
-  ["resetBoard", "exportCsv", "clearAll", "filter"].forEach(function (id) {
-    const el = $(id);
-    if (el) el.disabled = false;
-  });
-
   const boards = boardsOnTab(currentTab);
   const stacked = boards.length > 1;
 
@@ -1704,36 +1365,10 @@ function refreshBoardCounts() {
       (n ? " - " + n + (n === 1 ? " name" : " names") : "");
   });
 
-  /* ---------- ENABLING A RESET BUTTON ----------
-
-     THE GIVEAWAY WAS ALWAYS DISABLED. countOnBoard() counts rows in
-     public.entries whose target is a BOX on that board. The giveaway is
-     a derived board with no boxes at all - its entries live in
-     giveaway_entries - so the count came back 0 every time, and this
-     line switched the button off with 257 entries sitting in the draw.
-
-     A board counts its boxes. The giveaway counts its DRAW. */
   document.querySelectorAll("[data-reset-for]").forEach(function (el) {
-    const id = el.dataset.resetFor;
-    const board = boardById(id);
-
-    let n;
-    if (board && board.derived) {
-      /* no boxes to count - what matters is whether anyone is in the draw */
-      n = giveawayRows.length;
-    } else {
-      n = countOnBoard(id);
-    }
-
+    const n = countOnBoard(el.dataset.resetFor);
     el.disabled = n === 0;
     el.classList.toggle("hasnames", n > 0);
-
-    /* the giveaway explains what its button will do */
-    if (board && board.derived) {
-      el.title = n
-        ? "Take all " + n + " entries out of the draw. The boards are not touched."
-        : "The draw is empty.";
-    }
   });
 }
 
@@ -2022,10 +1657,6 @@ async function resetBoard(boardId) {
     if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0 };
     perPerson[name][boardId] += 1;
   });
-  /* WRITE THE BOARD DOWN FIRST. History is the record of what was on
-     the board, so it has to be taken before anything goes. */
-  await saveBoardHistory(board, doomed);
-
   undoSnapshot = doomed.slice();
   $("saved").textContent = "Clearing " + doomed.length + " from " + board.label + "...";
 
@@ -2054,171 +1685,6 @@ async function resetBoard(boardId) {
 }
 
 
-
-/* ============================================================
-   THE HISTORY PAGE
-
-   Every reset with a board's own Reset button writes the board down
-   first: who was on which box, on which board, at what time. Nothing
-   else writes here, so this is the record of what each break held.
-
-   IT IS READ-ONLY FROM EVERYWHERE ELSE. The only way a line leaves is
-   the Delete button on this page.
-   ============================================================ */
-
-let historyRows = [];
-
-async function historyLoad() {
-  try {
-    const res = await fetch(
-      SB_WIN_URL + "/rest/v1/board_history?select=*&order=cleared_at.desc",
-      { headers: SB_HEADERS }
-    );
-    if (!res.ok) return historyRows;
-    historyRows = await res.json();
-  } catch (e) {
-    /* leave what we have rather than blanking the page */
-  }
-  return historyRows;
-}
-
-/* one saved reset, openable to show who sat where */
-function buildHistoryEntry(row) {
-  const wrap = document.createElement("div");
-  wrap.className = "histentry";
-
-  const head = document.createElement("button");
-  head.type = "button";
-  head.className = "histhead";
-
-  const when = new Date(row.cleared_at);
-  const good = !isNaN(when);
-
-  const title = document.createElement("span");
-  title.className = "histtitle";
-  title.textContent = row.board_label || row.board_id;
-  head.appendChild(title);
-
-  const count = document.createElement("span");
-  count.className = "histcount";
-  count.textContent = (row.people || 0) + ((row.people === 1) ? " name" : " names");
-  head.appendChild(count);
-
-  const stamp = document.createElement("span");
-  stamp.className = "histwhen";
-  stamp.textContent = good ? when.toLocaleString() : "-";
-  head.appendChild(stamp);
-
-  const chev = document.createElement("span");
-  chev.className = "histchev";
-  chev.textContent = "\u25B8";
-  head.appendChild(chev);
-
-  const body = document.createElement("div");
-  body.className = "histbody";
-  body.style.display = "none";
-
-  const list = Array.isArray(row.snapshot) ? row.snapshot : [];
-  if (!list.length) {
-    const p = document.createElement("p");
-    p.className = "empty";
-    p.textContent = "That reset saved no names - the board was empty.";
-    body.appendChild(p);
-  } else {
-    const table = document.createElement("table");
-    const thead = document.createElement("thead");
-    thead.innerHTML = "<tr><th>Box</th><th>Name</th></tr>";
-    table.appendChild(thead);
-    const tbody = document.createElement("tbody");
-    list.forEach(function (item) {
-      const tr = document.createElement("tr");
-      tr.appendChild(textCell(item.box || "-"));
-      tr.appendChild(textCell(item.name || "-"));
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    body.appendChild(table);
-  }
-
-  head.addEventListener("click", function () {
-    const open = body.style.display !== "none";
-    body.style.display = open ? "none" : "";
-    chev.textContent = open ? "\u25B8" : "\u25BE";
-  });
-
-  wrap.appendChild(head);
-  wrap.appendChild(body);
-
-  /* ---------- DELETE, ONLY HERE ----------
-
-     Nothing else in the site can remove a history line: not a board
-     reset, not Hide all, not the winners page. This is the one place. */
-  const bar = document.createElement("div");
-  bar.className = "histbar";
-  const del = document.createElement("button");
-  del.type = "button";
-  del.className = "del";
-  del.textContent = "Delete this reset";
-  del.title = "Remove this saved board from History";
-  del.addEventListener("click", async function (ev) {
-    ev.stopPropagation();
-    if (!confirm("Delete the saved \"" + (row.board_label || row.board_id) +
-      "\" from " + (good ? when.toLocaleString() : "that reset") + "?" +
-      String.fromCharCode(10, 10) + "The boards and the winners log are not touched.")) return;
-
-    del.disabled = true;
-    del.textContent = "Deleting\u2026";
-    try {
-      const res = await fetch(
-        SB_WIN_URL + "/rest/v1/board_history?id=eq." + encodeURIComponent(row.id),
-        { method: "DELETE", headers: SB_HEADERS }
-      );
-      if (!res.ok) {
-        const txt = await res.text().catch(function () { return ""; });
-        throw new Error("(" + res.status + ") " + txt);
-      }
-    } catch (err) {
-      del.disabled = false;
-      del.textContent = "Delete this reset";
-      $("saved").textContent = "Could not delete that saved board: " +
-        (err && err.message ? err.message : "unknown error");
-      return;
-    }
-    await historyLoad();
-    renderHistory();
-    $("saved").textContent = "Deleted that saved board from History.";
-  });
-  bar.appendChild(del);
-  wrap.appendChild(bar);
-
-  return wrap;
-}
-
-function renderHistory() {
-  const host = $("boards");
-  if (!host) return;
-  host.innerHTML = "";
-
-  const count = $("count");
-  if (count) {
-    count.textContent = historyRows.length
-      ? "(" + historyRows.length + (historyRows.length === 1 ? " saved board" : " saved boards") + ")"
-      : "";
-  }
-
-  if (!historyRows.length) {
-    const p = document.createElement("p");
-    p.className = "empty";
-    p.textContent = "Nothing saved yet. Press the Reset button on a board and " +
-      "everything that was on it is written down here, with the time.";
-    host.appendChild(p);
-    return;
-  }
-
-  historyRows.forEach(function (row) {
-    host.appendChild(buildHistoryEntry(row));
-  });
-}
 
 /* ---------- the list of names ---------- */
 
