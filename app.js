@@ -1442,9 +1442,21 @@ function buildGiveawayWheel() {
 
        Drawn after the rim and the dome, so nothing covers it, and it does
        not rotate: it marks the fixed slot the wheel stops under. */
-    const tipY = r - 2 + 38;        /* how far the point reaches in */
-    const backY = r - 2 - 34;       /* how far the body sits out */
-    const halfW = 30;               /* how wide the arrow is */
+    /* ---------- WHERE THE ARROW LIVES ----------
+
+       r is the CENTRE of the canvas, not the rim. The old constants
+       added to r, which put the point a third of the way INTO the wheel
+       and the body across the middle - so it read as a marker sitting
+       on the hub, not a pointer at the rim.
+
+       The rim is the TOP EDGE of the canvas, at y near 0. The point now
+       lands a hair below that line, so it visibly touches the edge it
+       marks, and the whole body sits ABOVE the wheel in the empty band
+       at the top. Nothing overlaps the face. */
+    const rimY  = 2;                 /* the gold rim, top of the canvas */
+    const tipY  = rimY + 4;          /* the point, touching the rim */
+    const backY = rimY - 44;         /* the body, above the wheel */
+    const halfW = 26;                /* half the width of the arrow */
 
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,.8)";
@@ -1459,7 +1471,7 @@ function buildGiveawayWheel() {
     ctx.lineTo(r + halfW, backY);               /* right back corner */
     ctx.closePath();
 
-    const ag = ctx.createLinearGradient(r - halfW, backY, r + halfW, tipY);
+    const ag = ctx.createLinearGradient(r - halfW, backY, r + halfW, backY);
     ag.addColorStop(0, "#8a6410");
     ag.addColorStop(0.32, "#ffe89a");
     ag.addColorStop(0.64, "#e8bf5c");
@@ -1514,88 +1526,49 @@ function buildGiveawayWheel() {
 
     const TAU = Math.PI * 2;
 
-    /* ---------- A DRAW THAT FEELS LIKE A DRAW ----------
+    /* ---------- ONE CLEAN SPIN ----------
 
-       The old spin was one long ease-out: fast, then a slow crawl, and
-       nothing else happened. This one is built in four parts so there is
-       something to watch:
+       A single ease-out and nothing else: the wheel starts quickly, slows
+       the whole way down, and stops. No wobble, no overshoot, no bounce.
 
-         1. a hard LAUNCH - the wheel snaps into motion rather than
-            sliding away, so pressing the button feels like it did
-            something;
-         2. a long COAST at speed, with the wheel wobbling very slightly
-            as it turns, the way a real wheel does when it is not
-            perfectly balanced;
-         3. a DECAY through the last turns where it visibly slows and the
-            wobble deepens, so you can feel it deciding;
-         4. and a TICK - a small elastic bounce when it settles, plus a
-            pulse of light on the rim and the winner's name landing hard.
+       The wobble and the bounce were removed on purpose. Both moved the
+       angle AFTER the spin had landed, so the wheel could settle on one
+       wedge and then report a different one, and the bounce kept it
+       turning for another third of a second after the name was read.
 
-       The wedge count does not change any of this: the wheel still
-       lands on a real entry, and winnerAt() still reads whatever the
-       side arrow is pointing at. */
-    const turns = 7 + Math.random() * 4;
+       So: sampled easing, four fixed turns, about four seconds. The
+       angle the animation ends at is the angle the winner is read from,
+       exactly. */
+    const turns = 4;
     const land = Math.random() * TAU;
     const from = angle;
     const to = from + turns * TAU + land;
 
-    const howLong = 6200;
+    const howLong = 4200;
     const started = performance.now();
-
-    /* where the wheel would stop if the finger came off right now */
-    function poseAt(t) {
-      /* 1 + 2. launch hard, then coast: quintic ease-out */
-      const coast = 1 - Math.pow(1 - t, 5);
-
-      /* the wobble: a small oscillation that grows as the wheel slows,
-         so the last turns visibly hunt for the slot */
-      const wobble = Math.sin(t * Math.PI * 22) *
-                     (t * t * 0.055) * (1 - t * 0.4);
-
-      /* 3. the last stretch settles instead of crawling forever */
-      const settle = t > 0.88
-        ? 1 + (1 - Math.cos((t - 0.88) / 0.12 * Math.PI)) * 0.006
-        : 1;
-
-      return { at: coast + wobble, settle: settle };
-    }
 
     function frame(now) {
       const t = Math.min((now - started) / howLong, 1);
-      const pose = poseAt(t);
 
-      angle = from + (to - from) * pose.at;
+      /* cubic ease-out: quick off the mark, long slow settle */
+      const e = 1 - Math.pow(1 - t, 3);
+
+      angle = from + (to - from) * e;
       draw();
 
-      /* the rim pulses brighter the closer it gets to stopping */
-      holder.style.setProperty("--spin-glow", String(0.25 + t * 0.75));
+      /* the rim brightens as it slows, then goes dark when it stops */
+      holder.style.setProperty("--spin-glow", String(1 - e));
 
       if (t < 1) {
         requestAnimationFrame(frame);
         return;
       }
 
-      /* 4. land, then bounce once and settle */
+      /* the angle the wheel stopped at IS the angle that gets read */
       angle = to % TAU;
       holder.classList.remove("spinning");
-
-      const spun = to;
-      const bounceFrom = performance.now();
-      const bounceLong = 620;
-
-      function bounce(now2) {
-        const b = Math.min((now2 - bounceFrom) / bounceLong, 1);
-        /* a damped spring: overshoot, come back, stop */
-        const over = Math.sin(b * Math.PI * 1.5) * Math.exp(-b * 5.5) * 0.035;
-        angle = spun + over;
-        draw();
-        if (b < 1) { requestAnimationFrame(bounce); return; }
-
-        angle = spun % TAU;
-        draw();
-        announce(angle, list);
-      }
-      requestAnimationFrame(bounce);
+      draw();
+      announce(angle, list);
     }
 
     function announce(a, list) {
