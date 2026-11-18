@@ -32,19 +32,62 @@
   .ledgerpage{display:none}
   .ledgerpage.on{display:block}
 
-  /* ---------- LIVE PAIRS ---------- */
-  .livegrid{display:grid; gap:10px;
-    grid-template-columns:repeat(auto-fill, minmax(215px, 1fr))}
-  .livebox{
-    display:flex; flex-direction:column; gap:6px; padding:12px 14px;
-    border-radius:12px; border:1px solid rgba(201,162,39,.32);
-    background:linear-gradient(180deg, rgba(3,16,30,.9), rgba(4,20,38,.72))}
-  .livebox.taken{border-color:rgba(201,162,39,.7);
-    background:linear-gradient(180deg, rgba(28,20,4,.85), rgba(20,14,4,.72))}
-  .livebox .pair{font-size:12.5px; font-weight:900; letter-spacing:.05em;
-    text-transform:uppercase; color:#ffd75e}
-  .livebox .holder{font-size:13.5px; font-weight:800; color:#7fe0a0}
-  .livebox .holder.open{color:#8ea9c4; font-weight:700}
+  /* ---------- LIVE PAIRS ----------
+
+     THE SAME SHAPE AS THE BOARD ON THE STAFF SIDE, read-only.
+
+     A tile is a coloured PLATE carrying the pair's logo, with the
+     purchaser band underneath - the same parts the staff board builds,
+     under the same names (.tile / .eb / .teamlogo / .buyer / .buyname),
+     so the two pages read alike.
+
+     A TAKEN BOX GREYS OUT, logo and all - the .taken class is the same
+     one the staff board applies. An OPEN box keeps full colour, so the
+     colour is what tells a customer at a glance what is still free. */
+  .board-small{display:grid; gap:12px;
+    grid-template-columns:repeat(auto-fill, minmax(190px, 1fr))}
+  .board-small .tile{
+    display:flex; flex-direction:column; overflow:hidden;
+    border-radius:14px; border:1px solid rgba(201,162,39,.42);
+    background:linear-gradient(180deg,
+      rgba(30,24,74,.95) 0%, rgba(14,16,48,.94) 44%,
+      rgba(6,8,26,.95) 78%, rgba(4,6,20,.96) 100%);
+    box-shadow:0 12px 30px rgba(0,0,0,.55)}
+
+  .board-small .tile .eb{
+    position:relative; width:100%; min-height:132px; padding:8px 14px;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; border-bottom:1px solid rgba(0,0,0,.55)}
+  .board-small .tile .eb::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(180deg,
+      rgba(255,255,255,.30) 0%, rgba(255,255,255,.06) 34%, transparent 56%)}
+  .board-small .tile .eb .teamlogo{
+    display:block; margin:0 auto;
+    width:100%; height:auto;
+    max-width:100%; max-height:118px;
+    object-fit:contain; object-position:center}
+
+  .board-small .tile .buyer{
+    display:flex; flex-direction:column; gap:3px;
+    padding:10px 12px 12px;
+    border-top:1px solid rgba(120,160,255,.14)}
+  .board-small .tile .buylbl{
+    font-size:9.5px; font-weight:900; letter-spacing:.16em;
+    text-transform:uppercase; color:#7f98b0}
+  .board-small .tile .buyname{
+    font-size:13.5px; font-weight:800; color:#eaf3ff;
+    overflow-wrap:anywhere}
+  .board-small .tile .buyname.buyopen{
+    color:#8ea9c4; font-weight:700}
+
+  /* a taken box greys out - identical rule to the staff board */
+  .board-small .tile.taken{
+    background:linear-gradient(180deg, rgba(32,34,54,.9), rgba(12,14,26,.94));
+    border-color:rgba(110,120,170,.3)}
+  .board-small .tile.taken .buyname{color:#ffd75e;
+    text-shadow:0 0 22px rgba(255,205,90,.6), 0 2px 6px rgba(0,0,0,.98)}
+  .board-small .tile.taken .teamlogo{opacity:.9}
 
   /* ---------- HISTORY ---------- */
   .histrow{
@@ -890,10 +933,101 @@ function setPairLive(on) {
   b.classList.toggle("off", !on);
 }
 
+/* THE PAIRS BOARD, MIRRORED.
+
+   Every one of the 16 pairs is drawn, in board order - not just the ones
+   taken. So a customer sees the whole board the way the staff page shows
+   it: every plate, every logo, and who holds each one.
+
+   The list and the logo paths are the same two things the staff page
+   uses, so the mirror cannot drift: PAIR_ROWS below carries the box name
+   and the file the staff board would load for it. */
+var PAIR_ROWS = [
+  { box: "Cowboys, Jags",      file: "logos/cowboys-jags.png" },
+  { box: "Chiefs, Cardinals",  file: "logos/chiefs-cardinals.png" },
+  { box: "Broncos, Saints",    file: "logos/broncos-saints.png" },
+  { box: "Eagles, Panthers",   file: "logos/eagles-panthers.png" },
+  { box: "Vikings, Titans",    file: "logos/vikings-titans.png" },
+  { box: "Packers, Falcons",   file: "logos/packers-falcons.png" },
+  { box: "Seahawks, Chargers", file: "logos/seahawks-chargers.png" },
+  { box: "Bucs, Commanders",   file: "logos/bucs-commanders.png" },
+  { box: "Ravens, Rams",       file: "logos/ravens-rams.png" },
+  { box: "Patriots, Browns",   file: "logos/patriots-browns.png" },
+  { box: "49ers, Bears",       file: "logos/49ers-bears.png" },
+  { box: "Lions, Raiders",     file: "logos/lions-raiders.png" },
+  { box: "Bengals, Colts",     file: "logos/bengals-colts.png" },
+  { box: "Bills, Jets",        file: "logos/bills-jets.png" },
+  { box: "Steelers, Texans",   file: "logos/steelers-texans.png" },
+  { box: "Dolphins, Giants",   file: "logos/dolphins-giants.png" }
+];
+
+/* the colour behind each plate, taken from the first team named in the
+   pair, so a logo that has not been uploaded still leaves a coloured
+   box rather than a hole - the same fallback the staff board gives */
+var PAIR_COLOURS = {
+  "Cowboys, Jags": "#003594",        "Chiefs, Cardinals": "#E31837",
+  "Broncos, Saints": "#FB4F14",      "Eagles, Panthers": "#004C54",
+  "Vikings, Titans": "#4F2683",      "Packers, Falcons": "#203731",
+  "Seahawks, Chargers": "#002244",   "Bucs, Commanders": "#D50A0A",
+  "Ravens, Rams": "#241773",         "Patriots, Browns": "#002244",
+  "49ers, Bears": "#AA0000",         "Lions, Raiders": "#0076B6",
+  "Bengals, Colts": "#FB4F14",       "Bills, Jets": "#00338D",
+  "Steelers, Texans": "#101820",     "Dolphins, Giants": "#008E97"
+};
+
+function buildPairTile(spec, holders) {
+  var tile = document.createElement("div");
+  tile.className = "tile" + (holders.length ? " taken" : "");
+
+  /* the plate: colour first, then the logo on top of it */
+  var eb = document.createElement("div");
+  eb.className = "eb";
+  eb.style.background = PAIR_COLOURS[spec.box] || "#2b303c";
+
+  var logo = document.createElement("img");
+  logo.className = "teamlogo";
+  logo.src = spec.file;
+  logo.alt = spec.box;
+  logo.loading = "lazy";
+  logo.decoding = "async";
+  /* a missing file leaves the plate clean - no broken-image icon */
+  logo.addEventListener("error", function () { logo.remove(); });
+  eb.appendChild(logo);
+  tile.appendChild(eb);
+
+  /* the purchaser band, exactly as the staff board names it */
+  var buyer = document.createElement("div");
+  buyer.className = "buyer";
+
+  var lbl = document.createElement("span");
+  lbl.className = "buylbl";
+  lbl.textContent = "Purchaser";
+  buyer.appendChild(lbl);
+
+  if (holders.length) {
+    holders.forEach(function (n) {
+      var name = document.createElement("span");
+      name.className = "buyname";
+      name.textContent = "@" + n;
+      buyer.appendChild(name);
+    });
+  } else {
+    var open = document.createElement("span");
+    open.className = "buyname buyopen";
+    open.textContent = "Open";
+    buyer.appendChild(open);
+  }
+
+  tile.appendChild(buyer);
+  tile.title = spec.box + (holders.length ? " - taken" : " - still open");
+  return tile;
+}
+
 function renderPairs(rows) {
   var host = L("livePairBoard");
   if (!host) return;
 
+  /* who holds each box, keyed by the box name stored with the entry */
   var byBox = {};
   (rows || []).forEach(function (r) {
     if (!isPairsBox(r.target)) return;
@@ -903,42 +1037,23 @@ function renderPairs(rows) {
     byBox[r.target].push(who);
   });
 
-  var boxes = Object.keys(byBox).sort();
-  var taken = boxes.length;
+  var filled = 0;
+  PAIR_ROWS.forEach(function (spec) {
+    if ((byBox[spec.box] || []).length) filled += 1;
+  });
 
-  L("livePairCount").textContent = taken ? "(" + taken + " filled)" : "";
-  L("livePairTaken").textContent = taken ? "(" + taken + ")" : "";
-
-  host.innerHTML = "";
-  if (!taken) {
-    var p = document.createElement("p");
-    p.className = "empty";
-    p.textContent = "No pairs taken yet. Boxes appear here as they are filled.";
-    host.appendChild(p);
-    return;
-  }
+  L("livePairCount").textContent = "(" + filled + " of " + PAIR_ROWS.length + " taken)";
+  L("livePairTaken").textContent = "(" + filled + " of " + PAIR_ROWS.length + ")";
 
   var grid = document.createElement("div");
-  grid.className = "livegrid";
-  boxes.forEach(function (box) {
-    var names = byBox[box];
-    var card = document.createElement("div");
-    card.className = "livebox taken";
+  grid.className = "board-small";
 
-    var pair = document.createElement("span");
-    pair.className = "pair";
-    pair.textContent = pairLabel(box);
-    card.appendChild(pair);
-
-    names.forEach(function (n) {
-      var held = document.createElement("span");
-      held.className = "holder";
-      held.textContent = "@" + n;
-      card.appendChild(held);
-    });
-
-    grid.appendChild(card);
+  /* every box, in board order - taken or not */
+  PAIR_ROWS.forEach(function (spec) {
+    grid.appendChild(buildPairTile(spec, byBox[spec.box] || []));
   });
+
+  host.innerHTML = "";
   host.appendChild(grid);
 }
 
