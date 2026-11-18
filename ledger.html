@@ -16,6 +16,54 @@
   .live.off{color:#8ea9c4}
   .live.off::before{background:#8ea9c4; box-shadow:none; animation:none}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  /* ---------- THE TAB BAR ---------- */
+  .ledgertabs{display:flex; flex-wrap:wrap; gap:8px; margin:0 0 18px}
+  .ledgertabs button{
+    font-family:inherit; font-size:12px; font-weight:900;
+    letter-spacing:.1em; text-transform:uppercase; cursor:pointer;
+    padding:11px 18px; border-radius:11px; color:#a9c3dc;
+    background:linear-gradient(180deg, rgba(2,14,28,.9), rgba(4,20,38,.7));
+    border:1px solid rgba(201,162,39,.35)}
+  .ledgertabs button:hover{color:#eaf3ff; border-color:rgba(201,162,39,.7)}
+  .ledgertabs button.on{
+    color:#0b1524; border-color:#ffd76a;
+    background:linear-gradient(180deg,#ffe89a,#e8bf5c);
+    box-shadow:0 0 22px rgba(255,206,80,.35)}
+  .ledgerpage{display:none}
+  .ledgerpage.on{display:block}
+
+  /* ---------- LIVE PAIRS ---------- */
+  .livegrid{display:grid; gap:10px;
+    grid-template-columns:repeat(auto-fill, minmax(215px, 1fr))}
+  .livebox{
+    display:flex; flex-direction:column; gap:6px; padding:12px 14px;
+    border-radius:12px; border:1px solid rgba(201,162,39,.32);
+    background:linear-gradient(180deg, rgba(3,16,30,.9), rgba(4,20,38,.72))}
+  .livebox.taken{border-color:rgba(201,162,39,.7);
+    background:linear-gradient(180deg, rgba(28,20,4,.85), rgba(20,14,4,.72))}
+  .livebox .pair{font-size:12.5px; font-weight:900; letter-spacing:.05em;
+    text-transform:uppercase; color:#ffd75e}
+  .livebox .holder{font-size:13.5px; font-weight:800; color:#7fe0a0}
+  .livebox .holder.open{color:#8ea9c4; font-weight:700}
+
+  /* ---------- HISTORY ---------- */
+  .histrow{
+    padding:14px 16px; margin:0 0 10px; border-radius:12px;
+    border:1px solid rgba(201,162,39,.28);
+    background:linear-gradient(180deg, rgba(3,16,30,.88), rgba(4,20,38,.7))}
+  .histrow .histtop{display:flex; flex-wrap:wrap; gap:10px;
+    align-items:baseline; margin-bottom:9px}
+  .histrow .histboard{font-size:12.5px; font-weight:900; letter-spacing:.08em;
+    text-transform:uppercase; color:#ffd75e}
+  .histrow .histwhen{font-size:12px; color:#8ea9c4}
+  .histrow .histn{font-size:12px; color:#a9c3dc; font-weight:800}
+  .histrow .histnames{display:flex; flex-wrap:wrap; gap:7px}
+  .histrow .histname{
+    font-size:12px; padding:4px 10px; border-radius:7px;
+    background:rgba(4,20,34,.85); border:1px solid rgba(201,162,39,.4);
+    color:#eaf3ff}
+  .histrow .histname b{color:#ffd75e; font-weight:800}
+
   .who{color:#ffd75e; font-weight:900;
     text-shadow:0 0 16px rgba(255,206,80,.45), 0 2px 4px rgba(0,0,0,.9)}
   .trk b{display:inline-block; padding:4px 11px; border-radius:7px;
@@ -197,6 +245,14 @@
   <p>Every item won, newest first</p>
 </header>
 <div class="wrap">
+  <div class="ledgertabs" id="ledgerTabs">
+    <button type="button" data-page="winners" class="on">Winners</button>
+    <button type="button" data-page="pairs">Live Pairs</button>
+    <button type="button" data-page="history">History</button>
+  </div>
+
+  <!-- ================= PAGE: WINNERS (unchanged) ================= -->
+  <div class="ledgerpage on" id="page-winners">
   <div class="boardhead">
     <h2>Winners</h2>
     <span id="ledgerCount"></span>
@@ -261,6 +317,51 @@
       The list refreshes on its own, so there is nothing to reload.
     </div>
   </div>
+  </div>
+  <!-- ================= /PAGE: WINNERS ================= -->
+
+  <!-- ================= PAGE: LIVE PAIRS ================= -->
+  <div class="ledgerpage" id="page-pairs">
+    <div class="boardhead">
+      <h2>Live Pairs</h2>
+      <span id="livePairCount"></span>
+    </div>
+    <div class="toolbar">
+      <div class="left"><span class="live" id="livePairBadge">Live</span></div>
+    </div>
+    <div class="panel">
+      <h2>The Pairs board <span class="count" id="livePairTaken"></span></h2>
+      <p class="sub">
+        Who is on which pair right now. This is the Pairs board only, and it is
+        read-only - nothing here can be changed from this page. It updates by
+        itself as boxes are filled.
+      </p>
+      <p class="runstart" id="livePairWhen"></p>
+      <div id="livePairBoard"></div>
+    </div>
+  </div>
+  <!-- ================= /PAGE: LIVE PAIRS ================= -->
+
+  <!-- ================= PAGE: HISTORY ================= -->
+  <div class="ledgerpage" id="page-history">
+    <div class="boardhead">
+      <h2>History</h2>
+      <span id="histCount"></span>
+    </div>
+    <div class="toolbar">
+      <div class="left"><button class="ghost" id="histRefresh" type="button">Refresh</button></div>
+    </div>
+    <div class="panel">
+      <h2>Every board, as it stood</h2>
+      <p class="sub">
+        Each time a board is reset, what it held is written down first, with the
+        time it happened. Newest first. Nothing on this page can be changed.
+      </p>
+      <div id="histBoard"></div>
+      <p class="findmsg" id="histMsg"></p>
+    </div>
+  </div>
+  <!-- ================= /PAGE: HISTORY ================= -->
 </div>
 <script src="sb-client.js"></script>
 <script>
@@ -709,6 +810,288 @@ loadGiveaway();
 setInterval(loadGiveaway, 20000);
 
 setInterval(function () { load(false); }, 30000);
+
+/* ============================================================
+   THE TABS
+   ============================================================ */
+var pageNames = ["winners", "pairs", "history"];
+var pageNow = "winners";
+
+function showPage(which) {
+  if (pageNames.indexOf(which) === -1) which = "winners";
+  pageNow = which;
+  pageNames.forEach(function (p) {
+    var box = L("page-" + p);
+    if (box) box.classList.toggle("on", p === which);
+  });
+  var bar = L("ledgerTabs");
+  if (bar) {
+    var btns = bar.querySelectorAll("button");
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle("on", btns[i].getAttribute("data-page") === which);
+    }
+  }
+  try { sessionStorage.setItem("mb-ledger-page", which); } catch (e) {}
+
+  /* each page loads when it is first looked at, then keeps up on its own */
+  if (which === "pairs") loadPairs();
+  if (which === "history") loadHistory();
+}
+
+var tabBar = L("ledgerTabs");
+if (tabBar) {
+  tabBar.addEventListener("click", function (ev) {
+    var b = ev.target.closest ? ev.target.closest("button") : null;
+    if (!b) return;
+    showPage(b.getAttribute("data-page"));
+  });
+}
+
+/* ============================================================
+   PAGE: LIVE PAIRS
+
+   The Pairs board ONLY, read-only, for customers. It reads the same
+   public.entries table the staff board writes to, keeps the rows whose
+   box belongs to the Pairs board, and draws them as plain boxes.
+
+   NOTHING HERE CAN EDIT ANYTHING. There is no add bar, no panel, no
+   remove and no reset - the elements simply are not built. Even if a
+   customer typed into the console, the page holds only read calls:
+   sbListEntries is a SELECT and there is no write path on this page.
+   ============================================================ */
+var SB_PAIRS_URL = "https://bzvrslhfyaetmwzbnldt.supabase.co/rest/v1/entries";
+var SB_PAIRS_KEY = "sb_publishable_pM8hQ1cP77AXANXCkAS0qA_jfC9ibYq";
+
+/* A Pairs box is named "<a>-<b>". Divisions are prefixed afc/nfc and
+   teams are a single word, so the board is identified the same way the
+   staff board does it - divisions first, then the hyphen. */
+function isPairsBox(target) {
+  var t = String(target == null ? "" : target).toLowerCase();
+  if (!t) return false;
+  if (t.indexOf("afc") === 0 || t.indexOf("nfc") === 0) return false;
+  return t.indexOf("-") !== -1;
+}
+
+function pairLabel(target) {
+  return String(target || "").split("-").map(function (w) {
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join(" - ");
+}
+
+/* the buyer part only - a box typed "dave$JD5" shows "dave" */
+function buyerOnly(raw) {
+  return String(raw == null ? "" : raw).trim().replace(/^@/, "").split("$")[0].trim();
+}
+
+function setPairLive(on) {
+  var b = L("livePairBadge");
+  if (!b) return;
+  b.textContent = on ? "Live" : "Reconnecting";
+  b.classList.toggle("off", !on);
+}
+
+function renderPairs(rows) {
+  var host = L("livePairBoard");
+  if (!host) return;
+
+  var byBox = {};
+  (rows || []).forEach(function (r) {
+    if (!isPairsBox(r.target)) return;
+    var who = buyerOnly(r.username);
+    if (!who) return;
+    if (!byBox[r.target]) byBox[r.target] = [];
+    byBox[r.target].push(who);
+  });
+
+  var boxes = Object.keys(byBox).sort();
+  var taken = boxes.length;
+
+  L("livePairCount").textContent = taken ? "(" + taken + " filled)" : "";
+  L("livePairTaken").textContent = taken ? "(" + taken + ")" : "";
+
+  host.innerHTML = "";
+  if (!taken) {
+    var p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "No pairs taken yet. Boxes appear here as they are filled.";
+    host.appendChild(p);
+    return;
+  }
+
+  var grid = document.createElement("div");
+  grid.className = "livegrid";
+  boxes.forEach(function (box) {
+    var names = byBox[box];
+    var card = document.createElement("div");
+    card.className = "livebox taken";
+
+    var pair = document.createElement("span");
+    pair.className = "pair";
+    pair.textContent = pairLabel(box);
+    card.appendChild(pair);
+
+    names.forEach(function (n) {
+      var held = document.createElement("span");
+      held.className = "holder";
+      held.textContent = "@" + n;
+      card.appendChild(held);
+    });
+
+    grid.appendChild(card);
+  });
+  host.appendChild(grid);
+}
+
+function loadPairs() {
+  var host = L("livePairBoard");
+  if (!host) return;
+
+  fetch(SB_PAIRS_URL + "?select=username,target", {
+    headers: { "apikey": SB_PAIRS_KEY, "Authorization": "Bearer " + SB_PAIRS_KEY }
+  }).then(function (res) {
+    if (!res.ok) throw new Error("(" + res.status + ")");
+    return res.json();
+  }).then(function (rows) {
+    renderPairs(rows);
+    setPairLive(true);
+    var w = L("livePairWhen");
+    if (w) w.textContent = "Updated " + new Date().toLocaleTimeString();
+  }).catch(function () {
+    setPairLive(false);
+  });
+}
+
+/* live when the table allows it, and a slow poll underneath so the page
+   still keeps up if the realtime socket is unavailable */
+if (typeof sbWatchEntries === "function") {
+  try { sbWatchEntries(function () { if (pageNow === "pairs") loadPairs(); }); } catch (e) {}
+}
+setInterval(function () { if (pageNow === "pairs") loadPairs(); }, 15000);
+
+/* ============================================================
+   PAGE: HISTORY
+
+   Every board reset is written down before it happens, with the time.
+   This reads those rows. READ ONLY - the Delete button that sits on the
+   staff History tab is deliberately NOT built here, so a customer can
+   look and nothing else.
+   ============================================================ */
+var SB_HIST_URL = "https://bzvrslhfyaetmwzbnldt.supabase.co/rest/v1/board_history";
+var SB_HIST_KEY = "sb_publishable_pM8hQ1cP77AXANXCkAS0qA_jfC9ibYq";
+
+function histWhen(iso) {
+  var d = new Date(iso);
+  if (isNaN(d)) return "-";
+  return d.toLocaleDateString() + " " + d.toLocaleTimeString();
+}
+
+function histNames(snapshot) {
+  var out = [];
+  (snapshot || []).forEach(function (e) {
+    var who = buyerOnly(e.name);
+    var box = String(e.box || "");
+    if (!who) return;
+    out.push({ who: who, box: box });
+  });
+  return out;
+}
+
+function renderHistory(rows) {
+  var host = L("histBoard");
+  var msg = L("histMsg");
+  if (!host) return;
+
+  host.innerHTML = "";
+  if (msg) msg.textContent = "";
+
+  var count = L("histCount");
+
+  if (!rows || !rows.length) {
+    if (count) count.textContent = "";
+    var p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "No resets written down yet. History fills up as boards are reset.";
+    host.appendChild(p);
+    return;
+  }
+
+  if (count) count.textContent = "(" + rows.length + ")";
+
+  rows.forEach(function (row) {
+    var wrap = document.createElement("div");
+    wrap.className = "histrow";
+
+    var top = document.createElement("div");
+    top.className = "histtop";
+
+    var board = document.createElement("span");
+    board.className = "histboard";
+    board.textContent = row.board_label || row.board_id || "Board";
+    top.appendChild(board);
+
+    var when = document.createElement("span");
+    when.className = "histwhen";
+    when.textContent = histWhen(row.cleared_at);
+    top.appendChild(when);
+
+    var n = document.createElement("span");
+    n.className = "histn";
+    var people = histNames(row.snapshot).length;
+    n.textContent = people + (people === 1 ? " name" : " names") + " on the board";
+    top.appendChild(n);
+
+    wrap.appendChild(top);
+
+    var names = histNames(row.snapshot);
+    if (names.length) {
+      var list = document.createElement("div");
+      list.className = "histnames";
+      names.forEach(function (item) {
+        var chip = document.createElement("span");
+        chip.className = "histname";
+        var box = document.createElement("b");
+        box.textContent = pairLabel(item.box) + " ";
+        chip.appendChild(box);
+        chip.appendChild(document.createTextNode("@" + item.who));
+        list.appendChild(chip);
+      });
+      wrap.appendChild(list);
+    }
+
+    host.appendChild(wrap);
+  });
+}
+
+function loadHistory() {
+  var host = L("histBoard");
+  var msg = L("histMsg");
+  if (!host) return;
+
+  fetch(SB_HIST_URL + "?select=*&order=cleared_at.desc&limit=60", {
+    headers: { "apikey": SB_HIST_KEY, "Authorization": "Bearer " + SB_HIST_KEY }
+  }).then(function (res) {
+    if (!res.ok) throw new Error("(" + res.status + ")");
+    return res.json();
+  }).then(function (rows) {
+    renderHistory(rows);
+  }).catch(function (err) {
+    host.innerHTML = "";
+    var p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Could not read the history right now " + err.message + ".";
+    host.appendChild(p);
+    if (msg) { msg.textContent = "Try Refresh in a moment."; msg.classList.add("none"); }
+  });
+}
+
+var histBtn = L("histRefresh");
+if (histBtn) histBtn.addEventListener("click", loadHistory);
+
+/* ---------- open on the page the customer was last on ---------- */
+try {
+  var lastPage = sessionStorage.getItem("mb-ledger-page");
+  if (lastPage) showPage(lastPage);
+} catch (e) {}
 </script>
 </body>
 </html>
