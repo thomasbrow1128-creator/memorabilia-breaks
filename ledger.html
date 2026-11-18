@@ -394,23 +394,16 @@
 </header>
 <div class="wrap">
   <div class="ledgertabs" id="ledgerTabs">
-    <button type="button" data-page="winners" class="on">Winners</button>
+    <button type="button" data-page="leaders" class="on">Leaderboard</button>
     <button type="button" data-page="pairs">Live Pairs</button>
+    <button type="button" data-page="winners">Winners &amp; Tracking</button>
     <button type="button" data-page="history">History</button>
   </div>
 
   <!-- ================= PAGE: WINNERS (unchanged) ================= -->
-  <div class="ledgerpage on" id="page-winners">
+  <div class="ledgerpage on" id="page-leaders">
   <div class="boardhead">
-    <h2>Winners</h2>
-    <span id="ledgerCount"></span>
-  </div>
-  <div class="toolbar">
-    <div class="left"><span class="live" id="liveBadge">Live</span></div>
-    <div class="left">
-      <button class="ghost" id="ledgerRefresh" type="button">Refresh</button>
-      <button class="ghost" id="ledgerCsv" type="button">Download list</button>
-    </div>
+    <h2>Leaderboard</h2>
   </div>
   <div class="panel">
     <h2>All-Time Leaders <span class="count" id="allCount"></span></h2>
@@ -428,6 +421,22 @@
     </p>
     <div id="givBoard"></div>
     <p class="findmsg" id="givMsg"></p>
+  </div>
+  </div>
+  <!-- ================= /PAGE: LEADERBOARD ================= -->
+
+  <!-- ================= PAGE: WINNERS & TRACKING ================= -->
+  <div class="ledgerpage" id="page-winners">
+  <div class="boardhead">
+    <h2>Winners &amp; Tracking</h2>
+    <span id="ledgerCount"></span>
+  </div>
+  <div class="toolbar">
+    <div class="left"><span class="live" id="liveBadge">Live</span></div>
+    <div class="left">
+      <button class="ghost" id="ledgerRefresh" type="button">Refresh</button>
+      <button class="ghost" id="ledgerCsv" type="button">Download list</button>
+    </div>
   </div>
 
   <div class="panel">
@@ -1065,11 +1074,11 @@ setInterval(function () { load(false); }, 30000);
 /* ============================================================
    THE TABS
    ============================================================ */
-var pageNames = ["winners", "pairs", "history"];
-var pageNow = "winners";
+var pageNames = ["leaders", "pairs", "winners", "history"];
+var pageNow = "leaders";
 
 function showPage(which) {
-  if (pageNames.indexOf(which) === -1) which = "winners";
+  if (pageNames.indexOf(which) === -1) which = "leaders";
   pageNow = which;
   pageNames.forEach(function (p) {
     var box = L("page-" + p);
@@ -1085,8 +1094,10 @@ function showPage(which) {
   try { sessionStorage.setItem("mb-ledger-page", which); } catch (e) {}
 
   /* each page loads when it is first looked at, then keeps up on its own */
+  if (which === "leaders") { renderLeaderboard(); loadGiveaway(); }
   if (which === "pairs") loadPairs();
   if (which === "history") loadHistory();
+  if (which === "winners") setLive(true);
 }
 
 var tabBar = L("ledgerTabs");
@@ -1436,11 +1447,22 @@ function loadHistory() {
 var histBtn = L("histRefresh");
 if (histBtn) histBtn.addEventListener("click", loadHistory);
 
-/* ---------- open on the page the customer was last on ---------- */
+/* ---------- THE OPENING PAGE ----------
+
+   THE LEADERBOARD, ALWAYS, unless the customer was somewhere else in
+   this sitting. It used to open on Winners, which meant the first thing
+   a customer saw was the tracking table - the long list - with the
+   leaderboard and their giveaway entries buried behind a tab.
+
+   A remembered tab still wins, so moving between pages in one sitting
+   is not undone by a reload; a NEW sitting opens on the leaderboard. */
 try {
   var lastPage = sessionStorage.getItem("mb-ledger-page");
-  if (lastPage) showPage(lastPage);
-} catch (e) {}
+  if (lastPage && pageNames.indexOf(lastPage) !== -1) showPage(lastPage);
+  else showPage("leaders");
+} catch (e) {
+  showPage("leaders");
+}
 </script>
 </body>
 </html>
