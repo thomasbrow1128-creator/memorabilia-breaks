@@ -92,6 +92,35 @@ let entries = [];
 
    Because the rows live in the database, an entry survives a refresh and
    shows on every device, which the old in-page version did not. */
+/* ---------- SUPPY, IN THE NEON THEME ----------
+
+   Injected once, so nothing else has to change. A gold-and-mint pulse
+   on the name and a lifted glow on the tile, so a box holding SUPPY
+   stands out from the rest without looking like a different board.
+
+   ONLY a box holding that word BY ITSELF is marked - not "suppy1",
+   not "dave suppy". */
+(function () {
+  if (document.getElementById("suppy-style")) return;
+  const s = document.createElement("style");
+  s.id = "suppy-style";
+  s.textContent = [
+    "@keyframes suppyPulse{",
+    "0%,100%{text-shadow:0 0 10px rgba(255,215,106,.9),",
+    "0 0 26px rgba(255,205,90,.6),0 2px 6px rgba(0,0,0,.95)}",
+    "50%{text-shadow:0 0 20px rgba(127,224,160,.95),",
+    "0 0 44px rgba(127,224,160,.55),0 2px 6px rgba(0,0,0,.95)}}",
+    ".buyname.suppy{color:#ffe89a;font-weight:900;letter-spacing:.06em;",
+    "animation:suppyPulse 2.4s ease-in-out infinite}",
+    ".tile.suppybox{border-color:rgba(255,215,106,.95);",
+    "box-shadow:0 0 26px rgba(255,206,80,.5),",
+    "0 0 58px rgba(255,206,80,.22),0 12px 30px rgba(0,0,0,.6)}",
+    ".tile.suppybox .eb{box-shadow:inset 0 0 30px rgba(255,206,80,.35)}",
+    ".tile.suppybox .teamlogo{opacity:1}"
+  ].join("");
+  document.head.appendChild(s);
+})();
+
 let giveawayRows = [];
 let gwSyncing = false;
 
@@ -225,15 +254,32 @@ async function gwEarnFor(targetId, username) {
     }
   } catch (e) { /* fall through */ }
 
+  /* ---------- COUNTING ONLY. NO FLOOR. ----------
+
+     What is owed is worked out from how many boxes this person holds
+     right now, and the rows already written for this run come off it.
+
+         pairs - floor(boxes / 2)   so 2 boxes = 1, 4 = 2, 6 = 3
+         teams - one per box
+
+     The two lines that used to sit here forced an entry whenever the
+     sum came to zero or less:
+
+         if (missing <= 0 && boardId === "teams") missing = 1;
+         if (missing <= 0 && boardId === "pairs" && ... storedThisRun < owed)
+
+     THAT SECOND ONE IS WHY A PAIRS BOX PAID EVERY TIME. It compared
+     storedThisRun - the rows counted for the CURRENT RUN - against what
+     was owed. When that count came back short, or the run id moved, the
+     guard passed and another entry was written for boxes that had
+     already paid. A single box could pay, and a fourth box could pay
+     twice.
+
+     There is no floor now. If the count says nothing is owed, nothing
+     is written. Two boxes, one entry. Four boxes, two. */
   const owed = giveawayRate(boardId, boxes);
   let missing = owed - storedThisRun;
-
-  /* This box alone still earns its entry even if a count failed: one for a
-     Team box, and for a Pairs box only when it completes a pair. */
-  if (missing <= 0 && boardId === "teams") missing = 1;
-  if (missing <= 0 && boardId === "pairs" && boxes > 0 && boxes % 2 === 0 && storedThisRun < owed) {
-    missing = 1;
-  }
+  if (missing < 0) missing = 0;
 
   const failed = [];
   for (let i = 0; i < missing; i++) {
@@ -247,6 +293,7 @@ async function gwEarnFor(targetId, username) {
   if (!failed.length) await gwLoad();
   if (failed.length) throw new Error(failed.join(", "));
 }
+  /* no floor: what is owed is counted, and nothing is forced */
 
 /* THE RUN THIS BREAK BELONGS TO.
 
@@ -1075,6 +1122,51 @@ function buildGiveawayTile(person) {
     buyer.appendChild(from);
   }
 
+  /* ---------- THE ENTRY CONTROLS ----------
+
+     Adjust this person's entry count by hand, right on their box: one
+     more, or one back. This is the giveaway side only - it writes and
+     removes rows with source "manual", so it never disturbs an entry
+     earned on Teams or Pairs.
+
+     These sit on the giveaway tile because this is the giveaway board.
+     The credit controls are NOT here - credit is its own manual tab
+     and has nothing to do with the draw. */
+  const adjust = document.createElement("div");
+  adjust.className = "gwadjust";
+
+  const minus = document.createElement("button");
+  minus.type = "button";
+  minus.className = "gwbtn minus";
+  minus.textContent = "\u2212";
+  minus.title = "Take one entry away from " + name;
+  minus.addEventListener("click", async function (ev) {
+    ev.stopPropagation();
+    ev.preventDefault();
+    try {
+      await gwAdjustMinus(name);
+      $("saved").textContent = "One entry removed from " + name + ".";
+    } catch (err) { $("saved").textContent = err.message; }
+  });
+  adjust.appendChild(minus);
+
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "gwbtn plus";
+  more.textContent = "+";
+  more.title = "Add one entry for " + name;
+  more.addEventListener("click", async function (ev) {
+    ev.stopPropagation();
+    ev.preventDefault();
+    try {
+      await gwAdjustPlus(name);
+      $("saved").textContent = "One entry added for " + name + ".";
+    } catch (err) { $("saved").textContent = err.message; }
+  });
+  adjust.appendChild(more);
+
+  buyer.appendChild(adjust);
+
   tile.appendChild(buyer);
 
   /* NO PER-ENTRY REMOVE.
@@ -1790,6 +1882,19 @@ function refreshBoardCounts() {
    The BUYER part only: a box typed as "david zyc$JD5" shows "david zyc",
    and the $item still goes to the Winners page. Showing the raw string
    was part of the same fault - it made one person look like two. */
+/* ---------- SUPPY ----------
+
+   A box holding the word SUPPY on its own stands out in the neon theme,
+   so it can be picked out among the rest at a glance.
+
+   ONLY the word by itself counts. "suppy" on its own, in any case, with
+   the spaces tidied - but NOT "suppy1", NOT "dave suppy", and not a
+   buyer part before it. It has to be the whole name in the box. */
+function isSuppy(raw) {
+  return String(raw == null ? "" : raw)
+    .trim().replace(/^@/, "").replace(/\s+/g, " ").toUpperCase() === "SUPPY";
+}
+
 function buyerOnly(raw) {
   const parts = boardSplit(raw);
   return parts.username || String(raw == null ? "" : raw);
@@ -1810,10 +1915,17 @@ function paintBuyerPlate(tile, list) {
 
   list.forEach(function (e) {
     const line = document.createElement("span");
-    line.className = "buyname";
-    line.textContent = buyerOnly(e.username);
+    const raw = buyerOnly(e.username);
+    /* a box holding SUPPY and nothing else gets the neon treatment,
+       so it can be picked out among the rest at a glance */
+    line.className = isSuppy(raw) ? "buyname suppy" : "buyname";
+    line.textContent = raw;
     host.appendChild(line);
   });
+
+  /* the plate too, so the whole box lights up and not just the word */
+  const glow = list.some(function (e) { return isSuppy(buyerOnly(e.username)); });
+  tile.classList.toggle("suppybox", glow);
 }
 
 function refreshBoards() {
@@ -3018,7 +3130,20 @@ async function renderCredit() {
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
-  rows.forEach(function (r) {
+
+  /* ---------- A ZERO ROW IS NOT SHOWN ----------
+
+     The delete in creditAdjust stops a NEW zero being created, but it
+     only runs when a write lands on zero - so any name already sitting
+     at $0.00 stays in the table and would keep appearing here for ever.
+
+     So the list skips them too. A customer at nothing is not a
+     customer with credit, whichever way the zero got there. */
+  const withCredit = rows.filter(function (r) {
+    return Math.abs(Number(r.amount) || 0) > 0.0001;
+  });
+
+  withCredit.forEach(function (r) {
     const tr = document.createElement("tr");
 
     const c1 = document.createElement("td");
@@ -3050,12 +3175,12 @@ async function renderCredit() {
   wrap.appendChild(table);
   host.appendChild(wrap);
 
-  if (!rows.length) {
+  if (!withCredit.length) {
     const p = document.createElement("p");
     p.className = "empty";
-    p.textContent = "No credit entered yet. Type a username and an amount above, " +
+    p.textContent = "No credit on any account. Type a username and an amount above, " +
       "then press Add - they will appear here and can be adjusted from then on.";
-    host.appendChild(wrap.parentNode === host ? p : p);
+    host.appendChild(p);
   }
 }
 
