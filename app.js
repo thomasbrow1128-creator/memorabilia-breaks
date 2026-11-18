@@ -1152,18 +1152,37 @@ function buildGiveawayTile(person) {
   const adjust = document.createElement("div");
   adjust.className = "gwadjust";
 
+  const amount = document.createElement("input");
+  amount.type = "number";
+  amount.step = "1";
+  amount.min = "1";
+  amount.value = "1";
+  amount.className = "gwamt";
+  amount.inputMode = "numeric";
+  amount.title = "How many entries to add or take away";
+  amount.addEventListener("click", function (ev) { ev.stopPropagation(); });
+  adjust.appendChild(amount);
+
+  async function move(sign) {
+    const n = Math.abs(parseInt(amount.value, 10)) || 1;
+    $("saved").textContent = (sign > 0 ? "Adding " : "Taking away ") +
+      n + (n === 1 ? " entry" : " entries") + "...";
+    try {
+      if (sign > 0) await gwAdjustPlus(name, n);
+      else await gwAdjustMinus(name, n);
+      gwRedraw();
+      $("saved").textContent = name + " now holds " + gwCountFor(name) +
+        (gwCountFor(name) === 1 ? " entry" : " entries") + ".";
+    } catch (err) { $("saved").textContent = err.message; }
+  }
+
   const minus = document.createElement("button");
   minus.type = "button";
   minus.className = "gwbtn minus";
   minus.textContent = "\u2212";
-  minus.title = "Take one entry away from " + name;
-  minus.addEventListener("click", async function (ev) {
-    ev.stopPropagation();
-    ev.preventDefault();
-    try {
-      await gwAdjustMinus(name);
-      $("saved").textContent = "One entry removed from " + name + ".";
-    } catch (err) { $("saved").textContent = err.message; }
+  minus.title = "Take entries away from " + name;
+  minus.addEventListener("click", function (ev) {
+    ev.stopPropagation(); ev.preventDefault(); move(-1);
   });
   adjust.appendChild(minus);
 
@@ -1171,14 +1190,9 @@ function buildGiveawayTile(person) {
   more.type = "button";
   more.className = "gwbtn plus";
   more.textContent = "+";
-  more.title = "Add one entry for " + name;
-  more.addEventListener("click", async function (ev) {
-    ev.stopPropagation();
-    ev.preventDefault();
-    try {
-      await gwAdjustPlus(name);
-      $("saved").textContent = "One entry added for " + name + ".";
-    } catch (err) { $("saved").textContent = err.message; }
+  more.title = "Add entries for " + name;
+  more.addEventListener("click", function (ev) {
+    ev.stopPropagation(); ev.preventDefault(); move(1);
   });
   adjust.appendChild(more);
 
@@ -2890,8 +2904,35 @@ async function creditReadAll() {
 }
 
 /* ONE MORE ENTRY FOR A PERSON */
-async function gwAdjustPlus(name) {
+/* ---------- LIVE REDRAW ----------
+
+   refreshBoards() only repaints tiles it can find by board target, and
+   a giveaway tile is keyed "giveaway:<name>" - so it never found them
+   and the count sat still until a page refresh. This rebuilds the
+   giveaway grid itself, right after a write, so the number moves the
+   moment you press the button. */
+function gwRedraw() {
+  if (typeof renderBoards === "function" && currentTab === "giveaway") {
+    renderBoards();
+    return;
+  }
+  /* even when another tab is showing, keep the wheel in step */
+  try { renderBoards(); } catch (e) {}
+}
+
+/* what this person holds right now, from the rows in hand */
+function gwCountFor(name) {
+  const key = personKey(name);
+  let n = 0;
+  giveawayRows.forEach(function (r) {
+    if (personKey(r.username) === key) n += 1;
+  });
+  return n;
+}
+
+async function gwAdjustPlus(name, howMany) {
   const who = personKey(name);
+  const n = Math.max(1, Math.min(50, parseInt(howMany, 10) || 1));
   if (!who) throw new Error("No name given.");
   /* THE NAME WRITTEN IS THE KEY, NOT THE SPELLING.
 
@@ -2916,16 +2957,38 @@ async function gwAdjustPlus(name) {
   }
   const rows = await res.json();
   if (rows[0]) giveawayRows.push(rows[0]);
+
+  /* a count of more than one gets the rest written as well, one row
+     each, so the tile ends up holding exactly the number asked for */
+  for (let i = 1; i < n; i++) {
+    try {
+      const extra = await fetch(SB_GIVEAWAY_URL, {
+        method: "POST",
+        headers: {
+          "apikey": SB_WIN_KEY,
+          "Authorization": "Bearer " + SB_WIN_KEY,
+          "Content-Type": "application/json",
+          "Prefer": "return=representation"
+        },
+        body: JSON.stringify({ username: who, source: "manual" })
+      });
+      if (extra.ok) {
+        const r2 = await extra.json();
+        if (r2[0]) giveawayRows.push(r2[0]);
+      }
+    } catch (e) { /* the ones that landed still count */ }
+  }
+
   await gwLoad();
-  refreshBoards();
   return rows[0] || null;
 }
 
 /* ONE BACK - ONLY a hand-added row. Entries earned on Teams or Pairs
    are counted first and left alone, so a correction at the desk can
    never remove a box somebody won. */
-async function gwAdjustMinus(name) {
+async function gwAdjustMinus(name, howMany) {
   const who = personKey(name);
+  const n = Math.max(1, Math.min(50, parseInt(howMany, 10) || 1));
   if (!who) throw new Error("No name given.");
 
   const res = await fetch(
@@ -2953,17 +3016,21 @@ async function gwAdjustMinus(name) {
     throw new Error("No entries to remove for " + personName(name) + ".");
   }
 
-  const doomed = pool[0];
-  const del = await fetch(
-    SB_GIVEAWAY_URL + "?id=eq." + encodeURIComponent(doomed.id),
-    { method: "DELETE", headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
-  );
-  if (!del.ok) throw new Error("Could not remove that entry (" + del.status + ")");
+  /* take as many as asked, newest first, never more than they hold */
+  const doomed = pool.slice(0, n);
+  const gone = [];
+  for (let i = 0; i < doomed.length; i++) {
+    const del = await fetch(
+      SB_GIVEAWAY_URL + "?id=eq." + encodeURIComponent(doomed[i].id),
+      { method: "DELETE", headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+    );
+    if (del.ok) gone.push(doomed[i].id);
+  }
+  if (!gone.length) throw new Error("Could not remove those entries.");
 
-  giveawayRows = giveawayRows.filter(function (r) { return r.id !== doomed.id; });
+  giveawayRows = giveawayRows.filter(function (r) { return gone.indexOf(r.id) === -1; });
   await gwLoad();
-  refreshBoards();
-  return doomed;
+  return gone.length;
 }
 
 /* THE CONTROLS on a person's tile and on each credit row: an amount
