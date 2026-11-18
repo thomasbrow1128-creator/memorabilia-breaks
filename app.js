@@ -1075,10 +1075,6 @@ function buildGiveawayTile(person) {
     buyer.appendChild(from);
   }
 
-  /* THE DESK CONTROLS on this person: credit up or down, and a
-     giveaway entry up or down. */
-  buyer.appendChild(creditControls(person));
-
   tile.appendChild(buyer);
 
   /* NO PER-ENTRY REMOVE.
