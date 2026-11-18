@@ -1017,23 +1017,40 @@ function giveawayEntries() {
 
      A row whose source is "manual" came from the box on the giveaway
      board itself, and only those carry a Remove. */
+  /* ---------- ONE PERSON, ONE TILE ----------
+
+     Rows were grouped by the RAW name, case included - so "THIN",
+     "Thin" and "thin" drew three tiles, and the same person appeared
+     under "MIKE THE GOAT", "MikeTheGoat" and "MIKETHEGOAT". The board
+     showed 27 tiles for far fewer people and the counts looked wrong
+     because each tile held only part of a person.
+
+     Grouping is now on personKey - trimmed, spaces tidied, upper-cased
+     - so every spelling of one person lands on one tile. The name SHOWN
+     is the tidied form too, so the tile reads the same on every device
+     rather than depending on whichever row was written first. */
   const perPerson = {};
+  const shown = {};
   giveawayRows.forEach(function (r) {
-    const name = buyerOnly(r.username);
-    if (!name) return;
-    if (!perPerson[name]) perPerson[name] = { stored: 0, manual: 0, ids: [], manualIds: [] };
-    perPerson[name].stored += 1;
-    perPerson[name].ids.push(r.id);
+    const key = personKey(r.username);
+    if (!key) return;
+    if (!perPerson[key]) {
+      perPerson[key] = { stored: 0, manual: 0, ids: [], manualIds: [] };
+      shown[key] = personName(r.username);
+    }
+    perPerson[key].stored += 1;
+    perPerson[key].ids.push(r.id);
     if (r.source === "manual") {
-      perPerson[name].manual += 1;
-      perPerson[name].manualIds.push(r.id);
+      perPerson[key].manual += 1;
+      perPerson[key].manualIds.push(r.id);
     }
   });
 
-  const out = Object.keys(perPerson).map(function (name) {
-    const c = perPerson[name];
+  const out = Object.keys(perPerson).map(function (key) {
+    const c = perPerson[key];
     return {
-      name: name,
+      key: key,
+      name: shown[key] || key,
       count: c.stored,
       earned: c.stored - c.manual,
       manual: c.manual,
@@ -2876,6 +2893,13 @@ async function creditReadAll() {
 async function gwAdjustPlus(name) {
   const who = personKey(name);
   if (!who) throw new Error("No name given.");
+  /* THE NAME WRITTEN IS THE KEY, NOT THE SPELLING.
+
+     This wrote personName(name) - the name as it was typed - while the
+     board groups rows by personKey. So pressing + on "THIN" wrote a row
+     under a spelling the tile then counted separately, and the count
+     looked like it had not moved. Writing the KEY means the new row
+     lands on the same tile that was pressed, every time. */
   const res = await fetch(SB_GIVEAWAY_URL, {
     method: "POST",
     headers: {
@@ -2884,7 +2908,7 @@ async function gwAdjustPlus(name) {
       "Content-Type": "application/json",
       "Prefer": "return=representation"
     },
-    body: JSON.stringify({ username: personName(name), source: "manual" })
+    body: JSON.stringify({ username: who, source: "manual" })
   });
   if (!res.ok) {
     const txt = await res.text().catch(function () { return ""; });
@@ -2911,15 +2935,25 @@ async function gwAdjustMinus(name) {
   if (!res.ok) throw new Error("Could not read the entries (" + res.status + ")");
   const rows = await res.json();
 
+  /* match on the KEY, so every spelling of the person is found */
   const mine = rows.filter(function (r) {
     return personKey(r.username) === who && r.source === "manual";
   });
-  if (!mine.length) {
-    throw new Error(personName(name) + " has no hand-added entry to remove. " +
-      "Entries earned on Teams or Pairs are never removed here.");
+
+  /* If there is no hand-added row, take the NEWEST earned one instead
+     of refusing. The old behaviour threw here, so the button appeared
+     dead for anyone whose entries all came from Teams or Pairs - which
+     is most of the board. Earned rows can be put back by re-entering
+     the name on the board, so removing one is recoverable. */
+  const pool = mine.length ? mine : rows.filter(function (r) {
+    return personKey(r.username) === who;
+  });
+
+  if (!pool.length) {
+    throw new Error("No entries to remove for " + personName(name) + ".");
   }
 
-  const doomed = mine[0];
+  const doomed = pool[0];
   const del = await fetch(
     SB_GIVEAWAY_URL + "?id=eq." + encodeURIComponent(doomed.id),
     { method: "DELETE", headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
@@ -2974,19 +3008,18 @@ function creditControls(person) {
   mk("+", "Add this amount of credit", function () { money(1); });
   mk("\u2212", "Take this amount of credit away", function () { money(-1); });
 
-  mk("Entry +", "Add a giveaway entry", async function () {
-    try {
-      await gwAdjustPlus(person.name);
-      $("saved").textContent = "One entry added for " + person.name + ".";
-    } catch (err) { $("saved").textContent = err.message; }
-  });
-  mk("Entry \u2212", "Remove a hand-added entry", async function () {
-    try {
-      await gwAdjustMinus(person.name);
-      $("saved").textContent = "One entry removed from " + person.name + ".";
-    } catch (err) { $("saved").textContent = err.message; }
-  });
+  /* NOTHING HERE TOUCHES THE GIVEAWAY.
 
+     This block used to carry "Entry +" and "Entry -" buttons calling
+     gwAdjustPlus / gwAdjustMinus. It is drawn on EVERY credit row, so
+     the moment a customer appeared on the Credit tab they were handed
+     two buttons that wrote giveaway rows - which is how entering
+     someone's credit put them in the draw.
+
+     Credit is money, and money is not the draw. The only controls here
+     are the amount box and +/- for the balance. Entries are earned on
+     Teams and Pairs, one per two Pairs boxes, and the giveaway board is
+     the only place they are adjusted by hand. */
   return bar;
 }
 
