@@ -150,6 +150,10 @@ async function gwDeleteRow(id) {
    added while the table was unreachable still shows its entry once the
    board row is there. The two are reconciled by source: a stored 'teams'
    row and a Team box are the same entry, never two. */
+/* A bare count of stored rows by NAME, with no run and no board. Kept
+   only as a reference - nothing calls it now, because a count that
+   cannot tell one break from the next is what let entries stack up. The
+   earn path counts boxes and scopes its rows by run id instead. */
 function gwStoredCount(username) {
   const name = buyerOnly(username);
   return giveawayRows.filter(function (r) { return r.username === name; }).length;
@@ -288,34 +292,23 @@ async function gwAddPerson(name, source, runId) {
   return row;
 }
 
-async function gwSyncFromBoards() {
-  if (gwSyncing) return;
-  gwSyncing = true;
-  try {
-    const perPerson = {};
-    entries.forEach(function (e) {
-      const name = buyerOnly(e.username);
-      if (!name) return;
-      const boardId = giveawayBoardOf(e.target);
-      if (!boardId) return;
-      if (!perPerson[name]) perPerson[name] = { teams: 0, pairs: 0 };
-      perPerson[name][boardId] += 1;
-    });
+/* ---------- RETIRED: THE BOARD-WIDE RECONCILE ----------
 
-    Object.keys(perPerson).forEach(function (name) {
-      const c = perPerson[name];
-      const owed = giveawayRate("teams", c.teams) + giveawayRate("pairs", c.pairs);
-      const have = gwStoredCount(name);
-      if (owed <= have) return;
-      const missing = owed - have;
-      for (let i = 0; i < missing; i++) {
-        gwAdd(name, "earned").catch(function () {});
-      }
-    });
-  } finally {
-    gwSyncing = false;
-  }
-}
+   This function walked every box on the boards and paid out entries to
+   match. It is gone, and the reason is the bug you saw.
+
+   It wrote with gwAdd, which is the MANUAL-entry helper: its rows carry
+   no run_id and no cap, so it could pay a person again every time it
+   ran, for boxes that had already paid. Its count also used
+   gwStoredCount, a bare tally of rows by name - so a stale row from an
+   earlier break read as "already have this one", the count never
+   settled, and a person with one Pairs box could hold a hand of
+   entries.
+
+   Nothing called it any more, so it could not cause harm where it sat -
+   but leaving a per-box payer in the file is how this comes back the
+   next time somebody wires it up. The earn on commit is the single
+   writer now, and it counts boxes before it writes. */
 
 let currentTab = "teams";
 let liveMath = false;
@@ -369,6 +362,27 @@ function normalizeName(raw) {
    DIVISIONS ANSWER null FIRST, and that ordering matters: "afc-east"
    contains a hyphen, so testing for a hyphen before testing for a
    division would file every division box under Pairs. */
+/* ---------- HOW MANY ENTRIES A PERSON IS OWED ----------
+
+   Counted from boxes held, never from the act of typing:
+
+     pairs - one entry for every TWO boxes held
+     teams - one entry for every box held
+     anything else - no giveaway at all
+
+   This was called in two places and defined in NONE, so both callers
+   threw `giveawayRate is not defined`: the earn on commit, and the
+   reconcile. It lives next to giveawayBoardOf because the two always
+   travel together - one says which board a box belongs to, the other
+   says what that board pays. */
+function giveawayRate(boardId, boxes) {
+  const n = Number(boxes) || 0;
+  if (n < 0) return 0;
+  if (boardId === "pairs") return Math.floor(n / 2);
+  if (boardId === "teams") return n;
+  return 0;
+}
+
 function giveawayBoardOf(targetId) {
   const id = String(targetId == null ? "" : targetId).trim().toLowerCase();
   if (!id) return null;
