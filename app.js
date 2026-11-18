@@ -2669,8 +2669,6 @@ async function creditAdjust(name, delta, note) {
 
   if (!res.ok) {
     const txt = await res.text().catch(function () { return ""; });
-    /* a collision here now means something is genuinely wrong with the
-       row rather than the write being malformed, so say so plainly */
     if (res.status === 409) {
       throw new Error("That name already has a balance and it could not be " +
         "updated. Try again, or check the row in customer_credit.");
@@ -2678,8 +2676,47 @@ async function creditAdjust(name, delta, note) {
     throw new Error("Could not save the credit (" + res.status + ") " + txt);
   }
 
-  /* the movement is logged with the balance it produced, so a number
-     can always be explained */
+  /* ---------- ZERO MEANS GONE ----------
+
+     A customer at $0.00 is not a customer with credit - they are a
+     name that should not be on this list at all. So when a balance
+     comes out at exactly zero, the row is DELETED rather than left
+     sitting at nothing.
+
+     The move is still logged first, so the statement reads: they had
+     x, they were taken to 0, and the row went. Nothing disappears
+     without a line to explain it.
+
+     ONLY the customer_credit row goes. credit_log is never trimmed -
+     it is the record of what happened, and a record you delete is not
+     a record. */
+  if (after === 0) {
+    const del = await fetch(
+      SB_WIN_URL + "/rest/v1/customer_credit?username=eq." +
+        encodeURIComponent(personKey(who)),
+      {
+        method: "DELETE",
+        headers: {
+          "apikey": SB_WIN_KEY,
+          "Authorization": "Bearer " + SB_WIN_KEY
+        }
+      }
+    );
+    if (!del.ok) {
+      throw new Error("The balance reached zero but the row could not be " +
+        "removed (" + del.status + ")");
+    }
+    return {
+      username: personKey(who),
+      amount: 0,
+      before: before,
+      delta: move,
+      removed: true
+    };
+  }
+
+  /* the movement is logged BEFORE any removal, so a row that goes is
+     still explained by a line that stays */
   const log = await fetch(SB_WIN_URL + "/rest/v1/credit_log", {
     method: "POST",
     headers: {
