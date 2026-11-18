@@ -110,13 +110,42 @@ let entries = [];
     "0 0 26px rgba(255,205,90,.6),0 2px 6px rgba(0,0,0,.95)}",
     "50%{text-shadow:0 0 20px rgba(127,224,160,.95),",
     "0 0 44px rgba(127,224,160,.55),0 2px 6px rgba(0,0,0,.95)}}",
-    ".buyname.suppy{color:#ffe89a;font-weight:900;letter-spacing:.06em;",
+    /* THE NAME ITSELF */
+    ".buyname.suppy{color:#fff6d8;font-weight:900;letter-spacing:.06em;",
     "animation:suppyPulse 2.4s ease-in-out infinite}",
-    ".tile.suppybox{border-color:rgba(255,215,106,.95);",
-    "box-shadow:0 0 26px rgba(255,206,80,.5),",
-    "0 0 58px rgba(255,206,80,.22),0 12px 30px rgba(0,0,0,.6)}",
-    ".tile.suppybox .eb{box-shadow:inset 0 0 30px rgba(255,206,80,.35)}",
-    ".tile.suppybox .teamlogo{opacity:1}"
+    /* THE WHOLE PAIR TILE, IN THE SITE'S NEON PALETTE.
+
+       A full-colour wash over the plate and the tile - violet into
+       gold, the two colours the rest of the site is built from - with
+       the shimmer running across it. NOT a grey-out and NOT an outline
+       on the border: the pair keeps its colour and the entire card
+       glows. */
+    ".tile.suppybox{",
+    "background:linear-gradient(140deg,",
+    "rgba(120,80,255,.55) 0%,rgba(60,40,180,.42) 38%,",
+    "rgba(255,206,80,.42) 100%) !important;",
+    "border-color:rgba(255,215,106,.85) !important;",
+    "filter:none !important;opacity:1 !important;",
+    "box-shadow:0 0 30px rgba(150,110,255,.55),",
+    "0 0 64px rgba(255,206,80,.35),0 14px 34px rgba(0,0,0,.6) !important;",
+    "animation:suppyShimmer 3s ease-in-out infinite}",
+    /* the logo band keeps its own colour and lifts with the card */
+    ".tile.suppybox .eb{",
+    "background:linear-gradient(140deg,",
+    "rgba(140,95,255,.5),rgba(255,206,80,.38)) !important;",
+    "box-shadow:inset 0 0 34px rgba(255,215,106,.4) !important}",
+    ".tile.suppybox .teamlogo{opacity:1 !important;filter:none !important}",
+    /* the buyer strip, gold on violet */
+    ".tile.suppybox .buyer{background:rgba(30,16,70,.55) !important;",
+    "border-top-color:rgba(255,215,106,.5) !important}",
+    ".tile.suppybox .buylbl,.tile.suppybox .givfrom{color:#d9c6ff !important}",
+    /* NEVER greyed, even though the box is taken */
+    ".tile.suppybox.taken{filter:none !important;opacity:1 !important}",
+    "@keyframes suppyShimmer{",
+    "0%,100%{box-shadow:0 0 30px rgba(150,110,255,.55),",
+    "0 0 64px rgba(255,206,80,.28),0 14px 34px rgba(0,0,0,.6)}",
+    "50%{box-shadow:0 0 40px rgba(255,206,80,.6),",
+    "0 0 84px rgba(150,110,255,.42),0 14px 34px rgba(0,0,0,.6)}}"
   ].join("");
   document.head.appendChild(s);
 })();
