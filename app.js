@@ -2643,7 +2643,19 @@ async function creditAdjust(name, delta, note) {
   const before = current ? Number(current.amount) || 0 : 0;
   const after = Math.round((before + move) * 100) / 100;
 
-  const res = await fetch(SB_WIN_URL + "/rest/v1/customer_credit", {
+  /* THE CONFLICT TARGET GOES IN THE URL.
+
+     This was a plain POST with a merge-duplicates header, and PostgREST
+     cannot merge on a header alone - without ?on_conflict= it tries a
+     bare INSERT, which collides with customer_credit_username_key the
+     moment the name already exists. That is the 409 you saw: the first
+     add worked, every add after it failed, and Remove failed with it.
+
+     Naming the column here is what turns the insert into an upsert, so
+     a balance is replaced rather than collided with. */
+  const res = await fetch(
+    SB_WIN_URL + "/rest/v1/customer_credit?on_conflict=username",
+    {
     method: "POST",
     headers: {
       "apikey": SB_WIN_KEY,
@@ -2661,6 +2673,12 @@ async function creditAdjust(name, delta, note) {
 
   if (!res.ok) {
     const txt = await res.text().catch(function () { return ""; });
+    /* a collision here now means something is genuinely wrong with the
+       row rather than the write being malformed, so say so plainly */
+    if (res.status === 409) {
+      throw new Error("That name already has a balance and it could not be " +
+        "updated. Try again, or check the row in customer_credit.");
+    }
     throw new Error("Could not save the credit (" + res.status + ") " + txt);
   }
 
@@ -2778,8 +2796,10 @@ function creditControls(person) {
   const amount = document.createElement("input");
   amount.type = "number";
   amount.step = "0.01";
-  amount.className = "creditamt";
+  amount.min = "0";
+  amount.className = "creditinput creditinputrow";
   amount.placeholder = "0.00";
+  amount.inputMode = "decimal";
   amount.title = "Amount to add or take away";
   bar.appendChild(amount);
 
@@ -2852,24 +2872,65 @@ async function renderCredit() {
 
      This form is drawn every time, whether or not any credit exists:
      a name and an amount, then Add or Remove. */
+  /* ---------- THE ENTRY FORM, LAID OUT LIKE A DESK FORM ----------
+
+     A labelled card, not a row of browser controls. Two labelled
+     fields and two large buttons, so it reads as "fill this in and
+     press the one you mean" rather than as a database toolbar. */
   const form = document.createElement("div");
   form.className = "creditform";
 
+  const formTitle = document.createElement("h3");
+  formTitle.className = "creditformtitle";
+  formTitle.textContent = "Add or take away credit";
+  form.appendChild(formTitle);
+
+  const fields = document.createElement("div");
+  fields.className = "creditfields";
+
+  const nameWrap = document.createElement("label");
+  nameWrap.className = "creditfield";
+  const nameLbl = document.createElement("span");
+  nameLbl.className = "creditfieldlbl";
+  nameLbl.textContent = "Customer";
+  nameWrap.appendChild(nameLbl);
+
   const nameIn = document.createElement("input");
   nameIn.type = "search";
-  nameIn.className = "creditname";
+  nameIn.className = "creditinput";
   nameIn.placeholder = "username";
   nameIn.autocomplete = "off";
   nameIn.spellcheck = false;
-  form.appendChild(nameIn);
+  nameWrap.appendChild(nameIn);
+  fields.appendChild(nameWrap);
+
+  const amtWrap = document.createElement("label");
+  amtWrap.className = "creditfield";
+  const amtLbl = document.createElement("span");
+  amtLbl.className = "creditfieldlbl";
+  amtLbl.textContent = "Amount";
+  amtWrap.appendChild(amtLbl);
+
+  const amtBox = document.createElement("span");
+  amtBox.className = "creditmoney";
+
+  const dollar = document.createElement("span");
+  dollar.className = "creditdollar";
+  dollar.textContent = "$";
+  amtBox.appendChild(dollar);
 
   const amtIn = document.createElement("input");
   amtIn.type = "number";
   amtIn.step = "0.01";
-  amtIn.className = "creditamt";
+  amtIn.min = "0";
+  amtIn.className = "creditinput creditinputmoney";
   amtIn.placeholder = "0.00";
-  amtIn.title = "Amount to add or take away";
-  form.appendChild(amtIn);
+  amtIn.inputMode = "decimal";
+  amtBox.appendChild(amtIn);
+  amtWrap.appendChild(amtBox);
+  fields.appendChild(amtWrap);
+
+  form.appendChild(fields);
 
   async function submit(sign) {
     const who = nameIn.value.trim();
@@ -2887,21 +2948,26 @@ async function renderCredit() {
     }
   }
 
+  const actions = document.createElement("div");
+  actions.className = "creditactions";
+
   const addBtn = document.createElement("button");
   addBtn.type = "button";
-  addBtn.className = "ghost";
-  addBtn.textContent = "Add";
+  addBtn.className = "creditbtn add";
+  addBtn.innerHTML = "<b>Add</b><i>to their credit</i>";
   addBtn.title = "Add this amount to their credit";
   addBtn.addEventListener("click", function () { submit(1); });
-  form.appendChild(addBtn);
+  actions.appendChild(addBtn);
 
   const remBtn = document.createElement("button");
   remBtn.type = "button";
-  remBtn.className = "ghost";
-  remBtn.textContent = "Remove";
+  remBtn.className = "creditbtn remove";
+  remBtn.innerHTML = "<b>Remove</b><i>from their credit</i>";
   remBtn.title = "Take this amount off their credit";
   remBtn.addEventListener("click", function () { submit(-1); });
-  form.appendChild(remBtn);
+  actions.appendChild(remBtn);
+
+  form.appendChild(actions);
 
   amtIn.addEventListener("keydown", function (ev) {
     if (ev.key === "Enter") { ev.preventDefault(); submit(1); }
