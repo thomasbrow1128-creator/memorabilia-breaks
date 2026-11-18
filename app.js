@@ -110,42 +110,13 @@ let entries = [];
     "0 0 26px rgba(255,205,90,.6),0 2px 6px rgba(0,0,0,.95)}",
     "50%{text-shadow:0 0 20px rgba(127,224,160,.95),",
     "0 0 44px rgba(127,224,160,.55),0 2px 6px rgba(0,0,0,.95)}}",
-    /* THE NAME ITSELF */
-    ".buyname.suppy{color:#fff6d8;font-weight:900;letter-spacing:.06em;",
+    ".buyname.suppy{color:#ffe89a;font-weight:900;letter-spacing:.06em;",
     "animation:suppyPulse 2.4s ease-in-out infinite}",
-    /* THE WHOLE PAIR TILE, IN THE SITE'S NEON PALETTE.
-
-       A full-colour wash over the plate and the tile - violet into
-       gold, the two colours the rest of the site is built from - with
-       the shimmer running across it. NOT a grey-out and NOT an outline
-       on the border: the pair keeps its colour and the entire card
-       glows. */
-    ".tile.suppybox{",
-    "background:linear-gradient(140deg,",
-    "rgba(120,80,255,.55) 0%,rgba(60,40,180,.42) 38%,",
-    "rgba(255,206,80,.42) 100%) !important;",
-    "border-color:rgba(255,215,106,.85) !important;",
-    "filter:none !important;opacity:1 !important;",
-    "box-shadow:0 0 30px rgba(150,110,255,.55),",
-    "0 0 64px rgba(255,206,80,.35),0 14px 34px rgba(0,0,0,.6) !important;",
-    "animation:suppyShimmer 3s ease-in-out infinite}",
-    /* the logo band keeps its own colour and lifts with the card */
-    ".tile.suppybox .eb{",
-    "background:linear-gradient(140deg,",
-    "rgba(140,95,255,.5),rgba(255,206,80,.38)) !important;",
-    "box-shadow:inset 0 0 34px rgba(255,215,106,.4) !important}",
-    ".tile.suppybox .teamlogo{opacity:1 !important;filter:none !important}",
-    /* the buyer strip, gold on violet */
-    ".tile.suppybox .buyer{background:rgba(30,16,70,.55) !important;",
-    "border-top-color:rgba(255,215,106,.5) !important}",
-    ".tile.suppybox .buylbl,.tile.suppybox .givfrom{color:#d9c6ff !important}",
-    /* NEVER greyed, even though the box is taken */
-    ".tile.suppybox.taken{filter:none !important;opacity:1 !important}",
-    "@keyframes suppyShimmer{",
-    "0%,100%{box-shadow:0 0 30px rgba(150,110,255,.55),",
-    "0 0 64px rgba(255,206,80,.28),0 14px 34px rgba(0,0,0,.6)}",
-    "50%{box-shadow:0 0 40px rgba(255,206,80,.6),",
-    "0 0 84px rgba(150,110,255,.42),0 14px 34px rgba(0,0,0,.6)}}"
+    ".tile.suppybox{border-color:rgba(255,215,106,.95);",
+    "box-shadow:0 0 26px rgba(255,206,80,.5),",
+    "0 0 58px rgba(255,206,80,.22),0 12px 30px rgba(0,0,0,.6)}",
+    ".tile.suppybox .eb{box-shadow:inset 0 0 30px rgba(255,206,80,.35)}",
+    ".tile.suppybox .teamlogo{opacity:1}"
   ].join("");
   document.head.appendChild(s);
 })();
@@ -2933,32 +2904,6 @@ async function creditReadAll() {
 }
 
 /* ONE MORE ENTRY FOR A PERSON */
-/* ---------- LIVE REDRAW ----------
-
-   refreshBoards() only repaints tiles it can find by board target, and
-   a giveaway tile is keyed "giveaway:<name>" - so it never found them
-   and the count sat still until a page refresh. This rebuilds the
-   giveaway grid itself, right after a write, so the number moves the
-   moment you press the button. */
-function gwRedraw() {
-  if (typeof renderBoards === "function" && currentTab === "giveaway") {
-    renderBoards();
-    return;
-  }
-  /* even when another tab is showing, keep the wheel in step */
-  try { renderBoards(); } catch (e) {}
-}
-
-/* what this person holds right now, from the rows in hand */
-function gwCountFor(name) {
-  const key = personKey(name);
-  let n = 0;
-  giveawayRows.forEach(function (r) {
-    if (personKey(r.username) === key) n += 1;
-  });
-  return n;
-}
-
 async function gwAdjustPlus(name, howMany) {
   const who = personKey(name);
   const n = Math.max(1, Math.min(50, parseInt(howMany, 10) || 1));
@@ -3015,9 +2960,8 @@ async function gwAdjustPlus(name, howMany) {
 /* ONE BACK - ONLY a hand-added row. Entries earned on Teams or Pairs
    are counted first and left alone, so a correction at the desk can
    never remove a box somebody won. */
-async function gwAdjustMinus(name, howMany) {
+async function gwAdjustMinus(name) {
   const who = personKey(name);
-  const n = Math.max(1, Math.min(50, parseInt(howMany, 10) || 1));
   if (!who) throw new Error("No name given.");
 
   const res = await fetch(
@@ -3045,21 +2989,17 @@ async function gwAdjustMinus(name, howMany) {
     throw new Error("No entries to remove for " + personName(name) + ".");
   }
 
-  /* take as many as asked, newest first, never more than they hold */
-  const doomed = pool.slice(0, n);
-  const gone = [];
-  for (let i = 0; i < doomed.length; i++) {
-    const del = await fetch(
-      SB_GIVEAWAY_URL + "?id=eq." + encodeURIComponent(doomed[i].id),
-      { method: "DELETE", headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
-    );
-    if (del.ok) gone.push(doomed[i].id);
-  }
-  if (!gone.length) throw new Error("Could not remove those entries.");
+  const doomed = pool[0];
+  const del = await fetch(
+    SB_GIVEAWAY_URL + "?id=eq." + encodeURIComponent(doomed.id),
+    { method: "DELETE", headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+  );
+  if (!del.ok) throw new Error("Could not remove that entry (" + del.status + ")");
 
-  giveawayRows = giveawayRows.filter(function (r) { return gone.indexOf(r.id) === -1; });
+  giveawayRows = giveawayRows.filter(function (r) { return r.id !== doomed.id; });
   await gwLoad();
-  return gone.length;
+  refreshBoards();
+  return doomed;
 }
 
 /* THE CONTROLS on a person's tile and on each credit row: an amount
