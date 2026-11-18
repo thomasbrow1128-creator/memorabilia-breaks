@@ -909,10 +909,25 @@ var SB_PAIRS_KEY = "sb_publishable_pM8hQ1cP77AXANXCkAS0qA_jfC9ibYq";
    teams are a single word, so the board is identified the same way the
    staff board does it - divisions first, then the hyphen. */
 function isPairsBox(target) {
-  var t = String(target == null ? "" : target).toLowerCase();
+  /* ---------- THIS WAS REJECTING EVERY PAIRS ROW ----------
+
+     It looked for a HYPHEN, on the reasoning that a Pairs box is named
+     like "bills-jets". A hyphen is the LOGO FILENAME, not the box name.
+     What the board actually stores is the box name exactly as boards.js
+     defines it:
+
+         "Bengals, Colts"     "Lions, Raiders"     "49ers, Bears"
+
+     commma and space, the two teams the way a person says them. So the
+     test threw away every Pairs row, the tally stayed at nothing, and
+     all sixteen boxes read Open while the entries sat in the table.
+
+     The test is now the NAME, matched against the same list the board
+     is drawn from. Divisions cannot collide with it, and a Teams box
+     like "Cincinnati Bengals" is not on the list, so nothing leaks in. */
+  var t = String(target == null ? "" : target).trim();
   if (!t) return false;
-  if (t.indexOf("afc") === 0 || t.indexOf("nfc") === 0) return false;
-  return t.indexOf("-") !== -1;
+  return PAIR_ROWS.some(function (r) { return r.box === t; });
 }
 
 function pairLabel(target) {
@@ -1027,19 +1042,30 @@ function renderPairs(rows) {
   var host = L("livePairBoard");
   if (!host) return;
 
-  /* who holds each box, keyed by the box name stored with the entry */
+  /* ---------- WHO HOLDS EACH BOX ----------
+
+     Keyed on a TIDIED form of the stored name - trimmed, and runs of
+     spaces collapsed - so a stray space on either side, or a double
+     space between the comma and the team, still lands on the right
+     tile instead of silently reading as Open. The tidy is only used as
+     a KEY; the name shown to the customer is always the board's own. */
+  function tidy(s) {
+    return String(s == null ? "" : s).trim().replace(/\s+/g, " ").toLowerCase();
+  }
+
   var byBox = {};
   (rows || []).forEach(function (r) {
-    if (!isPairsBox(r.target)) return;
     var who = buyerOnly(r.username);
     if (!who) return;
-    if (!byBox[r.target]) byBox[r.target] = [];
-    byBox[r.target].push(who);
+    var key = tidy(r.target);
+    if (!key) return;
+    if (!byBox[key]) byBox[key] = [];
+    byBox[key].push(who);
   });
 
   var filled = 0;
   PAIR_ROWS.forEach(function (spec) {
-    if ((byBox[spec.box] || []).length) filled += 1;
+    if ((byBox[tidy(spec.box)] || []).length) filled += 1;
   });
 
   L("livePairCount").textContent = "(" + filled + " of " + PAIR_ROWS.length + " taken)";
@@ -1050,7 +1076,7 @@ function renderPairs(rows) {
 
   /* every box, in board order - taken or not */
   PAIR_ROWS.forEach(function (spec) {
-    grid.appendChild(buildPairTile(spec, byBox[spec.box] || []));
+    grid.appendChild(buildPairTile(spec, byBox[tidy(spec.box)] || []));
   });
 
   host.innerHTML = "";
