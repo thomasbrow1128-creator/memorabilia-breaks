@@ -575,6 +575,16 @@ function buildTabs() {
   hist.textContent = "History";
   hist.addEventListener("click", function () { setTab("history"); });
   nav.appendChild(hist);
+
+  /* CREDIT sits last - control side only. Not in BOARDS: it shows
+     balances, not boxes, so it is handled like History. */
+  const cred = document.createElement("button");
+  cred.type = "button";
+  cred.dataset.viewBtn = "credit";
+  cred.setAttribute("role", "tab");
+  cred.textContent = "Credit";
+  cred.addEventListener("click", function () { setTab("credit"); });
+  nav.appendChild(cred);
 }
 
 function setCompact(on) {
@@ -618,6 +628,27 @@ function setTab(tabId) {
        is nothing there to reset anyway. */
     $("saved").textContent = "";
     historyLoad().then(function () { renderHistory(); });
+    return;
+  }
+
+  /* THE CREDIT TAB IS NOT A BOARD EITHER. It lists balances and the
+     controls to move them, so it is handled before the board lookups -
+     which would otherwise fall through to the first board. */
+  if (tabId === "credit") {
+    currentTab = "credit";
+    setCompact(false);
+
+    document.querySelectorAll("[data-view-btn]").forEach(function (b) {
+      const on = b.dataset.viewBtn === "credit";
+      b.className = on ? "on" : "";
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+
+    $("boardTitle").textContent = "Credit";
+    $("boardSub").textContent = "Customer credit, entered by hand. Add or remove at will.";
+    $("filter").value = "";
+    $("saved").textContent = "";
+    renderCredit();
     return;
   }
 
@@ -1043,6 +1074,10 @@ function buildGiveawayTile(person) {
     from.textContent = bits.join(" + ");
     buyer.appendChild(from);
   }
+
+  /* THE DESK CONTROLS on this person: credit up or down, and a
+     giveaway entry up or down. */
+  buyer.appendChild(creditControls(person));
 
   tile.appendChild(buyer);
 
@@ -2583,3 +2618,268 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   $("undoclose").addEventListener("click", hideUndo);
 });
+
+/* ============================================================
+   CREDIT  +  PER-PERSON GIVEAWAY ADJUST
+
+   CONTROL SIDE ONLY. Credit is entered by hand: a username and an
+   amount. No customer page reads it.
+
+   WRITES GO THROUGH AN EDGE FUNCTION. The service key lives in that
+   function's secrets, so no key appears in this file, and the public
+   policies on customer_credit stay SELECT-only.
+   ============================================================ */
+
+/* WRITES STRAIGHT TO THE TABLE, the same way every other write on this
+   board does. No function, no secret, no second key - the publishable
+   key already writes entries, wins and history. */
+async function creditAdjust(name, delta, note) {
+  const who = personName(name);
+  const move = Number(delta);
+  if (!who) throw new Error("Enter a username.");
+  if (!isFinite(move) || move === 0) throw new Error("Enter an amount to add or remove.");
+
+  const current = await creditReadOne(who);
+  const before = current ? Number(current.amount) || 0 : 0;
+  const after = Math.round((before + move) * 100) / 100;
+
+  const res = await fetch(SB_WIN_URL + "/rest/v1/customer_credit", {
+    method: "POST",
+    headers: {
+      "apikey": SB_WIN_KEY,
+      "Authorization": "Bearer " + SB_WIN_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "resolution=merge-duplicates,return=representation"
+    },
+    body: JSON.stringify({
+      username: personKey(who),
+      amount: after,
+      note: note || "",
+      updated_at: new Date().toISOString()
+    })
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(function () { return ""; });
+    throw new Error("Could not save the credit (" + res.status + ") " + txt);
+  }
+
+  /* the movement is logged with the balance it produced, so a number
+     can always be explained */
+  const log = await fetch(SB_WIN_URL + "/rest/v1/credit_log", {
+    method: "POST",
+    headers: {
+      "apikey": SB_WIN_KEY,
+      "Authorization": "Bearer " + SB_WIN_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "return=minimal"
+    },
+    body: JSON.stringify({
+      username: personKey(who),
+      delta: move,
+      balance: after,
+      note: note || ""
+    })
+  });
+
+  if (!log.ok) {
+    throw new Error("Balance saved, but the log entry failed (" + log.status + ")");
+  }
+
+  return { username: personKey(who), amount: after, before: before, delta: move };
+}
+
+async function creditReadOne(name) {
+  const who = personKey(name);
+  if (!who) return null;
+  const all = await creditReadAll();
+  let found = null;
+  all.forEach(function (r) {
+    if (!found && personKey(r.username) === who) found = r;
+  });
+  return found;
+}
+
+async function creditReadAll() {
+  const res = await fetch(
+    SB_WIN_URL + "/rest/v1/customer_credit?select=*&order=username.asc",
+    { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+  );
+  if (!res.ok) throw new Error("Could not read credit (" + res.status + ")");
+  return res.json();
+}
+
+/* ONE MORE ENTRY FOR A PERSON */
+async function gwAdjustPlus(name) {
+  const who = personKey(name);
+  if (!who) throw new Error("No name given.");
+  const res = await fetch(SB_GIVEAWAY_URL, {
+    method: "POST",
+    headers: {
+      "apikey": SB_WIN_KEY,
+      "Authorization": "Bearer " + SB_WIN_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation"
+    },
+    body: JSON.stringify({ username: personName(name), source: "manual" })
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(function () { return ""; });
+    throw new Error("Could not add an entry (" + res.status + ") " + txt);
+  }
+  const rows = await res.json();
+  if (rows[0]) giveawayRows.push(rows[0]);
+  await gwLoad();
+  refreshBoards();
+  return rows[0] || null;
+}
+
+/* ONE BACK - ONLY a hand-added row. Entries earned on Teams or Pairs
+   are counted first and left alone, so a correction at the desk can
+   never remove a box somebody won. */
+async function gwAdjustMinus(name) {
+  const who = personKey(name);
+  if (!who) throw new Error("No name given.");
+
+  const res = await fetch(
+    SB_GIVEAWAY_URL + "?select=id,username,source,created_at&order=created_at.desc,id.desc",
+    { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+  );
+  if (!res.ok) throw new Error("Could not read the entries (" + res.status + ")");
+  const rows = await res.json();
+
+  const mine = rows.filter(function (r) {
+    return personKey(r.username) === who && r.source === "manual";
+  });
+  if (!mine.length) {
+    throw new Error(personName(name) + " has no hand-added entry to remove. " +
+      "Entries earned on Teams or Pairs are never removed here.");
+  }
+
+  const doomed = mine[0];
+  const del = await fetch(
+    SB_GIVEAWAY_URL + "?id=eq." + encodeURIComponent(doomed.id),
+    { method: "DELETE", headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+  );
+  if (!del.ok) throw new Error("Could not remove that entry (" + del.status + ")");
+
+  giveawayRows = giveawayRows.filter(function (r) { return r.id !== doomed.id; });
+  await gwLoad();
+  refreshBoards();
+  return doomed;
+}
+
+/* THE CONTROLS on a person's tile and on each credit row: an amount
+   box, and Add / Remove for money and for entries. */
+function creditControls(person) {
+  const bar = document.createElement("div");
+  bar.className = "creditbar";
+
+  const amount = document.createElement("input");
+  amount.type = "number";
+  amount.step = "0.01";
+  amount.className = "creditamt";
+  amount.placeholder = "0.00";
+  amount.title = "Amount to add or take away";
+  bar.appendChild(amount);
+
+  async function money(sign) {
+    const val = Number(amount.value) || 0;
+    if (!val) { $("saved").textContent = "Enter an amount first."; return; }
+    try {
+      const out = await creditAdjust(person.name, sign * val, "desk adjustment");
+      $("saved").textContent = personName(out.username) + " credit is now $" +
+        Number(out.amount).toFixed(2) + ".";
+      amount.value = "";
+      if (currentTab === "credit") renderCredit();
+    } catch (err) { $("saved").textContent = err.message; }
+  }
+
+  function mk(label, title, fn) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ghost";
+    b.textContent = label;
+    b.title = title;
+    b.addEventListener("click", fn);
+    bar.appendChild(b);
+    return b;
+  }
+
+  mk("+", "Add this amount of credit", function () { money(1); });
+  mk("\u2212", "Take this amount of credit away", function () { money(-1); });
+
+  mk("Entry +", "Add a giveaway entry", async function () {
+    try {
+      await gwAdjustPlus(person.name);
+      $("saved").textContent = "One entry added for " + person.name + ".";
+    } catch (err) { $("saved").textContent = err.message; }
+  });
+  mk("Entry \u2212", "Remove a hand-added entry", async function () {
+    try {
+      await gwAdjustMinus(person.name);
+      $("saved").textContent = "One entry removed from " + person.name + ".";
+    } catch (err) { $("saved").textContent = err.message; }
+  });
+
+  return bar;
+}
+
+/* ---------- THE CREDIT PAGE (control side) ---------- */
+async function renderCredit() {
+  const host = $("boards");
+  if (!host) return;
+
+  let rows = [];
+  try {
+    rows = await creditReadAll();
+  } catch (err) {
+    host.innerHTML = "";
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = err.message;
+    host.appendChild(p);
+    return;
+  }
+
+  host.innerHTML = "";
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  thead.innerHTML = "<tr><th>Customer</th><th>Credit</th><th>Last updated</th><th>Adjust</th></tr>";
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  rows.forEach(function (r) {
+    const tr = document.createElement("tr");
+
+    const c1 = document.createElement("td");
+    c1.className = "who";
+    c1.textContent = "@" + r.username;
+    tr.appendChild(c1);
+
+    const c2 = document.createElement("td");
+    c2.className = "givcount";
+    c2.textContent = "$" + (Number(r.amount) || 0).toFixed(2);
+    tr.appendChild(c2);
+
+    const c3 = document.createElement("td");
+    c3.className = "meta";
+    const d = new Date(r.updated_at);
+    c3.textContent = isNaN(d) ? "-" : d.toLocaleString();
+    tr.appendChild(c3);
+
+    const c4 = document.createElement("td");
+    c4.appendChild(creditControls({ name: r.username }));
+    tr.appendChild(c4);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+
+  const wrap = document.createElement("div");
+  wrap.className = "giventries";
+  wrap.appendChild(table);
+  host.appendChild(wrap);
+}
+
