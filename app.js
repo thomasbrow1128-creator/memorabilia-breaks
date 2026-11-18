@@ -2844,6 +2844,75 @@ async function renderCredit() {
 
   host.innerHTML = "";
 
+  /* ---------- THE ENTRY FORM ----------
+
+     This is what was missing. The table below lists customers who
+     ALREADY have a balance, so with an empty table there was nowhere
+     to type the first one - the page showed nothing and no way in.
+
+     This form is drawn every time, whether or not any credit exists:
+     a name and an amount, then Add or Remove. */
+  const form = document.createElement("div");
+  form.className = "creditform";
+
+  const nameIn = document.createElement("input");
+  nameIn.type = "search";
+  nameIn.className = "creditname";
+  nameIn.placeholder = "username";
+  nameIn.autocomplete = "off";
+  nameIn.spellcheck = false;
+  form.appendChild(nameIn);
+
+  const amtIn = document.createElement("input");
+  amtIn.type = "number";
+  amtIn.step = "0.01";
+  amtIn.className = "creditamt";
+  amtIn.placeholder = "0.00";
+  amtIn.title = "Amount to add or take away";
+  form.appendChild(amtIn);
+
+  async function submit(sign) {
+    const who = nameIn.value.trim();
+    const val = Number(amtIn.value) || 0;
+    if (!who) { $("saved").textContent = "Enter a username."; nameIn.focus(); return; }
+    if (!val) { $("saved").textContent = "Enter an amount."; amtIn.focus(); return; }
+    try {
+      const out = await creditAdjust(who, sign * val, "desk entry");
+      $("saved").textContent = personName(out.username) + " credit is now $" +
+        Number(out.amount).toFixed(2) + ".";
+      amtIn.value = "";
+      renderCredit();
+    } catch (err) {
+      $("saved").textContent = err.message;
+    }
+  }
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "ghost";
+  addBtn.textContent = "Add";
+  addBtn.title = "Add this amount to their credit";
+  addBtn.addEventListener("click", function () { submit(1); });
+  form.appendChild(addBtn);
+
+  const remBtn = document.createElement("button");
+  remBtn.type = "button";
+  remBtn.className = "ghost";
+  remBtn.textContent = "Remove";
+  remBtn.title = "Take this amount off their credit";
+  remBtn.addEventListener("click", function () { submit(-1); });
+  form.appendChild(remBtn);
+
+  amtIn.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); submit(1); }
+  });
+  nameIn.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); amtIn.focus(); }
+  });
+
+  host.appendChild(form);
+
+  /* ---------- THEN EVERY CUSTOMER WHO HAS A BALANCE ---------- */
   const table = document.createElement("table");
   const thead = document.createElement("thead");
   thead.innerHTML = "<tr><th>Customer</th><th>Credit</th><th>Last updated</th><th>Adjust</th></tr>";
@@ -2881,5 +2950,13 @@ async function renderCredit() {
   wrap.className = "giventries";
   wrap.appendChild(table);
   host.appendChild(wrap);
+
+  if (!rows.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "No credit entered yet. Type a username and an amount above, " +
+      "then press Add - they will appear here and can be adjusted from then on.";
+    host.appendChild(wrap.parentNode === host ? p : p);
+  }
 }
 
