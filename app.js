@@ -324,15 +324,17 @@ async function gwEarnFor(targetId, username) {
      the same kind the + button writes, and the same kind an off-site
      purchase gets. It is recorded as manual, so it never counts as a
      pair that paid, and the pairs rule stays intact. */
-  if (missing === 0) {
-    try {
-      await gwAddPerson(name, "manual", runId);
-      await gwLoad();
-    } catch (err) {
-      throw new Error(err && err.message ? err.message : "Could not add the entry.");
-    }
-    return;
-  }
+  /* ---------- NOTHING OWED MEANS NOTHING WRITTEN ----------
+
+     This used to write a MANUAL entry whenever nothing was owed, so
+     that putting a name back on the board added something. That is
+     what made a Pairs box pay TWICE: the box earned its proper entry
+     on the pairs count, and then this wrote a second one on top.
+
+     A box going on the board is not a manual entry. Manual entries are
+     off-site purchases and they are written by the + button, and by
+     nothing else. If nothing is owed here, nothing is written. */
+  if (missing === 0) return;
 
   const failed = [];
   for (let i = 0; i < missing; i++) {
