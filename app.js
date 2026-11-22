@@ -241,16 +241,19 @@ async function gwEarnFor(targetId, username) {
 
   try {
     const gres = await fetch(
-      SB_GIVEAWAY_URL + "?select=username,source,run_id",
+      SB_GIVEAWAY_URL + "?select=username,source",
       { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
     );
     if (gres.ok) {
       const grows = await gres.json();
-      storedThisRun = grows.filter(function (r) {
-        return personKey(r.username) === name &&
-          r.source === boardId &&
-          (r.run_id || "legacy") === runId;
-      }).length;
+        /* COUNTED BY PERSON AND BOARD, with no run in the comparison.
+           Run-scoping is what made this swing: a name split across
+           spellings scored high and was paid nothing, and a moved run
+           id scored zero and paid again for boxes that had already
+           paid. What a person holds is what matters. */
+          storedThisRun = grows.filter(function (r) {
+            return personKey(r.username) === name && r.source === boardId;
+          }).length;
     }
   } catch (e) { /* fall through */ }
 
@@ -430,15 +433,46 @@ function giveawayRate(boardId, boxes) {
   return 0;
 }
 
+/* ---------- WHICH BOARD A BOX BELONGS TO ----------
+
+   THIS WAS THE PAIRS BUG. It tested for a HYPHEN, on the reasoning
+   that a Pairs box is named like "bills-jets". A hyphen is the LOGO
+   FILENAME, not the box name. What the board actually stores is the
+   name as boards.js defines it:
+
+       "Seahawks, Chargers"    "Bengals, Colts"    "49ers, Bears"
+
+   comma and space - so EVERY pairs box fell through to "teams" and
+   paid ONE ENTRY PER BOX instead of one per two. That is why a single
+   pairs box paid out, and why the count never matched the rule.
+
+   The board is decided by the NAME now, matched against the same list
+   the board is drawn from. Divisions are checked first, so a division
+   name can never be read as a pair. */
+const GIV_PAIR_NAMES = [
+  "Cowboys, Jags","Chiefs, Cardinals","Broncos, Saints","Eagles, Panthers",
+  "Vikings, Titans","Packers, Falcons","Seahawks, Chargers","Bucs, Commanders",
+  "Ravens, Rams","Patriots, Browns","49ers, Bears","Lions, Raiders",
+  "Bengals, Colts","Bills, Jets","Steelers, Texans","Dolphins, Giants"
+];
+
 function giveawayBoardOf(targetId) {
-  const id = String(targetId == null ? "" : targetId).trim().toLowerCase();
+  const id = String(targetId == null ? "" : targetId).trim();
   if (!id) return null;
 
-  /* divisions feed no giveaway - answered before any other test */
-  if (id.indexOf("afc") === 0 || id.indexOf("nfc") === 0) return null;
+  /* divisions feed no giveaway - answered before anything else */
+  const low = id.toLowerCase();
+  if (low.indexOf("afc") === 0 || low.indexOf("nfc") === 0) return null;
 
-  /* Pairs boxes are named "<a>-<b>"; Teams boxes are a single team */
-  if (id.indexOf("-") !== -1) return "pairs";
+  /* a Pairs box is one of the sixteen pairs, by name */
+  const tidy = low.replace(/\s+/g, " ");
+  for (let i = 0; i < GIV_PAIR_NAMES.length; i++) {
+    if (GIV_PAIR_NAMES[i].toLowerCase() === tidy) return "pairs";
+  }
+
+  /* a name carrying a comma is still a pair, even if the list above
+     has not caught it - a new pair added later must not become teams */
+  if (id.indexOf(",") !== -1) return "pairs";
 
   return "teams";
 }
