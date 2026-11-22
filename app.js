@@ -3763,16 +3763,15 @@ async function renderInventory() {
   rows.forEach(function (r) { if (picked[r.id]) stillHere[r.id] = true; });
   window.__invPicked = picked = stillHere;
 
-  /* ================= LEFT: THE STOCK, AS SELECTABLE TILES =================
+  /* ================= LEFT: THE STOCK, AS SELECTABLE CARDS =================
 
-     EACH ITEM IS A CARD YOU CLICK, not a row in a table. It carries
-     everything that was entered - what it is, what it cost each, how
-     many, what the line comes to, any note, and when it was logged -
-     so the item describes itself on the card.
+     EACH ITEM IS A CARD YOU CLICK - not a row in a table. The card
+     carries everything that was entered: what it is, what it cost
+     each, how many, what the line comes to, the note, and when it was
+     logged. So the item describes itself on the card.
 
-     Clicking a card SELECTS it. A selected card lights gold, the same
-     way a Teams tile does, and the item at once appears on the
-     calculation side. Clicking again unselects it. */
+     Clicking selects it. A selected card lights gold, and the item
+     appears at once on the calculation side. Click again to unselect. */
   if (!rows.length) {
     const p = document.createElement("p");
     p.className = "empty";
@@ -3788,13 +3787,11 @@ async function renderInventory() {
       card.className = "invcard" + (picked[r.id] ? " on" : "");
       card.title = "Click to select " + (r.item || "this item");
 
-      /* the name, as the card's headline */
       const nm = document.createElement("span");
       nm.className = "invcardname";
       nm.textContent = r.item || "(no name)";
       card.appendChild(nm);
 
-      /* every figure that was entered, one per line */
       const facts = document.createElement("span");
       facts.className = "invcardfacts";
 
@@ -3831,7 +3828,6 @@ async function renderInventory() {
       when.textContent = isNaN(d) ? "" : "Logged " + d.toLocaleString();
       card.appendChild(when);
 
-      /* the tick marker, so a selected card reads at a glance */
       const mark = document.createElement("span");
       mark.className = "invcardmark";
       mark.textContent = picked[r.id] ? "\u2713 SELECTED" : "Select";
