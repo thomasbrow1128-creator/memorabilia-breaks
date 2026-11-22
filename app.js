@@ -2103,9 +2103,34 @@ async function addUser(targetId, rawName, fromTile) {
     return;
   }
 
-  if (usersOn(targetId).length) {
-    note.textContent = targetId + " is already taken. Remove that name first.";
-    return;
+  /* ---------- ONE PERSON MAY HOLD MORE THAN ONE BOX ----------
+
+     This refused the save whenever the BOX already had a name on it,
+     which is right for every board except Pairs. On Pairs a person is
+     allowed to hold several pairs - four pairs is two giveaway
+     entries - and the guard was rejecting every pair after the first,
+     so the giveaway only ever saw one of them.
+
+     So the rule now depends on the board:
+
+       Pairs - a person may take as many pair boxes as they like. What
+               is still refused is putting a SECOND NAME on a box that
+               already has one, because that would overwrite it.
+
+       every other board - one box, one name, as before. */
+  const alreadyOnBox = usersOn(targetId);
+  if (alreadyOnBox.length) {
+    const heldBySomeoneElse = alreadyOnBox.some(function (e) {
+      return personKey(e.username) !== personKey(username);
+    });
+    const boardId = giveawayBoardOf(targetId);
+    const allowMore = boardId === "pairs";
+
+    if (heldBySomeoneElse || !allowMore) {
+      note.textContent = targetId + " is already taken. Remove that name first.";
+      return;
+    }
+    /* same person, Pairs board: fall through and add the box */
   }
 
   note.textContent = "Saving...";
