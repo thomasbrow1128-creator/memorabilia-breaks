@@ -1880,13 +1880,6 @@ function buildGiveawayWheel() {
 function renderBoards() {
   const host = $("boards");
 
-  /* THE NON-BOARD PAGES ARE NOT THIS FUNCTION'S BUSINESS.
-     Credit, History and Inventory draw themselves into this same
-     container. Without this, a redraw paints a board over them. */
-  if (currentTab === "inventory") { renderInventory(); return; }
-  if (currentTab === "credit") { renderCredit(); return; }
-  if (currentTab === "history") { historyLoad().then(function () { renderHistory(); }); return; }
-
   /* ---------- THE PAGES THAT ARE NOT BOARDS ARE LEFT ALONE ----------
 
      Credit, History and Inventory are drawn by their own functions, and
@@ -3613,20 +3606,9 @@ function invMoney(n) {
   return "$" + (Number(n) || 0).toFixed(2);
 }
 
-let invRun = 0;
-
 async function renderInventory() {
   const host = $("boards");
   if (!host) return;
-
-  /* ONLY THE NEWEST RUN MAY DRAW.
-
-     renderInventory waits on two database reads before it paints. A
-     redraw fired during that wait starts a SECOND run, which clears
-     the container - so the first run's stock table is destroyed before
-     anyone sees it, while the form (written later) survives. That is
-     the missing table and the missing tick boxes. */
-  const myRun = ++invRun;
 
   let rows = [];
   let outRows = [];
@@ -3641,9 +3623,6 @@ async function renderInventory() {
     return;
   }
   try { outRows = await inventoryOutRead(); } catch (e) { outRows = []; }
-
-  /* a newer run has taken over - this one must not touch the page */
-  if (myRun !== invRun) return;
 
   /* which lines are ticked - kept between redraws */
   if (!window.__invPicked) window.__invPicked = {};
@@ -3784,95 +3763,92 @@ async function renderInventory() {
   rows.forEach(function (r) { if (picked[r.id]) stillHere[r.id] = true; });
   window.__invPicked = picked = stillHere;
 
+  /* ================= LEFT: THE STOCK, AS SELECTABLE TILES =================
+
+     EACH ITEM IS A CARD YOU CLICK, not a row in a table. It carries
+     everything that was entered - what it is, what it cost each, how
+     many, what the line comes to, any note, and when it was logged -
+     so the item describes itself on the card.
+
+     Clicking a card SELECTS it. A selected card lights gold, the same
+     way a Teams tile does, and the item at once appears on the
+     calculation side. Clicking again unselects it. */
   if (!rows.length) {
     const p = document.createElement("p");
     p.className = "empty";
     p.textContent = "Nothing in stock. Enter an item and what it cost above.";
     left.appendChild(p);
   } else {
-    const table = document.createElement("table");
-    table.className = "invtable";
-    const thead = document.createElement("thead");
-    thead.innerHTML = "<tr><th></th><th>Item</th><th>Cost each</th><th>Qty</th>" +
-      "<th>Total</th><th>Note</th><th>Logged</th><th></th></tr>";
-    table.appendChild(thead);
+    const grid = document.createElement("div");
+    grid.className = "invgrid";
 
-    const tbody = document.createElement("tbody");
     rows.forEach(function (r) {
-      const tr = document.createElement("tr");
-      if (picked[r.id]) tr.className = "picked";
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "invcard" + (picked[r.id] ? " on" : "");
+      card.title = "Click to select " + (r.item || "this item");
 
-      const c0 = document.createElement("td");
-      const tick = document.createElement("input");
-      tick.type = "checkbox";
-      tick.checked = !!picked[r.id];
-      tick.title = "Tick to move this out";
-      tick.addEventListener("change", function () {
-        if (tick.checked) picked[r.id] = true; else delete picked[r.id];
-        tr.className = tick.checked ? "picked" : "";
+      /* the name, as the card's headline */
+      const nm = document.createElement("span");
+      nm.className = "invcardname";
+      nm.textContent = r.item || "(no name)";
+      card.appendChild(nm);
+
+      /* every figure that was entered, one per line */
+      const facts = document.createElement("span");
+      facts.className = "invcardfacts";
+
+      const f1 = document.createElement("i");
+      f1.textContent = "Cost each";
+      const v1 = document.createElement("b");
+      v1.textContent = invMoney(r.cost);
+      facts.appendChild(f1); facts.appendChild(v1);
+
+      const f2 = document.createElement("i");
+      f2.textContent = "How many";
+      const v2 = document.createElement("b");
+      v2.textContent = (r.qty || 1);
+      facts.appendChild(f2); facts.appendChild(v2);
+
+      const f3 = document.createElement("i");
+      f3.textContent = "Line total";
+      const v3 = document.createElement("b");
+      v3.textContent = invMoney((Number(r.cost) || 0) * (Number(r.qty) || 1));
+      facts.appendChild(f3); facts.appendChild(v3);
+
+      card.appendChild(facts);
+
+      if (r.note) {
+        const nt = document.createElement("span");
+        nt.className = "invcardnote";
+        nt.textContent = r.note;
+        card.appendChild(nt);
+      }
+
+      const when = document.createElement("span");
+      when.className = "invcardwhen";
+      const d = new Date(r.created_at);
+      when.textContent = isNaN(d) ? "" : "Logged " + d.toLocaleString();
+      card.appendChild(when);
+
+      /* the tick marker, so a selected card reads at a glance */
+      const mark = document.createElement("span");
+      mark.className = "invcardmark";
+      mark.textContent = picked[r.id] ? "\u2713 SELECTED" : "Select";
+      card.appendChild(mark);
+
+      card.addEventListener("click", function () {
+        if (picked[r.id]) delete picked[r.id];
+        else picked[r.id] = true;
+        card.className = "invcard" + (picked[r.id] ? " on" : "");
+        mark.textContent = picked[r.id] ? "\u2713 SELECTED" : "Select";
         drawPicker();
       });
-      c0.appendChild(tick);
-      tr.appendChild(c0);
 
-      const c1 = document.createElement("td");
-      c1.className = "who";
-      c1.textContent = r.item || "-";
-      tr.appendChild(c1);
-
-      const c2 = document.createElement("td");
-      c2.className = "givcount";
-      c2.textContent = invMoney(r.cost);
-      tr.appendChild(c2);
-
-      const c3 = document.createElement("td");
-      c3.className = "meta";
-      c3.textContent = r.qty || 1;
-      tr.appendChild(c3);
-
-      const c4 = document.createElement("td");
-      c4.className = "givcount";
-      c4.textContent = invMoney((Number(r.cost) || 0) * (Number(r.qty) || 1));
-      tr.appendChild(c4);
-
-      const c5 = document.createElement("td");
-      c5.className = "meta";
-      c5.textContent = r.note || "";
-      tr.appendChild(c5);
-
-      const c6 = document.createElement("td");
-      c6.className = "meta";
-      const d = new Date(r.created_at);
-      c6.textContent = isNaN(d) ? "-" : d.toLocaleString();
-      tr.appendChild(c6);
-
-      const c7 = document.createElement("td");
-      const del = document.createElement("button");
-      del.type = "button";
-      del.className = "ghost";
-      del.textContent = "Remove";
-      del.title = "Delete this line without recording it";
-      del.addEventListener("click", async function () {
-        try {
-          await inventoryRemove(r.id);
-          delete picked[r.id];
-          $("saved").textContent = (r.item || "That line") + " removed.";
-          renderInventory();
-        } catch (err) {
-          $("saved").textContent = err.message;
-        }
-      });
-      c7.appendChild(del);
-      tr.appendChild(c7);
-
-      tbody.appendChild(tr);
+      grid.appendChild(card);
     });
-    table.appendChild(tbody);
 
-    const wrap = document.createElement("div");
-    wrap.className = "giventries";
-    wrap.appendChild(table);
-    left.appendChild(wrap);
+    left.appendChild(grid);
   }
 
   /* ================= RIGHT: THE PICKER ================= */
