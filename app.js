@@ -3701,6 +3701,189 @@ async function inventoryMoveOut(lines, note) {
   return { batch: batch, moved: done.length, failed: failed };
 }
 
+/* ============================================================
+   THE INVENTORY ROW CONTROLS
+
+   These are the Credit side's shape, applied to stock. On the Credit
+   tab every customer row carries a small amount box and + / - buttons,
+   so a balance can be seen and changed on the row itself. Stock rows
+   now work the same way, and these are the three pieces that make that
+   possible.
+
+   WHY IT MATTERS. Before this, a logged line was a fixed picture. If a
+   cost was typed wrong, or three came in instead of two, the only way to
+   fix it was to take the line out and log it again - which also lost its
+   history. Now the cost and the count are boxes on the row, and the row
+   carries its own + / - / Delete.
+   ============================================================ */
+
+/* Change one line in place. The whole row is sent, so the database always
+   holds what the boxes show, and the row only redraws once the write has
+   been accepted. */
+async function saveInvLine(row, patch, field) {
+  if (!row || !row.id) { $("saved").textContent = "That line has no id."; return; }
+  try {
+    await inventoryUpdate(row.id, patch);
+  } catch (err) {
+    $("saved").textContent = "Could not save that change: " + err.message;
+    renderInventory();
+    return;
+  }
+  const what = Object.keys(patch)[0];
+  $("saved").textContent = (row.item || "That line") + " " +
+    (what === "qty" ? "count is now " + patch.qty
+                    : "cost is now " + invMoney(patch.cost)) + ".";
+  renderInventory();
+}
+
+/* Rename what a line IS, which is the one change that also changes its
+   icon. Laid out like the edit panel on a board tile: a box, then
+   Save / Cancel. */
+function startInvEdit(tr, row, cell) {
+  cell.innerHTML = "";
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "creditinput invnameinput";
+  input.value = row.item || "";
+  input.setAttribute("aria-label", "Change what this item is");
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  cell.appendChild(input);
+
+  const bar = document.createElement("div");
+  bar.className = "invnamebar";
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "cesave";
+  save.textContent = "Save";
+
+  const cancel = document.createElement("button");
+  cancel.type = "button";
+  cancel.className = "cecancel";
+  cancel.textContent = "Cancel";
+
+  bar.appendChild(save);
+  bar.appendChild(cancel);
+  cell.appendChild(bar);
+
+  async function commit() {
+    const next = String(input.value || "").trim();
+    if (!next) { $("saved").textContent = "Enter what the item is."; input.focus(); return; }
+    try {
+      await inventoryUpdate(row.id, { item: next });
+    } catch (err) {
+      $("saved").textContent = "Could not rename that line: " + err.message;
+      renderInventory();
+      return;
+    }
+    $("saved").textContent = "Renamed to " + next + ".";
+    renderInventory();
+  }
+
+  save.addEventListener("click", commit);
+  cancel.addEventListener("click", function () { renderInventory(); });
+  input.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+    if (ev.key === "Escape") { ev.preventDefault(); renderInventory(); }
+  });
+
+  input.focus();
+  input.select();
+}
+
+/* The adjust controls on ONE stock row: a count box, + / -, and Delete.
+   The shape is the Credit row's, so the two pages read the same way. */
+function invRowControls(row) {
+  const bar = document.createElement("div");
+  bar.className = "creditbar invbar";
+
+  const amount = document.createElement("input");
+  amount.type = "number";
+  amount.step = "1";
+  amount.min = "0";
+  amount.className = "creditinput creditinputrow";
+  amount.placeholder = "0";
+  amount.inputMode = "numeric";
+  amount.title = "How many to add or take away";
+  bar.appendChild(amount);
+
+  async function move(sign) {
+    const val = Math.abs(parseInt(amount.value, 10) || 0);
+    if (!val) { $("saved").textContent = "Enter how many first."; return; }
+    const had = Number(row.qty) || 1;
+    const next = had + sign * val;
+    if (next < 1) {
+      $("saved").textContent = "That would leave " + (row.item || "the line") +
+        " at less than one - use Delete to take it out entirely.";
+      return;
+    }
+    await saveInvLine(row, { qty: next }, amount);
+    amount.value = "";
+  }
+
+  function mk(label, title, fn) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "ghost";
+    b.textContent = label;
+    b.title = title;
+    b.addEventListener("click", fn);
+    bar.appendChild(b);
+    return b;
+  }
+
+  mk("+", "Add this many to stock", function () { move(1); });
+  mk("\u2212", "Take this many off stock", function () { move(-1); });
+
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "del";
+  del.textContent = "Delete";
+  del.title = "Remove this line from stock entirely";
+  del.addEventListener("click", async function () {
+    if (!window.confirm("Delete " + (row.item || "this line") +
+        " from stock?\n\nThis does not write a report line - it just " +
+        "takes the stock line away.")) return;
+    try {
+      await inventoryRemove(row.id);
+    } catch (err) {
+      $("saved").textContent = "Could not delete that line: " + err.message;
+      return;
+    }
+    delete window.__invPicked[row.id];
+    $("saved").textContent = "Deleted " + (row.item || "that line") + " from stock.";
+    renderInventory();
+  });
+  bar.appendChild(del);
+
+  return bar;
+}
+
+async function inventoryUpdate(id, patch) {
+  const res = await fetch(
+    SB_INV_URL + "?id=eq." + encodeURIComponent(id),
+    {
+      method: "PATCH",
+      headers: {
+        "apikey": SB_WIN_KEY,
+        "Authorization": "Bearer " + SB_WIN_KEY,
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+      },
+      body: JSON.stringify(patch)
+    }
+  );
+  if (!res.ok) {
+    const txt = await res.text().catch(function () { return ""; });
+    throw new Error("(" + res.status + ") " + txt);
+  }
+  const rows = await res.json();
+  if (!rows || !rows.length) throw new Error("the line was not found");
+  return rows[0];
+}
+
 async function inventoryRemove(id) {
   const res = await fetch(
     SB_INV_URL + "?id=eq." + encodeURIComponent(id),
@@ -3872,90 +4055,146 @@ async function renderInventory() {
   rows.forEach(function (r) { if (picked[r.id]) stillHere[r.id] = true; });
   window.__invPicked = picked = stillHere;
 
-  /* EACH ITEM IS A CARD YOU CLICK, not a table row. The card carries
-     everything entered - what it is, cost each, how many, the line
-     total, the note and when it was logged. Clicking selects it and
-     it appears on the calculation side; clicking again unselects. */
+  /* ================= LEFT: THE STOCK =================
+
+     THIS IS THE CREDIT SIDE'S SHAPE. Every logged line is a ROW you can
+     see and change, exactly as a customer's credit row works on the
+     Credit tab: a quantity box, an icon, what it is, cost each, the line
+     total, and + / - / Delete buttons ON THE ROW ITSELF.
+
+     WHY IT CHANGED. The cards were a fixed picture of what had been
+     logged. If a cost was typed wrong, or three arrived instead of two,
+     the only way to fix it was to take the line out and log it again.
+     The Credit side never had that problem, because every row carries
+     its own adjust controls - so the inventory now does the same.
+
+     SELECTION STILL WORKS, and it is the tick in the first column. Tick
+     rows and they come together in the panel on the right, grouped by
+     what they are, with the cost added up. */
   if (!rows.length) {
     const p = document.createElement("p");
     p.className = "empty";
     p.textContent = "Nothing in stock. Enter an item and what it cost above.";
     left.appendChild(p);
   } else {
-    const grid = document.createElement("div");
-    grid.className = "invgrid";
+    const table = document.createElement("table");
+    table.className = "invTable";
+    const thead = document.createElement("thead");
+    thead.innerHTML = "<tr><th class='invpickcol'></th><th>Item</th>" +
+      "<th>Cost each</th><th>How many</th><th>Line total</th>" +
+      "<th>Adjust</th></tr>";
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
     rows.forEach(function (r) {
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "invcard" + (picked[r.id] ? " on" : "");
-      card.title = "Click to select " + (r.item || "this item");
-
-      /* the head row: a drawn icon, then the name */
-      const top = document.createElement("span");
-      top.className = "invcardtop";
-
       const kind = invIconKind(r.item);
       const accent = invAccent(kind);
 
-      const glyph = document.createElement("span");
-      glyph.className = "invglyphwrap";
-      glyph.innerHTML = invGlyph(kind);
-      glyph.style.setProperty("--inv-accent", accent.ink);
-      glyph.style.setProperty("--inv-glow", accent.glow);
-      top.appendChild(glyph);
+      const tr = document.createElement("tr");
+      tr.className = "invrow" + (picked[r.id] ? " on" : "");
+      tr.style.setProperty("--inv-accent", accent.ink);
+      tr.style.setProperty("--inv-glow", accent.glow);
 
-      const nm = document.createElement("span");
-      nm.className = "invcardname";
-      nm.textContent = r.item || "(no name)";
-      top.appendChild(nm);
-
-      card.appendChild(top);
-      card.style.setProperty("--inv-accent", accent.ink);
-      card.style.setProperty("--inv-glow", accent.glow);
-
-      const facts = document.createElement("span");
-      facts.className = "invcardfacts";
-      const f1 = document.createElement("i"); f1.textContent = "Cost each";
-      const v1 = document.createElement("b"); v1.textContent = invMoney(r.cost);
-      const f2 = document.createElement("i"); f2.textContent = "How many";
-      const v2 = document.createElement("b"); v2.textContent = (r.qty || 1);
-      const f3 = document.createElement("i"); f3.textContent = "Line total";
-      const v3 = document.createElement("b");
-      v3.textContent = invMoney((Number(r.cost) || 0) * (Number(r.qty) || 1));
-      facts.appendChild(f1); facts.appendChild(v1);
-      facts.appendChild(f2); facts.appendChild(v2);
-      facts.appendChild(f3); facts.appendChild(v3);
-      card.appendChild(facts);
-
-      if (r.note) {
-        const nt = document.createElement("span");
-        nt.className = "invcardnote";
-        nt.textContent = r.note;
-        card.appendChild(nt);
-      }
-
-      const when = document.createElement("span");
-      when.className = "invcardwhen";
-      const d = new Date(r.created_at);
-      when.textContent = isNaN(d) ? "" : "Logged " + d.toLocaleString();
-      card.appendChild(when);
-
-      const mark = document.createElement("span");
-      mark.className = "invcardmark";
-      mark.textContent = picked[r.id] ? "\u2713 SELECTED" : "Select";
-      card.appendChild(mark);
-
-      card.addEventListener("click", function () {
+      /* ---- 1. THE TICK. This is the selection. ---- */
+      const cPick = document.createElement("td");
+      cPick.className = "invpickcell";
+      const tick = document.createElement("button");
+      tick.type = "button";
+      tick.className = "invtick" + (picked[r.id] ? " on" : "");
+      tick.textContent = picked[r.id] ? "\u2713" : "";
+      tick.title = picked[r.id] ? "Selected - click to drop it" : "Select this line";
+      tick.setAttribute("aria-pressed", picked[r.id] ? "true" : "false");
+      tick.addEventListener("click", function () {
         if (picked[r.id]) delete picked[r.id];
         else picked[r.id] = true;
-        card.className = "invcard" + (picked[r.id] ? " on" : "");
-        mark.textContent = picked[r.id] ? "\u2713 SELECTED" : "Select";
+        tr.className = "invrow" + (picked[r.id] ? " on" : "");
+        tick.className = "invtick" + (picked[r.id] ? " on" : "");
+        tick.textContent = picked[r.id] ? "\u2713" : "";
+        tick.setAttribute("aria-pressed", picked[r.id] ? "true" : "false");
         drawPanel();
       });
+      cPick.appendChild(tick);
+      tr.appendChild(cPick);
 
-      grid.appendChild(card);
+      /* ---- 2. THE ITEM, behind its icon ---- */
+      const cItem = document.createElement("td");
+      cItem.className = "invwho";
+
+      const ico = document.createElement("span");
+      ico.className = "invrowicon";
+      ico.innerHTML = invGlyph(kind);
+      cItem.appendChild(ico);
+
+      const nm = document.createElement("b");
+      nm.className = "invrowname";
+      nm.textContent = r.item || "(no name)";
+      nm.title = "Click to change what this is";
+      nm.addEventListener("click", function () { startInvEdit(tr, r, cItem); });
+      cItem.appendChild(nm);
+
+      if (r.note) {
+        const nt = document.createElement("i");
+        nt.className = "invrownote";
+        nt.textContent = r.note;
+        cItem.appendChild(nt);
+      }
+      tr.appendChild(cItem);
+
+      /* ---- 3. COST EACH, editable in place ---- */
+      const cCost = document.createElement("td");
+      cCost.className = "invnum";
+      const costIn = document.createElement("input");
+      costIn.type = "number";
+      costIn.step = "0.01";
+      costIn.min = "0";
+      costIn.className = "creditinput invnuminput";
+      costIn.value = (Number(r.cost) || 0).toFixed(2);
+      costIn.inputMode = "decimal";
+      costIn.title = "Cost each";
+      costIn.addEventListener("change", function () {
+        saveInvLine(r, { cost: Number(costIn.value) || 0 }, costIn);
+      });
+      cCost.appendChild(costIn);
+      tr.appendChild(cCost);
+
+      /* ---- 4. HOW MANY, editable in place ---- */
+      const cQty = document.createElement("td");
+      cQty.className = "invnum";
+      const qtyIn = document.createElement("input");
+      qtyIn.type = "number";
+      qtyIn.step = "1";
+      qtyIn.min = "1";
+      qtyIn.className = "creditinput invnuminput";
+      qtyIn.value = r.qty || 1;
+      qtyIn.inputMode = "numeric";
+      qtyIn.title = "How many in stock";
+      qtyIn.addEventListener("change", function () {
+        saveInvLine(r, { qty: Math.max(1, parseInt(qtyIn.value, 10) || 1) }, qtyIn);
+      });
+      cQty.appendChild(qtyIn);
+      tr.appendChild(cQty);
+
+      /* ---- 5. THE LINE TOTAL, worked out from the two above ---- */
+      const cLine = document.createElement("td");
+      cLine.className = "invline";
+      cLine.textContent = invMoney((Number(r.cost) || 0) * (Number(r.qty) || 1));
+      tr.appendChild(cLine);
+
+      /* ---- 6. ADJUST: the same + / - / Delete the Credit rows carry ---- */
+      const cAdj = document.createElement("td");
+      cAdj.className = "invadj";
+      cAdj.appendChild(invRowControls(r));
+      tr.appendChild(cAdj);
+
+      tbody.appendChild(tr);
     });
-    left.appendChild(grid);
+
+    table.appendChild(tbody);
+    const wrap = document.createElement("div");
+    wrap.className = "invtablewrap";
+    wrap.appendChild(table);
+    left.appendChild(wrap);
   }
 
   /* ================= RIGHT: THE PANEL =================
