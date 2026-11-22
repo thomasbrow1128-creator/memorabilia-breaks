@@ -868,3 +868,112 @@ button.ghost:hover::before{
   border-top-left-radius:15px !important;
   border-top-right-radius:15px !important;
 }
+
+/* ============================================================
+   INVENTORY CARDS
+
+   The cards were being built with these class names but no styles
+   existed for them anywhere - so an item rendered as loose text with
+   no box around it, which is why the page looked like it only showed
+   a summary. This is the missing half.
+
+   A card is a Teams-style tile: a dark plate, a gold rim on hover,
+   and a full gold treatment when selected.
+   ============================================================ */
+
+.invgrid{
+  display:grid;
+  gap:12px;
+  grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));
+  margin:14px 0 4px;
+}
+
+.invcard{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  text-align:left;
+  font-family:inherit;
+  cursor:pointer;
+  padding:16px 16px 14px;
+  border-radius:14px;
+  border:2px solid rgba(201,162,39,.38);
+  background:linear-gradient(165deg,
+    rgba(30,24,74,.96) 0%, rgba(14,16,48,.95) 46%,
+    rgba(6,8,26,.96) 100%);
+  box-shadow:0 12px 30px rgba(0,0,0,.5);
+  transition:border-color .15s, box-shadow .15s, transform .12s;
+}
+
+.invcard:hover{
+  border-color:rgba(255,215,106,.85);
+  box-shadow:0 0 26px rgba(255,206,80,.3), 0 12px 30px rgba(0,0,0,.55);
+  transform:translateY(-2px);
+}
+
+.invcard.on{
+  border-color:#ffd75e;
+  background:linear-gradient(165deg,
+    rgba(70,50,10,.95) 0%, rgba(38,26,8,.95) 50%,
+    rgba(18,12,4,.97) 100%);
+  box-shadow:0 0 34px rgba(255,206,80,.5),
+    0 0 70px rgba(255,206,80,.22), 0 12px 30px rgba(0,0,0,.6);
+}
+
+.invcard .invcardname{
+  font-size:15px; font-weight:900; letter-spacing:.02em;
+  color:#fff; overflow-wrap:anywhere;
+}
+.invcard.on .invcardname{color:#ffe89a}
+
+.invcard .invcardfacts{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  gap:3px 12px;
+  font-size:12.5px;
+}
+.invcard .invcardfacts i{
+  font-style:normal; font-weight:800; letter-spacing:.06em;
+  text-transform:uppercase; font-size:10px; color:#8ea9c4;
+  align-self:center;
+}
+.invcard .invcardfacts b{
+  font-weight:900; color:#eaf3ff; text-align:right;
+}
+.invcard.on .invcardfacts b{color:#fff6d8}
+
+.invcard .invcardnote{
+  font-size:12px; color:#a9c3dc; font-style:italic;
+  border-top:1px solid rgba(201,162,39,.22); padding-top:7px;
+}
+
+.invcard .invcardwhen{
+  font-size:10.5px; color:#7f98b0; letter-spacing:.04em;
+}
+
+.invcard .invcardmark{
+  margin-top:2px; align-self:flex-start;
+  font-size:10.5px; font-weight:900; letter-spacing:.14em;
+  text-transform:uppercase; padding:5px 11px; border-radius:7px;
+  color:#a9c3dc; background:rgba(4,20,34,.8);
+  border:1px solid rgba(201,162,39,.4);
+}
+.invcard.on .invcardmark{
+  color:#0b1524; background:linear-gradient(180deg,#ffe89a,#e8bf5c);
+  border-color:#ffd75e;
+}
+
+/* the two columns: stock on the left, selection on the right */
+.invsplit{
+  display:grid;
+  gap:22px;
+  grid-template-columns:1fr 330px;
+  align-items:start;
+}
+.invleft{min-width:0}
+.invright{position:sticky; top:16px}
+
+@media(max-width:900px){
+  .invsplit{grid-template-columns:1fr}
+  .invright{position:static}
+}
