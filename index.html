@@ -18,9 +18,8 @@
    ?v= makes each one a different URL, so a changed file is a new
    download everywhere.
 
-   BUMPED to 25: one person may now hold SEVERAL pairs, so four pairs
-   earn two entries. The board had been refusing every pair after the
-   first, which is why the giveaway only ever saw one of them.
+   BUMPED to 26: a new INVENTORY tab on the control side, for logging
+   stock bought into the shop and what it cost.
 
    app.js now carries: the HISTORY tab (every board reset is written down
    before it clears, and History lists each one); the GIVEAWAY wheel with
@@ -29,7 +28,7 @@
 
    neon.css carries the hub-mark styling and the spin glow. */
 (function () {
-  var files = ["casino.css?v=25", "divisions.css?v=25", "neon.css?v=25"];
+  var files = ["casino.css?v=26", "divisions.css?v=26", "neon.css?v=26"];
   for (var i = 0; i < files.length; i++) {
     var link = document.createElement("link");
     link.rel = "stylesheet";
@@ -239,12 +238,12 @@
      ?v= makes each one a different URL, so a changed file is a new
      download everywhere. BUMP THIS NUMBER WHENEVER A SCRIPT CHANGES.
 
-     BUMPED to 25 so app.js is refetched with the rest. -->
-<script src="teams.js?v=25"></script>
-<script src="boards.js?v=25"></script>
-<script src="sb-client.js?v=25"></script>
-<script src="winners.js?v=25"></script>
-<script src="app.js?v=25"></script>
+     BUMPED to 26 so app.js is refetched with the rest. -->
+<script src="teams.js?v=26"></script>
+<script src="boards.js?v=26"></script>
+<script src="sb-client.js?v=26"></script>
+<script src="winners.js?v=26"></script>
+<script src="app.js?v=26"></script>
 
 <script>
 (function () {
