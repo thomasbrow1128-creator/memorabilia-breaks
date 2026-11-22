@@ -978,29 +978,34 @@ button.ghost:hover::before{
   .invright{position:static}
 }
 
+
 /* ============================================================
-   INVENTORY - THE SELECTION PANEL AND THE REPORT
+   INVENTORY - THE SELECTION PANEL, ITS TYPE GROUPS, AND THE REPORT
    ============================================================
 
-   THE MISSING HALF. The card styles above were written to fix a page
-   that showed loose text; these are the same fix one step further on.
-   app.js builds a form, a picker and a report out of .creditform,
-   .creditfield, .creditbtn, .pickcard, .pickrow, .picktotal, .outbatch
-   and .hist* - and NOT ONE of those class names had a rule anywhere in
-   casino.css, divisions.css or this file. So the left column had cards
-   and the right column and the report underneath had nothing at all:
-   the selection panel rendered as unstyled text and the price never
-   lined up with the item it belonged to.
+   THE MISSING HALF, AGAIN. The stock cards on the left were styled
+   (see INVENTORY CARDS above), but the panel they feed was not: the
+   picker and the report underneath are built out of .pickcard,
+   .pickrow, .picktotal, .outbatch and the .creditform field set, and
+   NONE of those had a rule anywhere in casino.css, divisions.css or
+   this file. So the right-hand column and the report rendered as loose
+   text beside cards that looked finished.
 
-   Everything below is built from the theme's own parts - the glass
-   panels, the violet rim, the gold seal - so it reads as the rest of
+   THE TYPE GROUPS ARE NEW. A selection is now grouped by what each
+   item IS, and each group carries its own icon and colour, so a job
+   reads as "4 wax boxes and 2 jerseys" rather than a flat list. The
+   icon and the colour come in from app.js as --inv-accent and
+   --inv-glow on the .pickgroup element.
+
+   Everything below is built from the theme's own parts - the dark
+   glass, the violet rim, the gold seal - so the panel reads as part of
    the site rather than a form bolted onto it.
 
    NO LAYOUT IS STRUCTURAL. Nothing here changes what app.js draws or
    the order it draws it in; it is surface, spacing and light.
    ============================================================ */
 
-/* ---------- THE FORM: one column of labelled fields ---------- */
+/* ---------- THE FORM: a labelled card of fields ---------- */
 
 .creditform{
   background:linear-gradient(180deg, var(--nk-glass-1), var(--nk-glass-3));
@@ -1098,25 +1103,30 @@ button.ghost:hover::before{
 /* ---------- THE CARD ICON ----------
 
    The glyph is DRAWN, not fetched: an inline SVG in the same stroke as
-   the rest of the icons on the site. Which one an item gets is worked
-   out from its own name in app.js, so nothing has to be chosen by hand
-   and no image, logo or brand mark is involved. */
+   the rest of the site's icons. Which one an item gets is worked out
+   from its own name in app.js, so nothing is chosen by hand and no
+   image, logo or brand mark is involved.
+
+   IT SITS ON THE HEAD ROW, beside the name. */
+
+.invcardtop{display:flex; align-items:center; gap:10px; min-width:0}
+.invcardtop .invcardname{flex:1 1 auto; min-width:0}
 
 .invglyph{
-  width:30px; height:30px; flex:0 0 auto;
+  width:30px; height:30px; flex:0 0 auto; display:block;
   fill:none; stroke:var(--inv-accent, #ffd75e);
   stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round;
   filter:drop-shadow(0 0 10px var(--inv-glow, rgba(255,215,94,.5)));
   transition:filter .16s, stroke .16s, transform .16s;
 }
 .invcard:hover .invglyph{transform:translateY(-1px) scale(1.06)}
-.invcard.on .invglyph{filter:drop-shadow(0 0 16px var(--inv-glow, rgba(255,215,94,.7)))}
+.invcard.on .invglyph{
+  filter:drop-shadow(0 0 16px var(--inv-glow, rgba(255,215,94,.7)));
+}
 
-/* the head row: icon, then the name */
-.invcardtop{display:flex; align-items:center; gap:10px; min-width:0}
-.invcardtop .invcardname{flex:1 1 auto; min-width:0}
-
-/* ---------- THE SELECTION PANEL ---------- */
+/* ============================================================
+   THE SELECTION PANEL - one block per TYPE
+   ============================================================ */
 
 .pickcard{
   background:linear-gradient(180deg, var(--nk-glass-1), var(--nk-glass-3));
@@ -1135,27 +1145,75 @@ button.ghost:hover::before{
   text-shadow:0 0 18px rgba(150,120,255,.6);
 }
 
-.picklist{display:flex; flex-direction:column; gap:2px; max-height:44vh; overflow:auto}
+/* ---------- ONE TYPE: a tinted block with its icon and its money ---------- */
+
+.pickgroup{
+  border-radius:12px;
+  padding:11px 12px 9px;
+  background:linear-gradient(180deg,
+    rgba(255,255,255,.055), rgba(0,0,0,.24));
+  border:1px solid var(--inv-accent, rgba(110,80,230,.4));
+  box-shadow:0 0 22px var(--inv-glow, rgba(70,40,180,.2)),
+    inset 0 1px 0 rgba(255,255,255,.1);
+  animation:pickIn .2s ease-out both;
+}
+
+.pickgrouphead{
+  display:flex; align-items:center; gap:9px;
+  padding-bottom:8px; margin-bottom:6px;
+  border-bottom:1px solid rgba(140,110,255,.2);
+}
+
+/* the group's icon takes the type's colour and glow */
+.pickgroupicon{
+  flex:0 0 auto; display:block; line-height:0;
+}
+.pickgroupicon .invglyph{
+  width:22px; height:22px;
+  stroke:var(--inv-accent, #ffd75e);
+  filter:drop-shadow(0 0 8px var(--inv-glow, rgba(255,215,94,.45)));
+}
+
+.pickgrouplabel{
+  flex:1 1 auto; min-width:0;
+  font-size:11.5px; font-weight:900; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--inv-accent, #ffd75e);
+  text-shadow:0 0 14px var(--inv-glow, rgba(255,215,94,.4));
+  overflow-wrap:anywhere;
+}
+
+.pickgroupmoney{
+  flex:0 0 auto; font-size:12.5px; font-weight:900;
+  color:var(--inv-accent, #ffd75e);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+
+.picklist{display:flex; flex-direction:column; gap:2px; max-height:36vh; overflow:auto}
 
 .pickrow{
   display:grid; grid-template-columns:1fr auto auto;
   gap:10px; align-items:baseline;
-  padding:8px 10px; border-radius:9px;
-  background:linear-gradient(180deg, rgba(255,255,255,.045), rgba(0,0,0,.2));
-  border:1px solid rgba(110,80,230,.2);
-  animation:pickIn .2s ease-out both;
+  padding:6px 8px; border-radius:8px;
 }
-@keyframes pickIn{from{opacity:0; transform:translateX(6px)} to{opacity:1; transform:none}}
+.pickrow + .pickrow{border-top:1px solid rgba(140,110,255,.12)}
 
 .pickrow .pickname{
-  font-size:12.5px; font-weight:800; color:#eaf3ff;
+  font-size:12px; font-weight:700; color:#eaf3ff;
   min-width:0; overflow-wrap:anywhere;
 }
 .pickrow .pickeach{font-size:10.5px; color:#93a6cf; white-space:nowrap}
 .pickrow .pickline{
-  font-size:12.5px; font-weight:900; color:var(--nk-gold);
+  font-size:12px; font-weight:900; color:var(--inv-accent, var(--nk-gold));
   white-space:nowrap; font-variant-numeric:tabular-nums;
 }
+
+@keyframes pickIn{
+  from{opacity:0; transform:translateX(6px)}
+  to{opacity:1; transform:none}
+}
+
+/* ---------- THE GRAND TOTAL ---------- */
 
 .picktotal{
   display:flex; align-items:baseline; justify-content:space-between; gap:12px;
@@ -1171,7 +1229,9 @@ button.ghost:hover::before{
   text-shadow:0 0 22px rgba(255,205,90,.6), 0 2px 5px rgba(0,0,0,.9);
 }
 
-/* ---------- THE REPORT ---------- */
+/* ============================================================
+   THE REPORT - what has come out, one batch per press of Done
+   ============================================================ */
 
 .outbatch{
   margin:12px 0 0; padding:13px 15px;
@@ -1216,4 +1276,5 @@ button.ghost:hover::before{
 @media(max-width:900px){
   .creditactions{flex-direction:column}
   .creditbtn{align-items:center}
+  .picklist{max-height:none}
 }
