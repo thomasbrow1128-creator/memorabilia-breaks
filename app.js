@@ -3447,6 +3447,137 @@ async function inventoryAdd(item, cost, qty, note) {
   return rows[0] || null;
 }
 
+/* ---------- WHAT HAS COME OUT ----------
+
+   Every move-out is written here BEFORE the stock line is deleted, so
+   the report survives the row it came from. Each move carries a batch
+   reference, so one press of Move out groups as one line of history. */
+async function inventoryOutRead() {
+  const res = await fetch(
+    SB_INV_URL.replace("/inventory", "/inventory_out") + "?select=*&order=removed_at.desc",
+    { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+  );
+  if (!res.ok) throw new Error("Could not read what has moved out (" + res.status + ")");
+  return res.json();
+}
+
+/* Move the ticked stock lines out.
+
+   THE ORDER IS: write the report line FIRST, then delete the stock row.
+   If the delete failed and this ran the other way round, the item would
+   vanish from inventory and leave no record - the one outcome that must
+   never happen. So the record is written first and the delete second. */
+/* ---------- PUT A BATCH BACK ----------
+
+   A move out is recorded and then removed from stock. Undo does the
+   reverse in the opposite order: the stock line is written back FIRST,
+   and only then is the report line deleted. Done the other way round,
+   a failure would lose the record and leave nothing in stock either.
+
+   The whole batch goes back together, because it went out together. */
+async function inventoryMoveBack(batch, lines) {
+  if (!lines || !lines.length) throw new Error("Nothing to put back.");
+  const put = [];
+  const failed = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const r = lines[i];
+    try {
+      const res = await fetch(SB_INV_URL, {
+        method: "POST",
+        headers: {
+          "apikey": SB_WIN_KEY,
+          "Authorization": "Bearer " + SB_WIN_KEY,
+          "Content-Type": "application/json",
+          "Prefer": "return=representation"
+        },
+        body: JSON.stringify({
+          item: r.item || "",
+          cost: Number(r.cost) || 0,
+          qty: Number(r.qty) || 1,
+          note: "put back"
+        })
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(function () { return ""; });
+        throw new Error(res.status + " " + txt);
+      }
+      put.push(r);
+    } catch (err) {
+      failed.push((r.item || "a line") + ": " +
+        (err && err.message ? err.message : "unknown error"));
+    }
+  }
+
+  /* the report line goes only once the stock line is safely back */
+  for (let i = 0; i < put.length; i++) {
+    try {
+      await fetch(
+        SB_INV_URL.replace("/inventory", "/inventory_out") +
+          "?id=eq." + encodeURIComponent(put[i].id),
+        { method: "DELETE", headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+      );
+    } catch (err) {
+      failed.push((put[i].item || "a line") + " is back in stock but still shown as moved out");
+    }
+  }
+
+  return { back: put.length, failed: failed };
+}
+
+async function inventoryMoveOut(lines, note) {
+  if (!lines || !lines.length) throw new Error("Tick something to move out first.");
+
+  const batch = "OUT-" + Date.now();
+  const done = [];
+  const failed = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const r = lines[i];
+    try {
+      const res = await fetch(
+        SB_INV_URL.replace("/inventory", "/inventory_out"),
+        {
+          method: "POST",
+          headers: {
+            "apikey": SB_WIN_KEY,
+            "Authorization": "Bearer " + SB_WIN_KEY,
+            "Content-Type": "application/json",
+            "Prefer": "return=representation"
+          },
+          body: JSON.stringify({
+            item: r.item || "",
+            cost: Number(r.cost) || 0,
+            qty: Number(r.qty) || 1,
+            note: (r.note ? r.note + " | " : "") + (note || ""),
+            batch: batch
+          })
+        }
+      );
+      if (!res.ok) {
+        const txt = await res.text().catch(function () { return ""; });
+        throw new Error(res.status + " " + txt);
+      }
+      done.push(r);
+    } catch (err) {
+      failed.push((r.item || "a line") + ": " +
+        (err && err.message ? err.message : "unknown error"));
+    }
+  }
+
+  /* only the lines whose record was written get taken out of stock */
+  for (let i = 0; i < done.length; i++) {
+    try {
+      await inventoryRemove(done[i].id);
+    } catch (err) {
+      failed.push((done[i].item || "a line") + " could not be taken out of stock: " +
+        (err && err.message ? err.message : "unknown error"));
+    }
+  }
+
+  return { batch: batch, moved: done.length, failed: failed };
+}
+
 async function inventoryRemove(id) {
   const res = await fetch(
     SB_INV_URL + "?id=eq." + encodeURIComponent(id),
@@ -3465,6 +3596,7 @@ async function renderInventory() {
   if (!host) return;
 
   let rows = [];
+  let outRows = [];
   try {
     rows = await inventoryRead();
   } catch (err) {
@@ -3475,10 +3607,28 @@ async function renderInventory() {
     host.appendChild(p);
     return;
   }
+  try { outRows = await inventoryOutRead(); } catch (e) { outRows = []; }
+
+  /* which lines are ticked - kept between redraws */
+  if (!window.__invPicked) window.__invPicked = {};
+  const picked = window.__invPicked;
 
   host.innerHTML = "";
 
-  /* ---------- THE ENTRY FORM ---------- */
+  /* ---------- LAYOUT: stock on the left, the picker on the right ---------- */
+  const split = document.createElement("div");
+  split.className = "invsplit";
+
+  const left = document.createElement("div");
+  left.className = "invleft";
+  const right = document.createElement("div");
+  right.className = "invright";
+
+  split.appendChild(left);
+  split.appendChild(right);
+  host.appendChild(split);
+
+  /* ================= LEFT: THE ENTRY FORM ================= */
   const form = document.createElement("div");
   form.className = "creditform";
 
@@ -3574,98 +3724,345 @@ async function renderInventory() {
     if (ev.key === "Enter") { ev.preventDefault(); submit(); }
   });
 
-  host.appendChild(form);
+  left.appendChild(form);
 
-  /* ---------- THE TOTAL ---------- */
-  const spend = rows.reduce(function (sum, r) {
-    return sum + (Number(r.cost) || 0) * (Number(r.qty) || 1);
+  /* ================= LEFT: THE STOCK ================= */
+  const spend = rows.reduce(function (s, r) {
+    return s + (Number(r.cost) || 0) * (Number(r.qty) || 1);
   }, 0);
-  const units = rows.reduce(function (sum, r) {
-    return sum + (Number(r.qty) || 1);
-  }, 0);
+  const units = rows.reduce(function (s, r) { return s + (Number(r.qty) || 1); }, 0);
 
   if (rows.length) {
     const head = document.createElement("div");
     head.className = "invhead";
     head.innerHTML = "<b>" + units + "</b> " + (units === 1 ? "item" : "items") +
-      " across <b>" + rows.length + "</b> " + (rows.length === 1 ? "line" : "lines") +
-      " &middot; total cost <b>" + invMoney(spend) + "</b>";
-    host.appendChild(head);
-  } else {
-    const p = document.createElement("p");
-    p.className = "empty";
-    p.textContent = "Nothing logged yet. Enter an item and what it cost above.";
-    host.appendChild(p);
-    return;
+      " in stock across <b>" + rows.length + "</b> " +
+      (rows.length === 1 ? "line" : "lines") + " &middot; cost <b>" +
+      invMoney(spend) + "</b>";
+
+    left.appendChild(head);
   }
 
-  /* ---------- THE LINES ---------- */
-  const table = document.createElement("table");
-  table.className = "invtable";
-  const thead = document.createElement("thead");
-  thead.innerHTML = "<tr><th>Item</th><th>Cost each</th><th>Qty</th>" +
-    "<th>Total</th><th>Note</th><th>Logged</th><th></th></tr>";
-  table.appendChild(thead);
+  /* the tick state has to survive a redraw, so drop anything gone */
+  const stillHere = {};
+  rows.forEach(function (r) { if (picked[r.id]) stillHere[r.id] = true; });
+  window.__invPicked = picked = stillHere;
 
-  const tbody = document.createElement("tbody");
-  rows.forEach(function (r) {
-    const tr = document.createElement("tr");
+  if (!rows.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Nothing in stock. Enter an item and what it cost above.";
+    left.appendChild(p);
+  } else {
+    const table = document.createElement("table");
+    table.className = "invtable";
+    const thead = document.createElement("thead");
+    thead.innerHTML = "<tr><th></th><th>Item</th><th>Cost each</th><th>Qty</th>" +
+      "<th>Total</th><th>Note</th><th>Logged</th><th></th></tr>";
+    table.appendChild(thead);
 
-    const c1 = document.createElement("td");
-    c1.className = "who";
-    c1.textContent = r.item || "-";
-    tr.appendChild(c1);
+    const tbody = document.createElement("tbody");
+    rows.forEach(function (r) {
+      const tr = document.createElement("tr");
+      if (picked[r.id]) tr.className = "picked";
 
-    const c2 = document.createElement("td");
-    c2.className = "givcount";
-    c2.textContent = invMoney(r.cost);
-    tr.appendChild(c2);
+      const c0 = document.createElement("td");
+      const tick = document.createElement("input");
+      tick.type = "checkbox";
+      tick.checked = !!picked[r.id];
+      tick.title = "Tick to move this out";
+      tick.addEventListener("change", function () {
+        if (tick.checked) picked[r.id] = true; else delete picked[r.id];
+        tr.className = tick.checked ? "picked" : "";
+        drawPicker();
+      });
+      c0.appendChild(tick);
+      tr.appendChild(c0);
 
-    const c3 = document.createElement("td");
-    c3.className = "meta";
-    c3.textContent = r.qty || 1;
-    tr.appendChild(c3);
+      const c1 = document.createElement("td");
+      c1.className = "who";
+      c1.textContent = r.item || "-";
+      tr.appendChild(c1);
 
-    const c4 = document.createElement("td");
-    c4.className = "givcount";
-    c4.textContent = invMoney((Number(r.cost) || 0) * (Number(r.qty) || 1));
-    tr.appendChild(c4);
+      const c2 = document.createElement("td");
+      c2.className = "givcount";
+      c2.textContent = invMoney(r.cost);
+      tr.appendChild(c2);
 
-    const c5 = document.createElement("td");
-    c5.className = "meta";
-    c5.textContent = r.note || "";
-    tr.appendChild(c5);
+      const c3 = document.createElement("td");
+      c3.className = "meta";
+      c3.textContent = r.qty || 1;
+      tr.appendChild(c3);
 
-    const c6 = document.createElement("td");
-    c6.className = "meta";
-    const d = new Date(r.created_at);
-    c6.textContent = isNaN(d) ? "-" : d.toLocaleString();
-    tr.appendChild(c6);
+      const c4 = document.createElement("td");
+      c4.className = "givcount";
+      c4.textContent = invMoney((Number(r.cost) || 0) * (Number(r.qty) || 1));
+      tr.appendChild(c4);
 
-    const c7 = document.createElement("td");
-    const del = document.createElement("button");
-    del.type = "button";
-    del.className = "ghost";
-    del.textContent = "Remove";
-    del.title = "Remove this line from the inventory";
-    del.addEventListener("click", async function () {
+      const c5 = document.createElement("td");
+      c5.className = "meta";
+      c5.textContent = r.note || "";
+      tr.appendChild(c5);
+
+      const c6 = document.createElement("td");
+      c6.className = "meta";
+      const d = new Date(r.created_at);
+      c6.textContent = isNaN(d) ? "-" : d.toLocaleString();
+      tr.appendChild(c6);
+
+      const c7 = document.createElement("td");
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "ghost";
+      del.textContent = "Remove";
+      del.title = "Delete this line without recording it";
+      del.addEventListener("click", async function () {
+        try {
+          await inventoryRemove(r.id);
+          delete picked[r.id];
+          $("saved").textContent = (r.item || "That line") + " removed.";
+          renderInventory();
+        } catch (err) {
+          $("saved").textContent = err.message;
+        }
+      });
+      c7.appendChild(del);
+      tr.appendChild(c7);
+
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    const wrap = document.createElement("div");
+    wrap.className = "giventries";
+    wrap.appendChild(table);
+    left.appendChild(wrap);
+  }
+
+  /* ================= RIGHT: THE PICKER ================= */
+  function drawPicker() {
+    right.innerHTML = "";
+
+    const card = document.createElement("div");
+    card.className = "pickcard";
+
+    const t = document.createElement("h3");
+    t.className = "picktitle";
+    t.textContent = "Selected to come out";
+    card.appendChild(t);
+
+    const keys = Object.keys(picked);
+    const chosen = rows.filter(function (r) { return picked[r.id]; });
+
+    if (!chosen.length) {
+      const p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = "Tick items on the left and they come here, with the cost " +
+        "added up. Press Done when the selection is finished and it goes " +
+        "into one report.";
+      card.appendChild(p);
+      right.appendChild(card);
+      return;
+    }
+
+    /* each item, with its own line cost */
+    const list = document.createElement("div");
+    list.className = "picklist";
+    let total = 0;
+    let count = 0;
+
+    chosen.forEach(function (r) {
+      const lineTotal = (Number(r.cost) || 0) * (Number(r.qty) || 1);
+      total += lineTotal;
+      count += Number(r.qty) || 1;
+
+      const row = document.createElement("div");
+      row.className = "pickrow";
+
+      const nm = document.createElement("span");
+      nm.className = "pickname";
+      nm.textContent = (r.item || "-") + "  x" + (r.qty || 1);
+      row.appendChild(nm);
+
+      const each = document.createElement("span");
+      each.className = "pickeach";
+      each.textContent = invMoney(r.cost) + " ea";
+      row.appendChild(each);
+
+      const lt = document.createElement("span");
+      lt.className = "pickline";
+      lt.textContent = invMoney(lineTotal);
+      row.appendChild(lt);
+
+      list.appendChild(row);
+    });
+    card.appendChild(list);
+
+    /* the totals */
+    const tot = document.createElement("div");
+    tot.className = "picktotal";
+    tot.innerHTML = "<span>" + chosen.length +
+      (chosen.length === 1 ? " line" : " lines") + " &middot; " + count +
+      (count === 1 ? " item" : " items") + "</span><b>" + invMoney(total) + "</b>";
+    card.appendChild(tot);
+
+    /* a note for the record */
+    const noteWrap = document.createElement("label");
+    noteWrap.className = "creditfield";
+    const noteLbl = document.createElement("span");
+    noteLbl.className = "creditfieldlbl";
+    noteLbl.textContent = "Note for the record";
+    noteWrap.appendChild(noteLbl);
+    const outNote = document.createElement("input");
+    outNote.type = "text";
+    outNote.className = "creditinput";
+    outNote.placeholder = "optional";
+    noteWrap.appendChild(outNote);
+    card.appendChild(noteWrap);
+
+    /* ---------- DONE ----------
+
+       Press this when the selection is finished. Everything ticked
+       goes into ONE report line and comes off the inventory in one
+       action, so the history reads as a single job rather than one
+       entry per item. */
+    const go = document.createElement("button");
+    go.type = "button";
+    go.className = "creditbtn done";
+    go.innerHTML = "<b>Done</b><i>record and take out of inventory</i>";
+    go.addEventListener("click", async function () {
+      go.disabled = true;
       try {
-        await inventoryRemove(r.id);
-        $("saved").textContent = (r.item || "That line") + " removed.";
+        const res = await inventoryMoveOut(chosen, outNote.value);
+        $("saved").textContent = "Done: " + res.moved +
+          (res.moved === 1 ? " line" : " lines") + " recorded as one, " +
+          invMoney(total) + " taken out of inventory.";
+        if (res.failed && res.failed.length) {
+          $("saved").textContent += " Some did not go: " + res.failed.join("; ");
+        }
+        window.__invPicked = {};
         renderInventory();
       } catch (err) {
         $("saved").textContent = err.message;
+        go.disabled = false;
       }
     });
-    c7.appendChild(del);
-    tr.appendChild(c7);
+    card.appendChild(go);
 
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
+    const clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "ghost";
+    clear.textContent = "Untick all";
+    clear.addEventListener("click", function () {
+      window.__invPicked = {};
+      renderInventory();
+    });
+    card.appendChild(clear);
 
-  const wrap = document.createElement("div");
-  wrap.className = "giventries";
-  wrap.appendChild(table);
-  host.appendChild(wrap);
+    right.appendChild(card);
+  }
+
+  drawPicker();
+
+  /* ================= BELOW: WHAT HAS COME OUT ================= */
+  const outHead = document.createElement("div");
+  outHead.className = "creditform";
+  const outTitle = document.createElement("h3");
+  outTitle.className = "creditformtitle";
+  outTitle.textContent = "Moved out of inventory";
+  outHead.appendChild(outTitle);
+
+  if (!outRows.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Nothing has been moved out yet.";
+    outHead.appendChild(p);
+  } else {
+    /* grouped by batch, so one press reads as one line of history */
+    const batches = [];
+    const byBatch = {};
+    outRows.forEach(function (r) {
+      const b = r.batch || "single";
+      if (!byBatch[b]) { byBatch[b] = []; batches.push(b); }
+      byBatch[b].push(r);
+    });
+
+    batches.forEach(function (b) {
+      const lines = byBatch[b];
+      const when = lines[0].removed_at;
+      const d = new Date(when);
+
+      const box = document.createElement("div");
+      box.className = "outbatch";
+
+      const head = document.createElement("div");
+      head.className = "outtop";
+
+      const label = document.createElement("span");
+      label.className = "histboard";
+      label.textContent = lines.length === 1 ? "1 line" : lines.length + " lines";
+      head.appendChild(label);
+
+      const stamp = document.createElement("span");
+      stamp.className = "histwhen";
+      stamp.textContent = isNaN(d) ? "-" : d.toLocaleString();
+      head.appendChild(stamp);
+
+      const tot = lines.reduce(function (s, r) {
+        return s + (Number(r.cost) || 0) * (Number(r.qty) || 1);
+      }, 0);
+
+      const money = document.createElement("span");
+      money.className = "histn";
+      money.textContent = invMoney(tot) + " out";
+      head.appendChild(money);
+
+      /* PUT IT BACK - the whole batch returns to stock, and the report
+         line goes with it. The stock row is written first, so a failure
+         here can never lose the record without restoring the stock. */
+      const back = document.createElement("button");
+      back.type = "button";
+      back.className = "ghost invback";
+      back.textContent = "Put back";
+      back.title = "Return these to stock and remove them from this report";
+      back.addEventListener("click", async function () {
+        if (!window.confirm("Put these " + lines.length + " " +
+            (lines.length === 1 ? "line" : "lines") + " back into stock?")) return;
+        back.disabled = true;
+        try {
+          const res = await inventoryMoveBack(b, lines);
+          $("saved").textContent = "Put " + res.back +
+            (res.back === 1 ? " line" : " lines") + " back into stock.";
+          if (res.failed && res.failed.length) {
+            $("saved").textContent += " " + res.failed.join("; ");
+          }
+          renderInventory();
+        } catch (err) {
+          $("saved").textContent = err.message;
+          back.disabled = false;
+        }
+      });
+      head.appendChild(back);
+
+      box.appendChild(head);
+
+      const names = document.createElement("div");
+      names.className = "histnames";
+      lines.forEach(function (r) {
+        const chip = document.createElement("span");
+        chip.className = "histname";
+        const b2 = document.createElement("b");
+        b2.textContent = (r.item || "-") + " x" + (r.qty || 1) + " ";
+        chip.appendChild(b2);
+        chip.appendChild(document.createTextNode(invMoney(r.cost) + " ea"));
+        if (r.note) chip.appendChild(document.createTextNode(" \u00b7 " + r.note));
+        names.appendChild(chip);
+      });
+      box.appendChild(names);
+
+      outHead.appendChild(box);
+    });
+  }
+
+  host.appendChild(outHead);
 }
