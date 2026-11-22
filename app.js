@@ -3766,8 +3766,8 @@ async function renderInventory() {
 
   /* EACH ITEM IS A CARD YOU CLICK, not a table row. The card carries
      everything entered - what it is, cost each, how many, the line
-     total, the note and when it was logged. Clicking selects it and it
-     appears on the calculation side; clicking again unselects it. */
+     total, the note and when it was logged. Clicking selects it and
+     it appears on the calculation side; clicking again unselects. */
   if (!rows.length) {
     const p = document.createElement("p");
     p.className = "empty";
