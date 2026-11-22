@@ -820,3 +820,51 @@ button.ghost:hover::before{
       0 16px 40px rgba(0,0,0,.7);
   }
 }
+
+/* ============================================================
+   ROUNDED CORNERS ON THE PAIRS CARDS
+
+   The tiles on the Pairs board had SQUARE top corners while the
+   bottom ones were rounded. The cause is the logo band - .eb - which
+   is the first child inside the tile: it sits flush against the top
+   edge with its own square background, so it painted over the tile's
+   rounded corners and left them pointed.
+
+   Rounding the band itself, and clipping the tile so nothing can
+   spill past the radius, is what fixes it. The bottom corners were
+   never the problem - they are the buyer strip, which already
+   inherits the tile's rounding.
+
+   Same radius on both, so the top pair matches the bottom pair. */
+.board-small .tile,
+.board-medium .tile{
+  border-radius:16px !important;
+  overflow:hidden !important;
+  -webkit-mask-image:-webkit-radial-gradient(white, black);
+  isolation:isolate;
+}
+
+/* the logo band: rounded along its TOP edge only, so it follows the
+   card instead of cutting across the corner */
+.board-small .tile .eb,
+.board-medium .tile .eb{
+  border-top-left-radius:15px !important;
+  border-top-right-radius:15px !important;
+  border-bottom-left-radius:0 !important;
+  border-bottom-right-radius:0 !important;
+}
+
+/* the strip at the foot sits inside the same radius */
+.board-small .tile .buyer,
+.board-medium .tile .buyer{
+  border-bottom-left-radius:15px !important;
+  border-bottom-right-radius:15px !important;
+}
+
+/* a lit edge along the top, following the curve rather than cutting
+   the corner flat */
+.board-small .tile .eb::after,
+.board-medium .tile .eb::after{
+  border-top-left-radius:15px !important;
+  border-top-right-radius:15px !important;
+}
