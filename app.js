@@ -1880,6 +1880,21 @@ function buildGiveawayWheel() {
 function renderBoards() {
   const host = $("boards");
 
+  /* ---------- THE PAGES THAT ARE NOT BOARDS ARE LEFT ALONE ----------
+
+     Credit, History and Inventory are drawn by their own functions, and
+     they share this same container. renderBoards() did not check which
+     tab was open, so a redraw fired while one of them was showing would
+     paint a board over the top - which is how "EVERYONE ENTERED" ended
+     up under the Inventory form, and why the stock list with its tick
+     boxes was replaced before it could be used.
+
+     A redraw on one of those tabs either re-draws that page or does
+     nothing. It never draws a board. */
+  if (currentTab === "inventory") { renderInventory(); return; }
+  if (currentTab === "credit") { renderCredit(); return; }
+  if (currentTab === "history") { historyLoad().then(function () { renderHistory(); }); return; }
+
   /* A BUTTON LEFT DISABLED BY ANOTHER TAB IS CLEARED HERE.
 
      A disabled flag survives a redraw unless something clears it, so a
