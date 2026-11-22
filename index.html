@@ -18,20 +18,18 @@
    ?v= makes each one a different URL, so a changed file is a new
    download everywhere.
 
-   ONLY THE FILES THAT CHANGED ARE BUMPED.
+   BUMPED to 28: neon.css carries the INVENTORY CARD styles. The cards
+   were being built with no CSS at all, so an item showed as loose text
+   instead of a selectable tile.
 
-   This bump was 28 -> 29 on EVERY file at once, and that was wrong.
-   teams.js, boards.js, sb-client.js and winners.js had not changed, so
-   asking for them at a brand-new URL meant the CDN had to generate all
-   of them cold at the same moment as the two that really did change.
-   The page drew from the HTML before boards.js had arrived, which left
-   the board tabs empty and no board on screen.
+   app.js now carries: the HISTORY tab (every board reset is written down
+   before it clears, and History lists each one); the GIVEAWAY wheel with
+   the TKS mark in the hub, a side arrow whose point marks the winner,
+   labels that never cross the middle, and a livelier spin.
 
-   So: neon.css and app.js carry 29, because those are the two that
-   changed. casino.css, divisions.css and the four other scripts stay on
-   28, where their copies are already warm. */
+   neon.css carries the hub-mark styling and the spin glow. */
 (function () {
-  var files = ["casino.css?v=28", "divisions.css?v=28", "neon.css?v=29"];
+  var files = ["casino.css?v=28", "divisions.css?v=28", "neon.css?v=28"];
   for (var i = 0; i < files.length; i++) {
     var link = document.createElement("link");
     link.rel = "stylesheet";
@@ -232,17 +230,21 @@
 <!-- ORDER MATTERS: teams.js defines TEAMS, boards.js builds BOARDS from it,
      sb-client.js holds the shared connection, winners.js logs the wins,
      app.js draws it all. -->
-<!-- A VERSION ON EVERY SCRIPT. Only the changed file is bumped.
+<!-- A VERSION ON EVERY SCRIPT.
 
-     neon.css and app.js carry ?v=29, because those are the two that
-     changed. The rest stay on 28, where the CDN's copies are already
-     warm - asking for four unchanged scripts at once at new URLs is what
-     emptied the board tabs. -->
+     These were plain filenames, so when the code changed the browser kept
+     serving the copy already in its cache - and so did GitHub's CDN.
+     Uploading a new app.js changed nothing, because the URL had not.
+
+     ?v= makes each one a different URL, so a changed file is a new
+     download everywhere. BUMP THIS NUMBER WHENEVER A SCRIPT CHANGES.
+
+     BUMPED to 28 so app.js is refetched with the rest. -->
 <script src="teams.js?v=28"></script>
 <script src="boards.js?v=28"></script>
 <script src="sb-client.js?v=28"></script>
 <script src="winners.js?v=28"></script>
-<script src="app.js?v=29"></script>
+<script src="app.js?v=28"></script>
 
 <script>
 (function () {
