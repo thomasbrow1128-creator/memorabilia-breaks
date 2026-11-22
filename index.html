@@ -18,9 +18,9 @@
    ?v= makes each one a different URL, so a changed file is a new
    download everywhere.
 
-   BUMPED to 21: the giveaway now reads a Pairs box by its NAME, so
-   two pairs earn one entry as they should - it had been reading a
-   Pairs box as a Team box and paying one entry per box.
+   BUMPED to 22: neon.css rounds the Pairs cards properly - the logo
+   band was square against the top edge and painted over the tile's
+   rounded corners, leaving them pointed.
 
    app.js now carries: the HISTORY tab (every board reset is written down
    before it clears, and History lists each one); the GIVEAWAY wheel with
@@ -29,7 +29,7 @@
 
    neon.css carries the hub-mark styling and the spin glow. */
 (function () {
-  var files = ["casino.css?v=21", "divisions.css?v=21", "neon.css?v=21"];
+  var files = ["casino.css?v=22", "divisions.css?v=22", "neon.css?v=22"];
   for (var i = 0; i < files.length; i++) {
     var link = document.createElement("link");
     link.rel = "stylesheet";
@@ -239,12 +239,12 @@
      ?v= makes each one a different URL, so a changed file is a new
      download everywhere. BUMP THIS NUMBER WHENEVER A SCRIPT CHANGES.
 
-     BUMPED to 21 so app.js is refetched with the rest. -->
-<script src="teams.js?v=21"></script>
-<script src="boards.js?v=21"></script>
-<script src="sb-client.js?v=21"></script>
-<script src="winners.js?v=21"></script>
-<script src="app.js?v=21"></script>
+     BUMPED to 22 so app.js is refetched with the rest. -->
+<script src="teams.js?v=22"></script>
+<script src="boards.js?v=22"></script>
+<script src="sb-client.js?v=22"></script>
+<script src="winners.js?v=22"></script>
+<script src="app.js?v=22"></script>
 
 <script>
 (function () {
