@@ -718,6 +718,16 @@ function buildTabs() {
   cred.textContent = "Credit";
   cred.addEventListener("click", function () { setTab("credit"); });
   nav.appendChild(cred);
+
+  /* INVENTORY - control side only. What has been bought into the shop,
+     and what it cost. Hand-entered, like Credit. */
+  const inv = document.createElement("button");
+  inv.type = "button";
+  inv.dataset.viewBtn = "inventory";
+  inv.setAttribute("role", "tab");
+  inv.textContent = "Inventory";
+  inv.addEventListener("click", function () { setTab("inventory"); });
+  nav.appendChild(inv);
 }
 
 function setCompact(on) {
@@ -782,6 +792,25 @@ function setTab(tabId) {
     $("filter").value = "";
     $("saved").textContent = "";
     renderCredit();
+    return;
+  }
+
+  /* INVENTORY IS NOT A BOARD EITHER. It lists stock bought into the
+     shop, so it is handled like History and Credit - before the board
+     lookups, which would otherwise fall through to the first board. */
+  if (tabId === "inventory") {
+    currentTab = "inventory";
+    setCompact(false);
+    document.querySelectorAll("[data-view-btn]").forEach(function (b) {
+      const on = b.dataset.viewBtn === "inventory";
+      b.className = on ? "on" : "";
+      b.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    $("boardTitle").textContent = "Inventory";
+    $("boardSub").textContent = "Stock bought into the shop, and what it cost.";
+    $("filter").value = "";
+    $("saved").textContent = "";
+    renderInventory();
     return;
   }
 
@@ -3364,3 +3393,279 @@ async function renderCredit() {
   }
 }
 
+/* ============================================================
+   INVENTORY  -  CONTROL SIDE ONLY
+
+   What has been bought into the shop, and what it cost. Hand-entered:
+   an item, a cost each, how many, and an optional note. Nothing else
+   on the site reads this table and no customer page can see it.
+
+   The total above the list is the cost of everything logged, so the
+   stock figure does not have to be added up by eye.
+   ============================================================ */
+
+const SB_INV_URL = SB_WIN_URL + "/rest/v1/inventory";
+
+async function inventoryRead() {
+  const res = await fetch(
+    SB_INV_URL + "?select=*&order=created_at.desc",
+    { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+  );
+  if (!res.ok) throw new Error("Could not read the inventory (" + res.status + ")");
+  return res.json();
+}
+
+async function inventoryAdd(item, cost, qty, note) {
+  const name = String(item == null ? "" : item).trim();
+  if (!name) throw new Error("Enter what the item is.");
+
+  const price = Number(cost);
+  if (!isFinite(price) || price < 0) throw new Error("Enter a cost.");
+
+  const howMany = Math.max(1, parseInt(qty, 10) || 1);
+
+  const res = await fetch(SB_INV_URL, {
+    method: "POST",
+    headers: {
+      "apikey": SB_WIN_KEY,
+      "Authorization": "Bearer " + SB_WIN_KEY,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation"
+    },
+    body: JSON.stringify({
+      item: name,
+      cost: Math.round(price * 100) / 100,
+      qty: howMany,
+      note: String(note == null ? "" : note).trim()
+    })
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(function () { return ""; });
+    throw new Error("Could not save that item (" + res.status + ") " + txt);
+  }
+  const rows = await res.json();
+  return rows[0] || null;
+}
+
+async function inventoryRemove(id) {
+  const res = await fetch(
+    SB_INV_URL + "?id=eq." + encodeURIComponent(id),
+    { method: "DELETE", headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+  );
+  if (!res.ok) throw new Error("Could not remove that line (" + res.status + ")");
+  return true;
+}
+
+function invMoney(n) {
+  return "$" + (Number(n) || 0).toFixed(2);
+}
+
+async function renderInventory() {
+  const host = $("boards");
+  if (!host) return;
+
+  let rows = [];
+  try {
+    rows = await inventoryRead();
+  } catch (err) {
+    host.innerHTML = "";
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = err.message;
+    host.appendChild(p);
+    return;
+  }
+
+  host.innerHTML = "";
+
+  /* ---------- THE ENTRY FORM ---------- */
+  const form = document.createElement("div");
+  form.className = "creditform";
+
+  const title = document.createElement("h3");
+  title.className = "creditformtitle";
+  title.textContent = "Log an item into the shop";
+  form.appendChild(title);
+
+  const fields = document.createElement("div");
+  fields.className = "creditfields";
+
+  function field(labelText, inputEl) {
+    const wrap = document.createElement("label");
+    wrap.className = "creditfield";
+    const lbl = document.createElement("span");
+    lbl.className = "creditfieldlbl";
+    lbl.textContent = labelText;
+    wrap.appendChild(lbl);
+    wrap.appendChild(inputEl);
+    fields.appendChild(wrap);
+    return wrap;
+  }
+
+  const itemIn = document.createElement("input");
+  itemIn.type = "text";
+  itemIn.className = "creditinput";
+  itemIn.placeholder = "what came in";
+  itemIn.autocomplete = "off";
+  field("Item", itemIn);
+
+  const costIn = document.createElement("input");
+  costIn.type = "number";
+  costIn.step = "0.01";
+  costIn.min = "0";
+  costIn.className = "creditinput";
+  costIn.placeholder = "0.00";
+  costIn.inputMode = "decimal";
+  field("Cost each", costIn);
+
+  const qtyIn = document.createElement("input");
+  qtyIn.type = "number";
+  qtyIn.step = "1";
+  qtyIn.min = "1";
+  qtyIn.value = "1";
+  qtyIn.className = "creditinput";
+  qtyIn.inputMode = "numeric";
+  field("How many", qtyIn);
+
+  const noteIn = document.createElement("input");
+  noteIn.type = "text";
+  noteIn.className = "creditinput";
+  noteIn.placeholder = "optional";
+  noteIn.autocomplete = "off";
+  field("Note", noteIn);
+
+  form.appendChild(fields);
+
+  const actions = document.createElement("div");
+  actions.className = "creditactions";
+
+  async function submit() {
+    const name = itemIn.value.trim();
+    const cost = Number(costIn.value) || 0;
+    const qty = parseInt(qtyIn.value, 10) || 1;
+    if (!name) { $("saved").textContent = "Enter what the item is."; itemIn.focus(); return; }
+    if (!cost) { $("saved").textContent = "Enter a cost."; costIn.focus(); return; }
+    try {
+      await inventoryAdd(name, cost, qty, noteIn.value);
+      $("saved").textContent = name + " logged: " + qty + " at " + invMoney(cost) + " each.";
+      itemIn.value = ""; costIn.value = ""; qtyIn.value = "1"; noteIn.value = "";
+      itemIn.focus();
+      renderInventory();
+    } catch (err) {
+      $("saved").textContent = err.message;
+    }
+  }
+
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "creditbtn add";
+  addBtn.innerHTML = "<b>Log it in</b><i>add to inventory</i>";
+  addBtn.addEventListener("click", submit);
+  actions.appendChild(addBtn);
+  form.appendChild(actions);
+
+  itemIn.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); costIn.focus(); }
+  });
+  costIn.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); qtyIn.focus(); }
+  });
+  qtyIn.addEventListener("keydown", function (ev) {
+    if (ev.key === "Enter") { ev.preventDefault(); submit(); }
+  });
+
+  host.appendChild(form);
+
+  /* ---------- THE TOTAL ---------- */
+  const spend = rows.reduce(function (sum, r) {
+    return sum + (Number(r.cost) || 0) * (Number(r.qty) || 1);
+  }, 0);
+  const units = rows.reduce(function (sum, r) {
+    return sum + (Number(r.qty) || 1);
+  }, 0);
+
+  if (rows.length) {
+    const head = document.createElement("div");
+    head.className = "invhead";
+    head.innerHTML = "<b>" + units + "</b> " + (units === 1 ? "item" : "items") +
+      " across <b>" + rows.length + "</b> " + (rows.length === 1 ? "line" : "lines") +
+      " &middot; total cost <b>" + invMoney(spend) + "</b>";
+    host.appendChild(head);
+  } else {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Nothing logged yet. Enter an item and what it cost above.";
+    host.appendChild(p);
+    return;
+  }
+
+  /* ---------- THE LINES ---------- */
+  const table = document.createElement("table");
+  table.className = "invtable";
+  const thead = document.createElement("thead");
+  thead.innerHTML = "<tr><th>Item</th><th>Cost each</th><th>Qty</th>" +
+    "<th>Total</th><th>Note</th><th>Logged</th><th></th></tr>";
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  rows.forEach(function (r) {
+    const tr = document.createElement("tr");
+
+    const c1 = document.createElement("td");
+    c1.className = "who";
+    c1.textContent = r.item || "-";
+    tr.appendChild(c1);
+
+    const c2 = document.createElement("td");
+    c2.className = "givcount";
+    c2.textContent = invMoney(r.cost);
+    tr.appendChild(c2);
+
+    const c3 = document.createElement("td");
+    c3.className = "meta";
+    c3.textContent = r.qty || 1;
+    tr.appendChild(c3);
+
+    const c4 = document.createElement("td");
+    c4.className = "givcount";
+    c4.textContent = invMoney((Number(r.cost) || 0) * (Number(r.qty) || 1));
+    tr.appendChild(c4);
+
+    const c5 = document.createElement("td");
+    c5.className = "meta";
+    c5.textContent = r.note || "";
+    tr.appendChild(c5);
+
+    const c6 = document.createElement("td");
+    c6.className = "meta";
+    const d = new Date(r.created_at);
+    c6.textContent = isNaN(d) ? "-" : d.toLocaleString();
+    tr.appendChild(c6);
+
+    const c7 = document.createElement("td");
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "ghost";
+    del.textContent = "Remove";
+    del.title = "Remove this line from the inventory";
+    del.addEventListener("click", async function () {
+      try {
+        await inventoryRemove(r.id);
+        $("saved").textContent = (r.item || "That line") + " removed.";
+        renderInventory();
+      } catch (err) {
+        $("saved").textContent = err.message;
+      }
+    });
+    c7.appendChild(del);
+    tr.appendChild(c7);
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+
+  const wrap = document.createElement("div");
+  wrap.className = "giventries";
+  wrap.appendChild(table);
+  host.appendChild(wrap);
+}
