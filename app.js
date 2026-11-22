@@ -3759,19 +3759,15 @@ async function renderInventory() {
   }
 
   /* the tick state has to survive a redraw, so drop anything gone */
+  /* the tick state has to survive a redraw, so drop anything gone */
   const stillHere = {};
   rows.forEach(function (r) { if (picked[r.id]) stillHere[r.id] = true; });
   window.__invPicked = picked = stillHere;
 
-  /* ================= LEFT: THE STOCK, AS SELECTABLE CARDS =================
-
-     EACH ITEM IS A CARD YOU CLICK - not a row in a table. The card
-     carries everything that was entered: what it is, what it cost
-     each, how many, what the line comes to, the note, and when it was
-     logged. So the item describes itself on the card.
-
-     Clicking selects it. A selected card lights gold, and the item
-     appears at once on the calculation side. Click again to unselect. */
+  /* EACH ITEM IS A CARD YOU CLICK, not a table row. The card carries
+     everything entered - what it is, cost each, how many, the line
+     total, the note and when it was logged. Clicking selects it and it
+     appears on the calculation side; clicking again unselects it. */
   if (!rows.length) {
     const p = document.createElement("p");
     p.className = "empty";
@@ -3780,7 +3776,6 @@ async function renderInventory() {
   } else {
     const grid = document.createElement("div");
     grid.className = "invgrid";
-
     rows.forEach(function (r) {
       const card = document.createElement("button");
       card.type = "button";
@@ -3794,25 +3789,16 @@ async function renderInventory() {
 
       const facts = document.createElement("span");
       facts.className = "invcardfacts";
-
-      const f1 = document.createElement("i");
-      f1.textContent = "Cost each";
-      const v1 = document.createElement("b");
-      v1.textContent = invMoney(r.cost);
-      facts.appendChild(f1); facts.appendChild(v1);
-
-      const f2 = document.createElement("i");
-      f2.textContent = "How many";
-      const v2 = document.createElement("b");
-      v2.textContent = (r.qty || 1);
-      facts.appendChild(f2); facts.appendChild(v2);
-
-      const f3 = document.createElement("i");
-      f3.textContent = "Line total";
+      const f1 = document.createElement("i"); f1.textContent = "Cost each";
+      const v1 = document.createElement("b"); v1.textContent = invMoney(r.cost);
+      const f2 = document.createElement("i"); f2.textContent = "How many";
+      const v2 = document.createElement("b"); v2.textContent = (r.qty || 1);
+      const f3 = document.createElement("i"); f3.textContent = "Line total";
       const v3 = document.createElement("b");
       v3.textContent = invMoney((Number(r.cost) || 0) * (Number(r.qty) || 1));
+      facts.appendChild(f1); facts.appendChild(v1);
+      facts.appendChild(f2); facts.appendChild(v2);
       facts.appendChild(f3); facts.appendChild(v3);
-
       card.appendChild(facts);
 
       if (r.note) {
@@ -3843,7 +3829,6 @@ async function renderInventory() {
 
       grid.appendChild(card);
     });
-
     left.appendChild(grid);
   }
 
