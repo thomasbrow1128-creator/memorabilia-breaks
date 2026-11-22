@@ -18,9 +18,9 @@
    ?v= makes each one a different URL, so a changed file is a new
    download everywhere.
 
-   BUMPED to 27: the INVENTORY tab can now tick items, total what is
-   selected, and take them out as one report - with Put back to return
-   a batch to stock.
+   BUMPED to 28: neon.css carries the INVENTORY CARD styles. The cards
+   were being built with no CSS at all, so an item showed as loose text
+   instead of a selectable tile.
 
    app.js now carries: the HISTORY tab (every board reset is written down
    before it clears, and History lists each one); the GIVEAWAY wheel with
@@ -29,7 +29,7 @@
 
    neon.css carries the hub-mark styling and the spin glow. */
 (function () {
-  var files = ["casino.css?v=27", "divisions.css?v=27", "neon.css?v=27"];
+  var files = ["casino.css?v=28", "divisions.css?v=28", "neon.css?v=28"];
   for (var i = 0; i < files.length; i++) {
     var link = document.createElement("link");
     link.rel = "stylesheet";
@@ -239,12 +239,12 @@
      ?v= makes each one a different URL, so a changed file is a new
      download everywhere. BUMP THIS NUMBER WHENEVER A SCRIPT CHANGES.
 
-     BUMPED to 27 so app.js is refetched with the rest. -->
-<script src="teams.js?v=27"></script>
-<script src="boards.js?v=27"></script>
-<script src="sb-client.js?v=27"></script>
-<script src="winners.js?v=27"></script>
-<script src="app.js?v=27"></script>
+     BUMPED to 28 so app.js is refetched with the rest. -->
+<script src="teams.js?v=28"></script>
+<script src="boards.js?v=28"></script>
+<script src="sb-client.js?v=28"></script>
+<script src="winners.js?v=28"></script>
+<script src="app.js?v=28"></script>
 
 <script>
 (function () {
