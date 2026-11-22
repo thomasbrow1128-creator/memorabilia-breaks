@@ -280,9 +280,59 @@ async function gwEarnFor(targetId, username) {
 
      There is no floor now. If the count says nothing is owed, nothing
      is written. Two boxes, one entry. Four boxes, two. */
+  /* ---------- ONE FRESH READ, THEN DECIDE ----------
+
+     The count above comes from a list fetched a moment earlier. Two
+     boxes entered a few seconds apart run this twice, and on the second
+     run the first box's entry may not be in that list yet - so the
+     count reads low and the person is paid AGAIN for a pair that has
+     already paid. That is what put two entries on TEST for two boxes.
+
+     So the stored count is taken once more, fresh, immediately before
+     the decision, and it is the fresh number that decides. If the fresh
+     read fails, the earlier count stands rather than writing blind. */
+  let haveNow = storedThisRun;
+  try {
+    const fresh = await fetch(
+      SB_GIVEAWAY_URL + "?select=username,source",
+      { headers: { "apikey": SB_WIN_KEY, "Authorization": "Bearer " + SB_WIN_KEY } }
+    );
+    if (fresh.ok) {
+      const rowsNow = await fresh.json();
+      haveNow = rowsNow.filter(function (r) {
+        return personKey(r.username) === name && r.source === boardId;
+      }).length;
+    }
+  } catch (e) { /* keep the earlier count */ }
+
   const owed = giveawayRate(boardId, boxes);
-  let missing = owed - storedThisRun;
+  let missing = owed - haveNow;
   if (missing < 0) missing = 0;
+
+  /* ---------- ALREADY PAID: WRITE A MANUAL ENTRY, DO NOT SKIP ----------
+
+     This returned early, and that broke the thing it sits in the path
+     of. Re-entering a name that is ALREADY in the giveaway lands here,
+     and an early return meant nothing was added - so putting someone
+     back on the board appeared to do nothing at all.
+
+     The rule this must not break: a PAIRS box that has already paid
+     must not pay AGAIN. That is about the boxes paying twice, not
+     about refusing a fresh entry for a name put back on.
+
+     So when nothing is owed, the person is given ONE manual entry -
+     the same kind the + button writes, and the same kind an off-site
+     purchase gets. It is recorded as manual, so it never counts as a
+     pair that paid, and the pairs rule stays intact. */
+  if (missing === 0) {
+    try {
+      await gwAddPerson(name, "manual", runId);
+      await gwLoad();
+    } catch (err) {
+      throw new Error(err && err.message ? err.message : "Could not add the entry.");
+    }
+    return;
+  }
 
   const failed = [];
   for (let i = 0; i < missing; i++) {
