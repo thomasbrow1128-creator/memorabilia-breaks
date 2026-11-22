@@ -3421,16 +3421,31 @@ async function renderCredit() {
 
 /* ---------- THE CARD ICON ----------
 
-   A DRAWN glyph in the site's own stroke, picked from the item's own
-   NAME. Eight shapes cover what comes through the shop; anything
-   unrecognised gets the box. No file to upload, nothing to license,
-   nothing that can 404. */
+   ONE ICON PER ITEM TYPE, and the same one every time.
+
+   An ICON HERE IS A TYPE OF THING, not a letter of its name. "Wax Box"
+   always draws the box, "Signed Jersey" always draws the tag, however
+   either is spelled - so a card is recognisable by its shape and colour
+   before its name is read, and the icons never shift under the person
+   using the board.
+
+   HOW A TYPE IS FOUND: the item's own name is matched against the words
+   listed for each type below, longest word first, so "shadowbox" wins
+   over "box". The FIRST type that matches is the one drawn. Anything
+   matching nothing falls to the generic box.
+
+   TO ADD A TYPE, add its words to the list and give it a shape from
+   INV_GLYPHS and a colour from INV_ACCENTS. Nothing else has to change.
+   ============================================================ */
+
 const INV_GLYPHS = {
+  box:    "<path d='M12 4l8 4v9l-8 4-8-4V8z'/>" +
+          "<path d='M4 8l8 4 8-4M12 12v9'/>",
   jar:    "<rect x='5' y='9' width='14' height='13' rx='3'/>" +
           "<path d='M8 9V6.5A1.5 1.5 0 0 1 9.5 5h5A1.5 1.5 0 0 1 16 6.5V9'/>" +
           "<path d='M5 14h14'/>",
-  box:    "<path d='M12 4l8 4v9l-8 4-8-4V8z'/>" +
-          "<path d='M4 8l8 4 8-4M12 12v9'/>",
+  bottle: "<path d='M10 4h4v3.2l1.8 2.6A5 5 0 0 1 16.6 13v5.4A1.6 1.6 0 0 1 15 20H9a1.6 1.6 0 0 1-1.6-1.6V13a5 5 0 0 1 .8-3.2L10 7.2z'/>" +
+          "<path d='M7.6 14.4h8.8'/>",
   case:   "<rect x='4' y='6' width='16' height='14' rx='3'/>" +
           "<path d='M9 6V4.6A1.6 1.6 0 0 1 10.6 3h2.8A1.6 1.6 0 0 1 15 4.6V6'/>" +
           "<path d='M4 13h16'/>",
@@ -3438,47 +3453,68 @@ const INV_GLYPHS = {
           "<path d='M4 11h16'/><path d='M8 15h5'/>",
   ring:   "<circle cx='12' cy='13' r='6'/><path d='M9.5 6.4L12 3.5l2.5 2.9'/>",
   ball:   "<circle cx='12' cy='12' r='8'/><path d='M12 4v16M4 12h16'/>",
-  bottle: "<path d='M10 4h4v3.2l1.8 2.6A5 5 0 0 1 16.6 13v5.4A1.6 1.6 0 0 1 15 20H9a1.6 1.6 0 0 1-1.6-1.6V13a5 5 0 0 1 .8-3.2L10 7.2z'/>" +
-          "<path d='M7.6 14.4h8.8'/>",
   tag:    "<path d='M12.8 3.8H20v7.2L11.6 19.4a2 2 0 0 1-2.8 0L3.6 14.2a2 2 0 0 1 0-2.8z'/>" +
-          "<circle cx='16.2' cy='7.6' r='1.3'/>"
+          "<circle cx='16.2' cy='7.6' r='1.3'/>",
+  mug:    "<path d='M5 7h11v8a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z'/>" +
+          "<path d='M16 9h1.6a2.6 2.6 0 0 1 0 5.2H16'/>",
+  print:  "<rect x='4' y='5' width='16' height='14' rx='2'/>" +
+          "<path d='M7 9h10M7 13h10M7 17h6'/>",
+  pennant:"<path d='M6 3v18'/><path d='M6 4h12l-3 4 3 4H6'/>"
 };
 
-/* first match wins, so specific words sit above general ones */
-const INV_ICON_RULES = [
-  { kind: "jar",    words: ["jar", "tub", "pot", "tin", "canister"] },
-  { kind: "bottle", words: ["bottle", "flask", "decant"] },
-  { kind: "case",   words: ["case", "display", "shadowbox", "frame"] },
-  { kind: "ring",   words: ["ring", "band", "jewel"] },
-  { kind: "ball",   words: ["ball", "sphere", "helmet", "basket"] },
-  { kind: "card",   words: ["card", "ticket", "stub", "photo", "print",
-                            "poster", "sticker", "patch"] },
-  { kind: "box",    words: ["box", "pack", "set", "sealed", "wax", "blaster",
-                            "hobby", "bundle", "lot", "kit"] },
-  { kind: "tag",    words: ["tag", "shirt", "jersey", "tee", "cap", "hat",
-                            "banner", "flag"] }
+/* Longest word first, so the finer type beats the broader one. */
+const INV_TYPES = [
+  { kind: "case",    words: ["shadowbox", "display case", "display", "case", "frame"] },
+  { kind: "print",   words: ["photograph", "photo", "print", "poster", "art"] },
+  { kind: "pennant", words: ["pennant", "flag", "banner"] },
+  { kind: "tag",     words: ["jersey", "shirt", "tee", "cap", "hat", "tag", "patch"] },
+  { kind: "card",    words: ["card", "ticket", "stub", "sticker", "wax pack"] },
+  { kind: "ring",    words: ["ring", "band", "jewel"] },
+  { kind: "ball",    words: ["ball", "sphere", "helmet", "basket"] },
+  { kind: "bottle",  words: ["bottle", "flask", "decant", "cologne"] },
+  { kind: "jar",     words: ["canister", "jar", "tub", "tin", "pot"] },
+  { kind: "mug",     words: ["mug", "cup", "glass", "tumbler"] },
+  { kind: "box",     words: ["blaster", "bundle", "sealed", "hobby", "box", "pack", "set", "kit", "lot"] }
 ];
 
+/* every word from every type, longest first, so matching is stable */
+const INV_TYPE_WORDS = (function () {
+  const out = [];
+  INV_TYPES.forEach(function (t) {
+    t.words.forEach(function (w) { out.push({ kind: t.kind, word: w }); });
+  });
+  out.sort(function (a, b) { return b.word.length - a.word.length; });
+  return out;
+})();
+
+/* WHICH TYPE AN ITEM IS. Stable: the same name always gives the same
+   icon, and the icon never depends on where the card sits in the list. */
 function invIconKind(itemName) {
-  const s = String(itemName == null ? "" : itemName).toLowerCase();
-  for (let i = 0; i < INV_ICON_RULES.length; i++) {
-    const rule = INV_ICON_RULES[i];
-    for (let w = 0; w < rule.words.length; w++) {
-      if (s.indexOf(rule.words[w]) !== -1) return rule.kind;
-    }
+  const s = " " + String(itemName == null ? "" : itemName).toLowerCase() + " ";
+  for (let i = 0; i < INV_TYPE_WORDS.length; i++) {
+    if (s.indexOf(INV_TYPE_WORDS[i].word) !== -1) return INV_TYPE_WORDS[i].kind;
   }
   return "box";
 }
 
+/* the label shown on the tile and in the panel */
+function invTypeLabel(kind) {
+  const found = INV_TYPES.filter(function (t) { return t.kind === kind; })[0];
+  return found ? found.words[0] : kind;
+}
+
 const INV_ACCENTS = {
-  jar:    { ink: "#6ee7a8", glow: "rgba(110,231,168,.55)" },
-  box:    { ink: "#ffd75e", glow: "rgba(255,215,94,.55)" },
-  case:   { ink: "#7fd4ff", glow: "rgba(127,212,255,.55)" },
-  card:   { ink: "#c9a6ff", glow: "rgba(201,166,255,.55)" },
-  ring:   { ink: "#ffe89a", glow: "rgba(255,232,154,.6)" },
-  ball:   { ink: "#ff9b7a", glow: "rgba(255,155,122,.55)" },
-  bottle: { ink: "#8ef0e0", glow: "rgba(142,240,224,.55)" },
-  tag:    { ink: "#ff8fd0", glow: "rgba(255,143,208,.55)" }
+  box:     { ink: "#ffd75e", glow: "rgba(255,215,94,.55)" },
+  jar:     { ink: "#6ee7a8", glow: "rgba(110,231,168,.55)" },
+  bottle:  { ink: "#8ef0e0", glow: "rgba(142,240,224,.55)" },
+  case:    { ink: "#7fd4ff", glow: "rgba(127,212,255,.55)" },
+  card:    { ink: "#c9a6ff", glow: "rgba(201,166,255,.55)" },
+  ring:    { ink: "#ffe89a", glow: "rgba(255,232,154,.6)" },
+  ball:    { ink: "#ff9b7a", glow: "rgba(255,155,122,.55)" },
+  tag:     { ink: "#ff8fd0", glow: "rgba(255,143,208,.55)" },
+  mug:     { ink: "#9fb8ff", glow: "rgba(159,184,255,.55)" },
+  print:   { ink: "#ffb86b", glow: "rgba(255,184,107,.55)" },
+  pennant: { ink: "#7affc4", glow: "rgba(122,255,196,.55)" }
 };
 
 function invAccent(kind) {
@@ -3914,7 +3950,7 @@ async function renderInventory() {
         else picked[r.id] = true;
         card.className = "invcard" + (picked[r.id] ? " on" : "");
         mark.textContent = picked[r.id] ? "\u2713 SELECTED" : "Select";
-        drawPicker();
+        drawPanel();
       });
 
       grid.appendChild(card);
@@ -3922,8 +3958,22 @@ async function renderInventory() {
     left.appendChild(grid);
   }
 
-  /* ================= RIGHT: THE PICKER ================= */
-  function drawPicker() {
+  /* ================= RIGHT: THE PANEL =================
+
+     The panel is where a selection is assembled. It opens on the right
+     of the page and stays put while stock is ticked on the left, so the
+     running total is always in view.
+
+     IT GROUPS THE SELECTION BY TYPE. Ticking four wax boxes and two
+     jerseys gives two blocks - a box icon with "4 x Wax Box", a tag icon
+     with "2 x Signed Jersey" - each with its own cost, and one grand
+     total underneath. That is the whole point of the icons: a job reads
+     at a glance as what kinds of things went out, not a flat list.
+
+     DONE stays the single action. It writes the report and takes the
+     stock out in one press, so the record and the stock can never
+     disagree. */
+  function drawPanel() {
     right.innerHTML = "";
 
     const card = document.createElement("div");
@@ -3931,62 +3981,108 @@ async function renderInventory() {
 
     const t = document.createElement("h3");
     t.className = "picktitle";
-    t.textContent = "Selected to come out";
+    t.textContent = "Coming out of stock";
     card.appendChild(t);
 
-    const keys = Object.keys(picked);
     const chosen = rows.filter(function (r) { return picked[r.id]; });
 
     if (!chosen.length) {
       const p = document.createElement("p");
       p.className = "empty";
-      p.textContent = "Tick items on the left and they come here, with the cost " +
-        "added up. Press Done when the selection is finished and it goes " +
-        "into one report below.";
+      p.textContent = "Select stock on the left and it comes here, grouped by " +
+        "what it is, with the cost added up. Press Done and it goes into the " +
+        "report below and comes out of the inventory.";
       card.appendChild(p);
       right.appendChild(card);
       return;
     }
 
-    /* each item, with its own line cost */
-    const list = document.createElement("div");
-    list.className = "picklist";
+    /* ---------- GROUP BY TYPE ---------- */
+    const groups = [];
+    const byKind = {};
     let total = 0;
     let count = 0;
 
     chosen.forEach(function (r) {
+      const kind = invIconKind(r.item);
       const lineTotal = (Number(r.cost) || 0) * (Number(r.qty) || 1);
       total += lineTotal;
       count += Number(r.qty) || 1;
-
-      const row = document.createElement("div");
-      row.className = "pickrow";
-
-      const nm = document.createElement("span");
-      nm.className = "pickname";
-      nm.textContent = (r.item || "-") + "  x" + (r.qty || 1);
-      row.appendChild(nm);
-
-      const each = document.createElement("span");
-      each.className = "pickeach";
-      each.textContent = invMoney(r.cost) + " ea";
-      row.appendChild(each);
-
-      const lt = document.createElement("span");
-      lt.className = "pickline";
-      lt.textContent = invMoney(lineTotal);
-      row.appendChild(lt);
-
-      list.appendChild(row);
+      if (!byKind[kind]) {
+        byKind[kind] = { kind: kind, lines: [], units: 0, money: 0 };
+        groups.push(byKind[kind]);
+      }
+      byKind[kind].lines.push(r);
+      byKind[kind].units += Number(r.qty) || 1;
+      byKind[kind].money += lineTotal;
     });
-    card.appendChild(list);
 
-    /* the totals */
+    groups.forEach(function (g) {
+      const accent = invAccent(g.kind);
+
+      const block = document.createElement("div");
+      block.className = "pickgroup";
+      block.style.setProperty("--inv-accent", accent.ink);
+      block.style.setProperty("--inv-glow", accent.glow);
+
+      const head = document.createElement("div");
+      head.className = "pickgrouphead";
+
+      const ico = document.createElement("span");
+      ico.className = "pickgroupicon";
+      ico.innerHTML = invGlyph(g.kind);
+      head.appendChild(ico);
+
+      const lbl = document.createElement("span");
+      lbl.className = "pickgrouplabel";
+      lbl.textContent = g.units + (g.units === 1 ? " unit" : " units") +
+        " \u00b7 " + invTypeLabel(g.kind);
+      head.appendChild(lbl);
+
+      const money = document.createElement("b");
+      money.className = "pickgroupmoney";
+      money.textContent = invMoney(g.money);
+      head.appendChild(money);
+
+      block.appendChild(head);
+
+      const list = document.createElement("div");
+      list.className = "picklist";
+      g.lines.forEach(function (r) {
+        const lineTotal = (Number(r.cost) || 0) * (Number(r.qty) || 1);
+        const row = document.createElement("div");
+        row.className = "pickrow";
+
+        const nm = document.createElement("span");
+        nm.className = "pickname";
+        nm.textContent = (r.item || "-") + "  x" + (r.qty || 1);
+        row.appendChild(nm);
+
+        const each = document.createElement("span");
+        each.className = "pickeach";
+        each.textContent = invMoney(r.cost) + " ea";
+        row.appendChild(each);
+
+        const lt = document.createElement("span");
+        lt.className = "pickline";
+        lt.textContent = invMoney(lineTotal);
+        row.appendChild(lt);
+
+        list.appendChild(row);
+      });
+      block.appendChild(list);
+
+      card.appendChild(block);
+    });
+
+    /* ---------- THE TOTAL ---------- */
     const tot = document.createElement("div");
     tot.className = "picktotal";
-    tot.innerHTML = "<span>" + chosen.length +
-      (chosen.length === 1 ? " line" : " lines") + " &middot; " + count +
-      (count === 1 ? " item" : " items") + "</span><b>" + invMoney(total) + "</b>";
+    tot.innerHTML = "<span>" + groups.length +
+      (groups.length === 1 ? " type" : " types") + " &middot; " +
+      chosen.length + (chosen.length === 1 ? " line" : " lines") + " &middot; " +
+      count + (count === 1 ? " unit" : " units") + "</span><b>" +
+      invMoney(total) + "</b>";
     card.appendChild(tot);
 
     /* a note for the record */
@@ -4005,20 +4101,20 @@ async function renderInventory() {
 
     /* ---------- DONE ----------
 
-       Press this when the selection is finished. Everything ticked
-       goes into ONE report line and comes off the inventory in one
-       action, so the history reads as a single job rather than one
-       entry per item. */
+       The single action. Every line ticked is written to the report
+       FIRST and taken out of stock SECOND, so a failure can never lose
+       the record of something that left the shelf. */
     const go = document.createElement("button");
     go.type = "button";
     go.className = "creditbtn done";
-    go.innerHTML = "<b>Done</b><i>record and take out of inventory</i>";
+    go.innerHTML = "<b>Done</b><i>save the report and take it out of stock</i>";
     go.addEventListener("click", async function () {
       go.disabled = true;
+      go.textContent = "Saving...";
       try {
         const res = await inventoryMoveOut(chosen, outNote.value);
         $("saved").textContent = "Done: " + res.moved +
-          (res.moved === 1 ? " line" : " lines") + " recorded as one, " +
+          (res.moved === 1 ? " line" : " lines") + " saved to the report, " +
           invMoney(total) + " taken out of inventory.";
         if (res.failed && res.failed.length) {
           $("saved").textContent += " Some did not go: " + res.failed.join("; ");
@@ -4028,6 +4124,7 @@ async function renderInventory() {
       } catch (err) {
         $("saved").textContent = err.message;
         go.disabled = false;
+        go.innerHTML = "<b>Done</b><i>save the report and take it out of stock</i>";
       }
     });
     card.appendChild(go);
@@ -4035,7 +4132,7 @@ async function renderInventory() {
     const clear = document.createElement("button");
     clear.type = "button";
     clear.className = "ghost";
-    clear.textContent = "Untick all";
+    clear.textContent = "Clear the selection";
     clear.addEventListener("click", function () {
       window.__invPicked = {};
       renderInventory();
@@ -4045,7 +4142,7 @@ async function renderInventory() {
     right.appendChild(card);
   }
 
-  drawPicker();
+  drawPanel();
 
   /* ================= BELOW: WHAT HAS COME OUT ================= */
   const outHead = document.createElement("div");
