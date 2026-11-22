@@ -3606,9 +3606,24 @@ function invMoney(n) {
   return "$" + (Number(n) || 0).toFixed(2);
 }
 
+/* ---------- ONLY ONE RUN MAY DRAW ----------
+
+   renderInventory awaits two fetches before it paints. If a redraw
+   fires while it is waiting - a board repaint, a watcher, another tab
+   switch - a SECOND run starts and clears the container, and the first
+   run's table is thrown away with it. That is why the stock table
+   never appeared while the entry form did: the form is written before
+   the awaits land, the table after, and the second run wipes the lot.
+
+   A run token fixes it. Each call takes a number; only the call whose
+   number is still the newest is allowed to touch the container. */
+let invRun = 0;
+
 async function renderInventory() {
   const host = $("boards");
   if (!host) return;
+
+  const myRun = ++invRun;
 
   let rows = [];
   let outRows = [];
@@ -3623,6 +3638,9 @@ async function renderInventory() {
     return;
   }
   try { outRows = await inventoryOutRead(); } catch (e) { outRows = []; }
+
+  /* a newer run has started, so this one must not draw */
+  if (myRun !== invRun) return;
 
   /* which lines are ticked - kept between redraws */
   if (!window.__invPicked) window.__invPicked = {};
